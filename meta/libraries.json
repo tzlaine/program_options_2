@@ -1,0 +1,8 @@
+{
+    "key": "program_options_2",
+    "name": "ProgramOptions2",
+    "authors": [ "T. Zachary Laine" ],
+    "maintainers": [ "Zach Laine <whatwasthataddress -at- gmail.com>" ],
+    "description": "A library for parsing and storing commend line options.",
+    "category": [ "Parsing" ]
+}
