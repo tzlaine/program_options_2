@@ -21,6 +21,7 @@
 #include <boost/stl_interfaces/iterator_interface.hpp>
 #include <boost/stl_interfaces/view_interface.hpp>
 #include <boost/text/case_mapping.hpp>
+#include <boost/text/estimated_width.hpp>
 #include <boost/text/utf.hpp>
 #include <boost/text/transcode_view.hpp>
 
@@ -30,6 +31,7 @@
 #include <boost/filesystem/path.hpp>
 #endif
 
+#include <sstream>
 #include <string_view>
 #include <type_traits>
 
@@ -396,6 +398,8 @@ namespace boost { namespace program_options_2 {
             return detail::as_utf<Format>(std::begin(r), std::end(r));
         }
 
+        constexpr inline int max_col_width = 80;
+
         template<text::format Format, typename Stream, typename Char>
         void print_uppercase(Stream & os, std::basic_string_view<Char> str)
         {
@@ -433,6 +437,7 @@ namespace boost { namespace program_options_2 {
             for (int i = 0; i < repetitions; ++i) {
                 if (print_leading_space)
                     os << ' ';
+                print_leading_space = true;
 
                 if (opt.arg_display_name.empty())
                     detail::print_uppercase<Format>(os, name);
@@ -455,32 +460,54 @@ namespace boost { namespace program_options_2 {
             std::basic_string_view<Char> prog_desc,
             Options const &... opts)
         {
-            os << detail::usage_colon<Format>() << prog;
-
             using opt_tuple_type = hana::tuple<Options const &...>;
             opt_tuple_type opt_tuple{opts...};
 
-            auto print_opt = [&os](auto const & opt) {
-                os << ' ';
+            os << detail::usage_colon<Format>() << ' ' << prog;
+
+            int const usage_colon_width = text::estimated_width_of_graphemes(
+                text::as_utf32(detail::usage_colon<Format>()));
+            int const prog_width =
+                text::estimated_width_of_graphemes(text::as_utf32(prog));
+
+            int first_column = usage_colon_width + 1 + prog_width;
+            if (detail::max_col_width / 2 < first_column)
+                first_column = usage_colon_width;
+
+            int current_width = first_column;
+
+            auto print_opt = [&](auto const & opt) {
+                std::ostringstream oss;
+
+                oss << ' ';
 
                 if (!opt.required)
-                    os << '[';
+                    oss << '[';
 
                 if (detail::positional(opt)) {
-                    detail::print_args<Format>(os, opt.names, opt, false);
+                    detail::print_args<Format>(oss, opt.names, opt, false);
                 } else {
                     auto const shortest_name =
                         detail::first_shortest_name(opt.names);
-                    os << shortest_name;
+                    oss << shortest_name;
                     detail::print_args<Format>(
-                        os,
+                        oss,
                         detail::trim_leading_dashes(shortest_name),
                         opt,
                         true);
                 }
 
                 if (!opt.required)
-                    os << ']';
+                    oss << ']';
+
+                std::string const str(std::move(oss).str());
+                auto const str_width =
+                    text::estimated_width_of_graphemes(text::as_utf32(str));
+                if (detail::max_col_width < current_width + str_width) {
+                    os << '\n' << std::string(first_column, ' ');
+                }
+
+                os << str;
             };
 
             if (detail::no_help_option(opts...))

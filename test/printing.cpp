@@ -85,4 +85,42 @@ TEST(printing, detail_print_args)
     }
 }
 
+TEST(printing, detail_print_help_synopsis)
+{
+    std::string const exe = std::string("foo") + po2::detail::fs_sep + "bar";
+    using sv = std::string_view;
+
+    {
+        std::ostringstream os;
+        po2::detail::print_help_synopsis<boost::text::format::utf8>(
+            std::cout,
+            sv(exe),
+            sv("A program that does things."),
+            po2::positional<int>("foo"));
+        //EXPECT_EQ(os.str(), " FOO");
+    }
+
+    {
+        std::ostringstream os;
+        po2::detail::print_help_synopsis<boost::text::format::utf8>(
+            std::cout,
+            sv(exe),
+            sv("A program that does things."),
+            po2::positional<std::vector<int>>("foo", 30));
+        //EXPECT_EQ(os.str(), " FOO");
+    }
+
+    {
+        std::string const long_exe = std::string("foo") + po2::detail::fs_sep +
+                                     "barrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr";
+        std::ostringstream os;
+        po2::detail::print_help_synopsis<boost::text::format::utf8>(
+            std::cout,
+            sv(long_exe),
+            sv("A program that does things."),
+            po2::positional<std::vector<int>>("foo", 30));
+        //EXPECT_EQ(os.str(), " FOO");
+    }
+}
+
 // TODO
