@@ -20,6 +20,7 @@
 
 #include <boost/stl_interfaces/iterator_interface.hpp>
 #include <boost/stl_interfaces/view_interface.hpp>
+#include <boost/text/bidirectional.hpp>
 #include <boost/text/case_mapping.hpp>
 #include <boost/text/estimated_width.hpp>
 #include <boost/text/utf.hpp>
@@ -541,21 +542,27 @@ namespace boost { namespace program_options_2 {
             // TODO
         }
 
-        template<
-            text::format Format,
-            typename Stream,
-            typename Char,
-            typename... Options>
+        template<text::format Format, typename Char, typename... Options>
         void print_help(
-            Stream & os,
+            std::basic_ostream<Char> & os,
             std::basic_string_view<Char> argv0,
             std::basic_string_view<Char> desc,
             Options const &... opts)
         {
+            std::basic_ostringstream<Char> oss;
             print_help_synopsis<Format>(
-                os, detail::program_name(argv0), desc, opts...);
-            print_help_positionals<Format>(os, opts...);
-            print_help_optionals<Format>(os, opts...);
+                oss, detail::program_name(argv0), desc, opts...);
+            print_help_positionals<Format>(oss, opts...);
+            print_help_optionals<Format>(oss, opts...);
+            auto const str = std::move(oss).str();
+            for (auto range :
+                 text::bidirectional_subranges(text::as_utf32(str))) {
+                for (auto grapheme : range) {
+                    os << grapheme;
+                }
+                if (range.hard_break())
+                    os << "\n";
+            }
         }
     }
 
