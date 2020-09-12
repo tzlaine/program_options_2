@@ -25,3 +25,5 @@ macro(add_test_executable name)
 endmacro()
 
 add_test_executable(detail)
+add_test_executable(options)
+add_test_executable(printing)

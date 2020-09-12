@@ -1,4 +1,4 @@
-// Copyright (C) 2018 T. Zachary Laine
+// Copyright (C) 2020 T. Zachary Laine
 //
 // Distributed under the Boost Software License, Version 1.0. (See
 // accompanying file LICENSE_1_0.txt or copy at
@@ -33,8 +33,65 @@ TEST(detail, program_name)
     }
 }
 
-
 TEST(detail, names_view)
+{
+    {
+        auto const v = po2::detail::names_view("foo");
+        std::vector<std::string_view> names(v.begin(), v.end());
+        EXPECT_EQ(names.size(), 1u);
+        EXPECT_EQ(names[0], "foo");
+    }
+    {
+        auto const v = po2::detail::names_view(",foo,bar, baz,");
+        std::vector<std::string_view> names(v.begin(), v.end());
+        EXPECT_EQ(names.size(), 4u);
+        EXPECT_EQ(names[0], "");
+        EXPECT_EQ(names[1], "foo");
+        EXPECT_EQ(names[2], "bar");
+        EXPECT_EQ(names[3], " baz");
+    }
+}
+
+TEST(detail, misc)
+{
+    // first_shortest_name
+    {
+        EXPECT_EQ(po2::detail::first_shortest_name(",foo,bar, baz,"), " baz");
+    }
+    {
+        EXPECT_EQ(po2::detail::first_shortest_name("--bar,-f,-b"), "-f");
+    }
+
+    // valid_nonpositional_names
+    {
+        EXPECT_TRUE(po2::detail::valid_nonpositional_names("-f,--bar,-b"));
+    }
+    {
+        EXPECT_TRUE(po2::detail::valid_nonpositional_names("-f,--bar,-b"));
+    }
+    {
+        EXPECT_FALSE(po2::detail::valid_nonpositional_names("-f,bar,-b"));
+    }
+
+    // argv_contains_default_help_flag
+    {
+        char const * argv[] = {"", "help"};
+        EXPECT_FALSE(po2::detail::argv_contains_default_help_flag(
+            std::begin(argv), std::end(argv)));
+    }
+    {
+        char const * argv[] = {"foo", "-h"};
+        EXPECT_TRUE(po2::detail::argv_contains_default_help_flag(
+            std::begin(argv), std::end(argv)));
+    }
+    {
+        char const * argv[] = {"foo", "--help"};
+        EXPECT_TRUE(po2::detail::argv_contains_default_help_flag(
+            std::begin(argv), std::end(argv)));
+    }
+}
+
+TEST(detail, check_options)
 {
     // TODO
 }

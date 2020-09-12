@@ -21,4 +21,4 @@ macro(add_sample name)
     endif ()
 endmacro()
 
-#add_sample(TODO)
+add_sample(hello)

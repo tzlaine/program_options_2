@@ -46,16 +46,6 @@ namespace boost { namespace program_options_2 {
     inline constexpr int remainder = -4;
 
     namespace detail {
-        template<typename FwdIter, typename T>
-        FwdIter find(FwdIter first, FwdIter last, T const & x)
-        {
-            for (; first != last; ++first) {
-                if (*first == x)
-                    return first;
-            }
-            return last;
-        }
-
         template<typename BidiIter, typename T>
         BidiIter find_last(BidiIter first, BidiIter last, T const & x)
         {
@@ -156,7 +146,7 @@ namespace boost { namespace program_options_2 {
         template<typename T, typename Value, required_t Required, int Choices>
         bool positional(option<T, Value, Required, Choices> const & opt)
         {
-            return detail::positional(opt.name);
+            return detail::positional(opt.names);
         }
 
         template<typename T, typename Value, required_t Required, int Choices>
@@ -206,13 +196,15 @@ namespace boost { namespace program_options_2 {
 
             std::string_view operator*() const
             {
-                sv_iterator last = detail::find(it_, last_, ',');
-                BOOST_ASSERT(it_ != last);
+                sv_iterator last = std::find(it_, last_, ',');
+                BOOST_ASSERT(it_ != last_);
                 return {&*it_, std::size_t(last - it_)};
             }
             names_iter & operator++()
             {
-                it_ = detail::find(it_, last_, ',');
+                it_ = std::find(it_, last_, ',');
+                if (it_ != last_)
+                    ++it_;
                 return *this;
             }
             friend bool operator==(names_iter lhs, names_iter rhs) noexcept
@@ -275,8 +267,8 @@ namespace boost { namespace program_options_2 {
             if (detail::contains_ws(names))
                 return false;
             for (auto name : detail::names_view(names)) {
-                auto const trimmed_name = trim_leading_dashes(names);
-                auto const trimmed_dashes = trimmed_name.size() - name.size();
+                auto const trimmed_name = trim_leading_dashes(name);
+                auto const trimmed_dashes = name.size() - trimmed_name.size();
                 if (trimmed_dashes != 1u && trimmed_dashes != 2u)
                     return false;
                 // TODO: Check the characters in trimmed_name.  Use the
@@ -309,7 +301,7 @@ namespace boost { namespace program_options_2 {
                     // or display-names of options, even if they are
                     // comma-delimited multiple names.
                     BOOST_ASSERT(
-                        !detail::contains_ws(opt.name) &&
+                        !detail::contains_ws(opt.names) &&
                         !detail::contains_ws(opt.arg_display_name));
 
                     // This assert indicates that you're using an option with
@@ -318,14 +310,14 @@ namespace boost { namespace program_options_2 {
                     // arguments when you're parsing the command line into a
                     // hana::tuple.  Maybe that's what you meant. // TODO:
                     // names of API functions
-                    BOOST_ASSERT(!positionals_need_names || !opt.name.empty());
+                    BOOST_ASSERT(!positionals_need_names || !opt.names.empty());
 
                     // Regardless of the parsing operation you're using (see
                     // the assert directly above), you must give *some* name
                     // that can be displayed to the user.  That can be a
                     // proper name, or the argument's display-name.
                     BOOST_ASSERT(
-                        !opt.name.empty() || !opt.arg_display_name.empty());
+                        !opt.names.empty() || !opt.arg_display_name.empty());
 
                     // This assert means that you've specified one or more
                     // positional arguments that follow a previous positional
@@ -362,11 +354,15 @@ namespace boost { namespace program_options_2 {
         bool
         argv_contains_default_help_flag(Char const ** first, Char const ** last)
         {
-            std::basic_string_view<Char> const long_form = "--help";
-            std::basic_string_view<Char> const short_form = "--h";
-            while (first != last) {
-                if (*first == long_form || *first == short_form)
+            // TODO: Need some kind of customization point for these strings.
+            std::string_view const long_form = "--help";
+            std::string_view const short_form = "-h";
+            for (; first != last; ++first) {
+                auto const str = std::basic_string_view<Char>(*first);
+                if (std::ranges::equal(str, long_form) ||
+                    std::ranges::equal(str, short_form)) {
                     return true;
+                }
             }
             return false;
         }
@@ -381,7 +377,7 @@ namespace boost { namespace program_options_2 {
         // TODO: -> CPO?
         inline option<void> default_help()
         {
-            return {"-h,--help", action_kind::help};
+            return {"-h,--help", action_kind::help, 0};
         }
 
         template<text::format Format, typename I, typename S>
@@ -409,12 +405,14 @@ namespace boost { namespace program_options_2 {
             char buf[256];
             int const increment = Format == text::format::utf8 ? 126 : 64;
             while (increment < it - first) {
-                auto out = text::to_upper(first, it, last, buf);
-                os << detail::as_utf<Format>(buf, out);
+                auto out = text::to_upper(
+                    text::as_utf32(it, last), text::utf_32_to_8_out(buf));
+                os << detail::as_utf<Format>(buf, out.base());
                 it += increment;
             }
-            auto out = text::to_upper(first, it, last, buf);
-            os << detail::as_utf<Format>(buf, out);
+            auto out = text::to_upper(
+                text::as_utf32(it, last), text::utf_32_to_8_out(buf));
+            os << detail::as_utf<Format>(buf, out.base());
         }
 
         template<
@@ -425,11 +423,13 @@ namespace boost { namespace program_options_2 {
         void print_args(
             Stream & os, std::basic_string_view<Char> name, Option const & opt)
         {
-            int const repetitions = 1 < opt.nargs ? opt.nargs : 1;
+            int repetitions = opt.nargs ? opt.nargs : 0;
+            if (repetitions < 0)
+                repetitions = 1;
             for (int i = 0; i < repetitions; ++i) {
                 os << ' ';
                 if (opt.arg_display_name.empty())
-                    detail::print_uppercase<Format>(name);
+                    detail::print_uppercase<Format>(os, name);
                 else
                     os << detail::as_utf<Format>(opt.arg_display_name);
             }
@@ -461,12 +461,13 @@ namespace boost { namespace program_options_2 {
                     os << '[';
 
                 if (detail::positional(opt)) {
-                    detail::print_args<Format>(opt.name, opt);
+                    detail::print_args<Format>(os, opt.names, opt);
                 } else {
-                    auto const shortest_name = detail::first_shortest_name(opt);
+                    auto const shortest_name =
+                        detail::first_shortest_name(opt.names);
                     os << shortest_name;
                     detail::print_args<Format>(
-                        detail::trim_leading_dashes(shortest_name), opt);
+                        os, detail::trim_leading_dashes(shortest_name), opt);
                 }
 
                 if (!opt.required)
@@ -483,21 +484,13 @@ namespace boost { namespace program_options_2 {
                 os << prog_desc << "\n\n";
         }
 
-        template<
-            text::format Format,
-            typename Stream,
-            typename Char,
-            typename... Options>
+        template<text::format Format, typename Stream, typename... Options>
         void print_help_positionals(Stream & os, Options const &... opts)
         {
             // TODO
         }
 
-        template<
-            text::format Format,
-            typename Stream,
-            typename Char,
-            typename... Options>
+        template<text::format Format, typename Stream, typename... Options>
         void print_help_optionals(Stream & os, Options const &... opts)
         {
             // TODO
@@ -514,9 +507,10 @@ namespace boost { namespace program_options_2 {
             std::basic_string_view<Char> desc,
             Options const &... opts)
         {
-            print_help_synopsis(os, detail::program_name(argv0), desc, opts...);
-            print_help_positionals(os, opts...);
-            print_help_optionals(os, opts...);
+            print_help_synopsis<Format>(
+                os, detail::program_name(argv0), desc, opts...);
+            print_help_positionals<Format>(os, opts...);
+            print_help_optionals<Format>(os, opts...);
         }
     }
 
@@ -541,10 +535,13 @@ namespace boost { namespace program_options_2 {
         return {names, detail::action_kind::assign, 1};
     }
 
+    // TODO: Print choices as a|b|c.
+
     /** TODO */
     template<typename T, typename... Choices>
-    detail::option<T>
-    argument(std::string_view names, int nargs, Choices... choices)
+    detail::
+        option<T, detail::no_value, detail::required_t::yes, sizeof...(Choices)>
+        argument(std::string_view names, int nargs, Choices... choices)
     {
         // Each type in the parameter pack Choices... must be a T.  There's no
         // way to spell that in C++ besides this static_assert.
@@ -552,7 +549,7 @@ namespace boost { namespace program_options_2 {
         // There's something wrong with the argument names in "names".  Either
         // it contains whitespace, of it contains at least one name that is
         // not of the form "-<name>" or "--<name>".
-        BOOST_ASSERT(detail::valid_nonpositional_names(names)); // TODO: static_assert()!
+        BOOST_ASSERT(detail::valid_nonpositional_names(names));
         // An argument with nargs=0 and no default is a flag.  Use flag()
         // instead.
         BOOST_ASSERT(nargs != 0);
@@ -561,7 +558,9 @@ namespace boost { namespace program_options_2 {
             names,
             nargs == 1 ? detail::action_kind::assign
                        : detail::action_kind::insert,
-            nargs};
+            nargs,
+            {},
+            {{std::move(choices)...}}};
     }
 
     /** TODO */
@@ -578,12 +577,14 @@ namespace boost { namespace program_options_2 {
 
     /** TODO */
     template<typename T, typename... Choices>
-    detail::option<T> argument_with_default(
-        std::string_view names,
-        T default_value,
-        T choice0,
-        T choice1,
-        Choices... choices)
+    detail::
+        option<T, detail::no_value, detail::required_t::yes, sizeof...(Choices)>
+        argument_with_default(
+            std::string_view names,
+            T default_value,
+            T choice0,
+            T choice1,
+            Choices... choices)
     {
         // Each type in the parameter pack Choices... must be a T.  There's no
         // way to spell that in C++ besides this static_assert.
@@ -593,7 +594,12 @@ namespace boost { namespace program_options_2 {
         // not of the form "-<name>" or "--<name>".
         BOOST_ASSERT(detail::valid_nonpositional_names(names));
         // TODO: This is a non-positional, typical arg.
-        return {};
+        return {
+            names,
+            detail::action_kind::assign,
+            1,
+            std::move(default_value),
+            {{std::move(choice0), std::move(choice1), std::move(choices)...}}};
     }
 
     /** TODO */
@@ -738,7 +744,7 @@ namespace boost { namespace program_options_2 {
         // Looks like you tried to create a non-positional argument that does
         // not start with a '-'.  Don't do that.
         BOOST_ASSERT(!detail::positional(names));
-        return {names, detail::action_kind::version, 1, version};
+        return {names, detail::action_kind::version, 0, version};
     }
 
     /** TODO */
@@ -749,7 +755,7 @@ namespace boost { namespace program_options_2 {
         // Looks like you tried to create a non-positional argument that does
         // not start with a '-'.  Don't do that.
         BOOST_ASSERT(!detail::positional(names));
-        return {names, detail::action_kind::version, 1, f};
+        return {names, detail::action_kind::version, 0, f};
     }
 
     // TODO: Form exclusive groups using operator||?
@@ -826,17 +832,10 @@ namespace boost { namespace program_options_2 {
 #endif
 
     /** TODO */
-    template<typename... Options>
-    void check_options(Options const &... opts)
-    {
-        detail::check_options(false, opts...);
-    }
-
-    /** TODO */
     template<option_or_group Option, option_or_group... Options>
     auto parse_command_line(
         int argc,
-        char const * (&argv)[],
+        char const ** argv,
         std::ostream & os,
         Option opt,
         Options... opts)
@@ -848,7 +847,11 @@ namespace boost { namespace program_options_2 {
         if (no_help &&
             detail::argv_contains_default_help_flag(argv, argv + argc)) {
             detail::print_help<text::format::utf8>(
-                os, argv[0], std::basic_string_view<char>{}, opt, opts...);
+                os,
+                std::string_view(argv[0]),
+                std::string_view{},
+                opt,
+                opts...);
             return;
         }
 
@@ -861,7 +864,7 @@ namespace boost { namespace program_options_2 {
     template<option_or_group Option, option_or_group... Options>
     auto parse_command_line(
         int argc,
-        wchar_t const * (&argv)[],
+        wchar_t const ** argv,
         std::wostream & os,
         Option opt,
         Options... opts)
