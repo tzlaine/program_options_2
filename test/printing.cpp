@@ -12,6 +12,7 @@
 
 
 namespace po2 = boost::program_options_2;
+using sv = std::string_view;
 
 TEST(printing, detail_print_uppercase)
 {
@@ -85,10 +86,98 @@ TEST(printing, detail_print_args)
     }
 }
 
+TEST(printing, print_option_arguments)
+{
+    // no defaults
+    {
+        auto const arg = po2::argument<int>("-b,--blah");
+        std::ostringstream os;
+        po2::detail::print_option<boost::text::format::utf8>(os, arg, 8, 8);
+        EXPECT_EQ(os.str(), " [-b B]");
+    }
+    {
+        auto const arg = po2::argument<std::vector<int>>("-b,--blah", 2);
+        std::ostringstream os;
+        po2::detail::print_option<boost::text::format::utf8>(os, arg, 8, 8);
+        EXPECT_EQ(os.str(), " [-b B B]");
+    }
+    {
+        auto const arg = po2::argument<int>("--blah", po2::zero_or_one);
+#if 0 // TODO: Fix.
+        std::ostringstream os;
+        po2::detail::print_option<boost::text::format::utf8>(os, arg, 8, 8);
+        EXPECT_EQ(os.str(), " [--blah [BLAH ...]]");
+#endif
+    }
+    {
+        auto const arg =
+            po2::argument<std::vector<int>>("-b,--blah", po2::zero_or_more);
+    }
+    {
+        auto const arg =
+            po2::argument<std::vector<int>>("-b,--blah", po2::one_or_more);
+    }
+    {
+        auto const arg =
+            po2::argument<std::vector<int>>("-b,--blah", po2::remainder);
+    }
+
+    {
+        auto const arg = po2::argument<int>("-b,--blah", 1, 1, 2, 3);
+    }
+    {
+        auto const arg =
+            po2::argument<std::vector<int>>("-b,--blah", 2, 1, 2, 3);
+    }
+    {
+        auto const arg =
+            po2::argument<int>("-b,--blah", po2::zero_or_one, 1, 2, 3);
+    }
+    {
+        auto const arg = po2::argument<std::vector<int>>(
+            "-b,--blah", po2::zero_or_more, 1, 2, 3);
+    }
+    {
+        auto const arg = po2::argument<std::vector<int>>(
+            "-b,--blah", po2::one_or_more, 1, 2, 3);
+    }
+    {
+        auto const arg = po2::argument<std::vector<int>>(
+            "-b,--blah", po2::remainder, 1, 2, 3);
+    }
+
+    // with defaults
+    {
+        auto const arg = po2::with_default(po2::argument<int>("-b,--blah"), 42);
+    }
+    {
+        auto const arg = po2::with_default(
+            po2::argument<int>("-b,--blah", po2::zero_or_one), 42);
+    }
+    {
+        auto const arg = po2::with_default(
+            po2::argument<std::vector<int>>("-b,--blah", 2),
+            std::vector<int>({42}));
+    }
+    {
+        auto const arg = po2::with_default(
+            po2::argument<std::vector<int>>("-b,--blah", 2), 42);
+    }
+    {
+        auto const arg =
+            po2::with_default(po2::argument<int>("-b,--blah", 1, 1, 2, 3), 42);
+    }
+
+    // add a display name
+    {
+        auto const arg =
+            po2::with_display_name(po2::argument<int>("-b,--blah"), "blerg");
+    }
+}
+
 TEST(printing, detail_print_help_synopsis)
 {
     std::string const exe = std::string("foo") + po2::detail::fs_sep + "bar";
-    using sv = std::string_view;
 
     {
         std::ostringstream os;

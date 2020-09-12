@@ -48,6 +48,8 @@ namespace boost { namespace program_options_2 {
     /** TODO */
     inline constexpr int remainder = -4;
 
+    // TODO: Does remainder make sense for arguments?
+
     namespace detail {
         template<typename BidiIter, typename T>
         BidiIter find_last(BidiIter first, BidiIter last, T const & x)
@@ -91,15 +93,18 @@ namespace boost { namespace program_options_2 {
             typename T,
             typename Value = no_value,
             required_t Required = required_t::no,
-            int Choices = 0>
+            int Choices = 0,
+            typename ChoiceType = T>
         struct option
         {
             std::string_view names; // a single name, or --a,-b,--c,...
             action_kind action;
             int args;
             Value value; // argparse's "const" or "default"
-            using choice_type =
-                std::conditional_t<std::is_same_v<T, void>, no_value, T>;
+            using choice_type = std::conditional_t<
+                std::is_same_v<ChoiceType, void>,
+                no_value,
+                ChoiceType>;
             std::array<choice_type, Choices> choices;
             std::string_view arg_display_name; // argparse's "metavar"; only used here for non-positionals
             // TODO: Need this (probably not)? std::string_view stored_name;      // argparse's "dest"
@@ -164,7 +169,54 @@ namespace boost { namespace program_options_2 {
         concept insertable = requires(T t) {
             t.insert(t.end(), *t.begin());
         };
+        template<typename T, typename U>
+        concept insertable_from = requires(T t, U u) {
+            t.insert(t.end(), u);
+        };
         // clang-format on
+        template<typename T, typename Other>
+        concept assignable_to_or_insertable_into =
+            insertable_from<Other, T> || std::assignable_from<Other &, T &>;
+
+        template<typename T, typename U, typename = hana::when<true>>
+        struct is_insertable_from : std::false_type
+        {};
+        template<typename T, typename U>
+        struct is_insertable_from<
+            T,
+            U,
+            hana::when_valid<decltype(std::declval<T &>().insert(
+                std::declval<T &>().end(), std::declval<U &>()))>>
+            : std::true_type
+        {};
+
+        template<typename T, typename U>
+        struct is_assignable_to_or_insertable_from
+            : std::integral_constant<
+                  bool,
+                  std::is_assignable_v<T &, U &> ||
+                      is_insertable_from<T, U>::value>
+        {};
+        template<typename T, typename U>
+        constexpr bool is_assignable_to_or_insertable_from_v =
+            is_assignable_to_or_insertable_from<T, U>::value;
+
+        template<typename T, bool AllAssignable>
+        struct choice_type_impl
+        {
+            using type = T;
+        };
+        template<typename T>
+        struct choice_type_impl<T, false>
+        {
+            using type = std::ranges::range_value_t<T>;
+        };
+        template<typename T, typename... Choices>
+        struct choice_type
+            : choice_type_impl<T, (std::is_assignable_v<T &, Choices &> && ...)>
+        {};
+        template<typename T, typename... Choices>
+        using choice_type_t = typename choice_type<T, Choices...>::type;
 
         template<typename R>
         bool contains_ws(R const & r)
@@ -587,14 +639,24 @@ namespace boost { namespace program_options_2 {
     // TODO: Print choices as a|b|c.
 
     /** TODO */
-    template<typename T, typename... Choices>
-    detail::
-        option<T, detail::no_value, detail::required_t::yes, sizeof...(Choices)>
-        argument(std::string_view names, int args, Choices... choices)
+    template<typename T, detail::assignable_to_or_insertable_into<T>... Choices>
+    detail::option<
+        T,
+        detail::no_value,
+        detail::required_t::no,
+        sizeof...(Choices),
+        detail::choice_type_t<T, Choices...>>
+    argument(std::string_view names, int args, Choices... choices)
     {
-        // Each type in the parameter pack Choices... must be a T.  There's no
-        // way to spell that in C++ besides this static_assert.
-        static_assert((std::is_same_v<std::remove_cvref_t<Choices>, T> && ...));
+#if !BOOST_PROGRAM_OPTIONS_2_USE_CONCEPTS
+        // Each type in the parameter pack Choices... must be assignable to T,
+        // or insertable into T.
+        static_assert(
+            (detail::is_assignable_to_or_insertable_from_v<
+                 T,
+                 std::remove_cv_t<Choices>> &&
+             ...));
+#endif
         // There's something wrong with the argument names in "names".  Either
         // it contains whitespace, of it contains at least one name that is
         // not of the form "-<name>" or "--<name>".
@@ -626,14 +688,20 @@ namespace boost { namespace program_options_2 {
     }
 
     /** TODO */
-    template<typename T, typename... Choices>
+    template<typename T, detail::assignable_to_or_insertable_into<T>... Choices>
     detail::
         option<T, detail::no_value, detail::required_t::yes, sizeof...(Choices)>
         positional(std::string_view name, int args, Choices... choices)
     {
-        // Each type in the parameter pack Choices... must be a T.  There's no
-        // way to spell that in C++ besides this static_assert.
-        static_assert((std::is_same_v<std::remove_cvref_t<Choices>, T> && ...));
+#if !BOOST_PROGRAM_OPTIONS_2_USE_CONCEPTS
+        // Each type in the parameter pack Choices... must be assignable to T,
+        // or insertable into T.
+        static_assert(
+            (detail::is_assignable_to_or_insertable_from_v<
+                 T,
+                 std::remove_cv_t<Choices>> &&
+             ...));
+#endif
         // Looks like you tried to create a positional argument that starts
         // with a '-'.  Don't do that.
         BOOST_ASSERT(detail::positional(name));
@@ -675,13 +743,19 @@ namespace boost { namespace program_options_2 {
     // TODO: Doc that this only works with the hana::tuple-returning parse
     // function(s).
     /** TODO */
-    template<typename T, typename... Choices>
+    template<typename T, detail::assignable_to_or_insertable_into<T>... Choices>
     detail::option<T, T, detail::required_t::yes, sizeof...(Choices)>
     positional(int args, Choices... choices)
     {
-        // Each type in the parameter pack Choices... must be a T.  There's no
-        // way to spell that in C++ besides this static_assert.
-        static_assert((std::is_same_v<std::remove_cvref_t<Choices>, T> && ...));
+#if !BOOST_PROGRAM_OPTIONS_2_USE_CONCEPTS
+        // Each type in the parameter pack Choices... must be assignable to T,
+        // or insertable into T.
+        static_assert(
+            (detail::is_assignable_to_or_insertable_from_v<
+                 T,
+                 std::remove_cv_t<Choices>> &&
+             ...));
+#endif
         // A value of 0 for args makes no sense for a positional argument.
         BOOST_ASSERT(args != 0);
         // If you specify more than one argument with args, T must be a type
@@ -721,7 +795,8 @@ namespace boost { namespace program_options_2 {
         // not start with a '-'.  Don't do that.
         BOOST_ASSERT(!detail::positional(names));
         // Looks like you tried to create a counted flag with names that do
-        // not include a short name (of the form "-c".  Don't do that.
+        // not include a short name (of the form "-<name>", where "<name>" is
+        // a single character).  Don't do that.
         BOOST_ASSERT(detail::short_(detail::first_shortest_name(names)));
         return {names, detail::action_kind::count};
     }
