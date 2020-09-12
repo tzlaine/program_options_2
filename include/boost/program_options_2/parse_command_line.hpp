@@ -816,6 +816,9 @@ namespace boost { namespace program_options_2 {
     auto with_display_name(
         detail::option<T, Value, Required, Choices> opt, std::string_view name)
     {
+        // A display name for a flag or other option with no arguments will
+        // never be displayed.
+        BOOST_ASSERT(opt.args != 0);
         opt.arg_display_name = name;
         return opt;
     }
