@@ -24,4 +24,4 @@ macro(add_test_executable name)
     add_test(NAME ${name} COMMAND ${name} --gtest_catch_exceptions=1)
 endmacro()
 
-#add_test_executable(TODO)
+add_test_executable(detail)

@@ -48,6 +48,27 @@ endif ()
 
 
 ###############################################################################
+# Boost.Text (Proposed)
+###############################################################################
+if (NOT TEXT_ROOT)
+  message(FATAL_ERROR "TEXT_ROOT not defined")
+endif()
+add_library(text STATIC IMPORTED GLOBAL)
+set_target_properties(text PROPERTIES IMPORTED_LOCATION ${TEXT_ROOT}/build/libtext.a)
+target_link_libraries(boost INTERFACE text)
+include_directories(${TEXT_ROOT}/include)
+
+
+###############################################################################
+# Boost.Parser (Proposed)
+###############################################################################
+if (NOT PARSER_ROOT)
+  message(FATAL_ERROR "PARSER_ROOT not defined")
+endif()
+include_directories(${PARSER_ROOT}/include)
+
+
+###############################################################################
 # GoogleTest
 ###############################################################################
 add_subdirectory(${CMAKE_SOURCE_DIR}/googletest-release-1.10.0)

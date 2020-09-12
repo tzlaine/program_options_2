@@ -6,6 +6,18 @@
 #ifndef BOOST_PROGRAM_OPTIONS_2_PARSE_COMMAND_LINE_HPP
 #define BOOST_PROGRAM_OPTIONS_2_PARSE_COMMAND_LINE_HPP
 
+// Silence very verbose warnings about std::is_pod being deprecated.  TODO:
+// Remove this if/when Hana accepts releases the fix for this (already on
+// develop).
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+#include <boost/hana.hpp>
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
+
 #include <boost/stl_interfaces/iterator_interface.hpp>
 #include <boost/stl_interfaces/view_interface.hpp>
 #include <boost/text/case_mapping.hpp>
@@ -18,12 +30,24 @@
 #include <boost/filesystem/path.hpp>
 #endif
 
+#include <string_view>
+#include <type_traits>
+
 
 namespace boost { namespace program_options_2 {
 
+    /** TODO */
+    inline constexpr int zero_or_one = -1;
+    /** TODO */
+    inline constexpr int zero_or_more = -2;
+    /** TODO */
+    inline constexpr int one_or_more = -3;
+    /** TODO */
+    inline constexpr int remainder = -4;
+
     namespace detail {
         template<typename FwdIter, typename T>
-        constexpr FwdIter find(FwdIter first, FwdIter last, T const & x)
+        FwdIter find(FwdIter first, FwdIter last, T const & x)
         {
             for (; first != last; ++first) {
                 if (*first == x)
@@ -33,8 +57,7 @@ namespace boost { namespace program_options_2 {
         }
 
         template<typename BidiIter, typename T>
-        constexpr BidiIter
-        find_last_if(BidiIter first, BidiIter last, T const & x)
+        BidiIter find_last(BidiIter first, BidiIter last, T const & x)
         {
             auto it = last;
             while (it != first) {
@@ -51,20 +74,17 @@ namespace boost { namespace program_options_2 {
 #endif
 
         template<typename Char>
-        std::string_view<Char>
-        program_name(std::string_view<Char> argv0)
+        std::basic_string_view<Char>
+        program_name(std::basic_string_view<Char> argv0)
         {
-            auto first =
-                detail::find_last_if(argv0.begin(), argv0.end(), [sep](Char c) {
-                    return c == fs_sep;
-                });
+            auto first = detail::find_last(argv0.begin(), argv0.end(), fs_sep);
             if (first == argv0.end())
                 return argv0;
             ++first;
             auto const last = argv0.end();
             if (first == last)
-                return std::string_view<Char>();
-            return std::string_view<Char>(&*first, last - first);
+                return std::basic_string_view<Char>();
+            return std::basic_string_view<Char>(&*first, last - first);
         }
 
         struct no_value
@@ -85,7 +105,9 @@ namespace boost { namespace program_options_2 {
             action_kind action;
             int nargs;
             Value value; // argparse's "const" or "default"
-            std::array<Choices, T> choices;
+            using choice_type =
+                std::conditional_t<std::is_same_v<T, void>, no_value, T>;
+            std::array<choice_type, Choices> choices;
             std::string_view arg_display_name; // argparse's "metavar"; only used here for non-positionals
             // TODO: Need this (probably not)? std::string_view stored_name;      // argparse's "dest"
 
@@ -95,11 +117,11 @@ namespace boost { namespace program_options_2 {
         template<typename T>
         struct is_option : std::false_type
         {};
-        template<>
+        template<typename T, typename Value, required_t Required, int Choices>
         struct is_option<option<T, Value, Required, Choices>> : std::true_type
         {};
 
-        template<bool MutuallyExclusive, option_or_group... Options>
+        template<bool MutuallyExclusive, typename... Options>
         struct option_group
         {
             // name is only nonempty when this is a group gated by some verb,
@@ -113,36 +135,29 @@ namespace boost { namespace program_options_2 {
         template<typename T>
         struct is_group : std::false_type
         {};
-        template<bool MutuallyExclusive, option_or_group... Options>
+        template<bool MutuallyExclusive, typename... Options>
         struct is_group<option_group<MutuallyExclusive, Options...>>
             : std::true_type
         {};
 
-        template<typename T>
-        concept option = is_option<T>::value;
-        template<typename T>
-        concept group = is_group<T>::value;
-        template<typename T>
-        concept option_or_group = option<T> || grouop<T>;
-
         inline bool positional(std::string_view name)
         {
             return name[0] != '-';
-        };
-        inline bool short(std::string_view name)
+        }
+        inline bool short_(std::string_view name)
         {
             return name[0] == '-' && name[1] != '-';
-        };
-        inline bool long(std::string_view name)
+        }
+        inline bool long_(std::string_view name)
         {
             return name[0] == '-' && name[1] == '-';
-        };
+        }
 
         template<typename T, typename Value, required_t Required, int Choices>
         bool positional(option<T, Value, Required, Choices> const & opt)
         {
-            return positional(name);
-        };
+            return detail::positional(opt.name);
+        }
 
         template<typename T, typename Value, required_t Required, int Choices>
         bool multi_arg(option<T, Value, Required, Choices> const & opt)
@@ -159,16 +174,18 @@ namespace boost { namespace program_options_2 {
         // clang-format on
 
         template<typename R>
-        constexpr bool contains_ws(R const & r)
+        bool contains_ws(R const & r)
         {
-            constexpr auto last = r.end();
+            auto const last = r.end();
             for (auto first = r.begin(); first != last; ++first) {
+                auto const cp = *first;
                 // space, tab through lf
-                if (x == 0x0020 || (0x0009 <= x && x <= 0x000d))
+                if (cp == 0x0020 || (0x0009 <= cp && cp <= 0x000d))
                     return true;
-                if (x == 0x0085 || x == 0x00a0 || x == 0x1680 ||
-                    (0x2000 <= x && x <= 0x200a) || x == 0x2028 ||
-                    x == 0x2029 || x == 0x202F || x == 0x205F || x == 0x3000) {
+                if (cp == 0x0085 || cp == 0x00a0 || cp == 0x1680 ||
+                    (0x2000 <= cp && cp <= 0x200a) || cp == 0x2028 ||
+                    cp == 0x2029 || cp == 0x202F || cp == 0x205F ||
+                    cp == 0x3000) {
                     return true;
                 }
             }
@@ -182,24 +199,23 @@ namespace boost { namespace program_options_2 {
         {
             using sv_iterator = std::string_view::iterator;
 
-            constexpr names_iter() = default;
-            constexpr names_iter(sv_iterator it, sv_iterator last = it) :
-                it_(it), last_(last)
+            names_iter() = default;
+            names_iter(sv_iterator it) : it_(it), last_(it) {}
+            names_iter(sv_iterator it, sv_iterator last) : it_(it), last_(last)
             {}
 
-            constexpr std::string_view operator*() const
+            std::string_view operator*() const
             {
-                constexpr auto last = detail::find(it_, last_, ',');
+                sv_iterator last = detail::find(it_, last_, ',');
                 BOOST_ASSERT(it_ != last);
-                return {&*it_, last - it_};
+                return {&*it_, std::size_t(last - it_)};
             }
-            constexpr basic_forward_iter & operator++()
+            names_iter & operator++()
             {
                 it_ = detail::find(it_, last_, ',');
                 return *this;
             }
-            friend constexpr bool
-            operator==(names_iter lhs, names_iter rhs) noexcept
+            friend bool operator==(names_iter lhs, names_iter rhs) noexcept
             {
                 return lhs.it_ == rhs.it_;
             }
@@ -219,10 +235,10 @@ namespace boost { namespace program_options_2 {
         {
             using iterator = names_iter;
 
-            constexpr names_view() = default;
-            constexpr names_view(std::string_view names) :
-                first_(name_iter(names.begin(), names.end())),
-                last_(name_iter(names.end()))
+            names_view() = default;
+            names_view(std::string_view names) :
+                first_(names_iter(names.begin(), names.end())),
+                last_(names_iter(names.end()))
             {}
 
             iterator begin() const { return first_; }
@@ -233,37 +249,35 @@ namespace boost { namespace program_options_2 {
             iterator last_;
         };
 
-        inline constexpr std::string_view
-        first_shortest_name(std::string_view name)
+        inline std::string_view first_shortest_name(std::string_view name)
         {
             std::string_view prev_name;
             for (auto sv : names_view(name)) {
-                if (detail::short(sv))
+                if (detail::short_(sv))
                     return sv;
                 prev_name = sv;
             }
             return prev_name;
         }
 
-        inline constexpr std::string_view
-        trim_leading_dashes(std::string_view name)
+        inline std::string_view trim_leading_dashes(std::string_view name)
         {
-            char const * first = name.c_str();
+            char const * first = name.data();
             char const * const last = first + name.size();
             while (first != last && *first == '-') {
                 ++first;
             }
-            return {first, last - first};
+            return {first, std::size_t(last - first)};
         }
 
-        inline constexpr bool valid_nonpositional_names(std::string_view names)
+        inline bool valid_nonpositional_names(std::string_view names)
         {
             if (detail::contains_ws(names))
                 return false;
             for (auto name : detail::names_view(names)) {
-                constexpr auto trimmed_name = trim_leading_dashes(name);
+                auto const trimmed_name = trim_leading_dashes(names);
                 auto const trimmed_dashes = trimmed_name.size() - name.size();
-                if (trimmed_dashed != 1u && trimmed_dashes != 2u)
+                if (trimmed_dashes != 1u && trimmed_dashes != 2u)
                     return false;
                 // TODO: Check the characters in trimmed_name.  Use the
                 // Unicode word breaking algorithm; numbers are ok, too.
@@ -277,8 +291,7 @@ namespace boost { namespace program_options_2 {
         // because of the "-b"s.  This should include display names.
 
         template<typename... Options>
-        constexpr void
-        check_options(bool positionals_need_names, Options const & opts...)
+        void check_options(bool positionals_need_names, Options const &... opts)
         {
             using opt_tuple_type = hana::tuple<Options const &...>;
             opt_tuple_type opt_tuple{opts...};
@@ -289,7 +302,7 @@ namespace boost { namespace program_options_2 {
                 opt_tuple, [&](auto const & opt) {
                     // Any option that uses nargs == remainder must come last.
                     BOOST_ASSERT(!already_saw_remainder);
-                    if (opt.nargs == reaminder)
+                    if (opt.nargs == remainder)
                         already_saw_remainder = true;
 
                     // Whitespace characters are not allowed within the names
@@ -339,9 +352,9 @@ namespace boost { namespace program_options_2 {
         }
 
         template<typename... Options>
-        constexpr bool no_help_option(Options const & opts...)
+        bool no_help_option(Options const &... opts)
         {
-            return (opts.action != detail::action_kind::help && ...);
+            return ((opts.action != detail::action_kind::help) && ...);
         }
 
         // TODO: -> CPO? (may require passing some tag param)
@@ -349,10 +362,10 @@ namespace boost { namespace program_options_2 {
         bool
         argv_contains_default_help_flag(Char const ** first, Char const ** last)
         {
-            std::string_view<Char> const long = "--help";
-            std::string_view<Char> const short = "--h";
+            std::basic_string_view<Char> const long_form = "--help";
+            std::basic_string_view<Char> const short_form = "--h";
             while (first != last) {
-                if (*first == long || *first == short)
+                if (*first == long_form || *first == short_form)
                     return true;
             }
             return false;
@@ -387,7 +400,7 @@ namespace boost { namespace program_options_2 {
         }
 
         template<text::format Format, typename Stream, typename Char>
-        void print_uppercase(Stream & os, std::string_view<Char> str)
+        void print_uppercase(Stream & os, std::basic_string_view<Char> str)
         {
             auto const first = str.begin();
             auto const last = str.end();
@@ -410,9 +423,9 @@ namespace boost { namespace program_options_2 {
             typename Char,
             typename Option>
         void print_args(
-            Stream & os, std::string_view<Char> name, Options const & opt)
+            Stream & os, std::basic_string_view<Char> name, Option const & opt)
         {
-            int const repetitions = 1 < opt.nargs : opt.nargs : 1;
+            int const repetitions = 1 < opt.nargs ? opt.nargs : 1;
             for (int i = 0; i < repetitions; ++i) {
                 os << ' ';
                 if (opt.arg_display_name.empty())
@@ -432,9 +445,9 @@ namespace boost { namespace program_options_2 {
             typename... Options>
         void print_help_synopsis(
             Stream & os,
-            std::string_view<Char> prog,
-            std::string_view<Char> prog_desc,
-            Options const & opts...)
+            std::basic_string_view<Char> prog,
+            std::basic_string_view<Char> prog_desc,
+            Options const &... opts)
         {
             os << detail::usage_colon<Format>() << prog;
 
@@ -475,7 +488,7 @@ namespace boost { namespace program_options_2 {
             typename Stream,
             typename Char,
             typename... Options>
-        void print_help_positionals(Stream & os, Options const & opts...)
+        void print_help_positionals(Stream & os, Options const &... opts)
         {
             // TODO
         }
@@ -485,7 +498,7 @@ namespace boost { namespace program_options_2 {
             typename Stream,
             typename Char,
             typename... Options>
-        void print_help_optionals(Stream & os, Options const & opts...)
+        void print_help_optionals(Stream & os, Options const &... opts)
         {
             // TODO
         }
@@ -497,9 +510,9 @@ namespace boost { namespace program_options_2 {
             typename... Options>
         void print_help(
             Stream & os,
-            std::string_view<Char> argv0,
-            std::string_view<Char> desc,
-            Options const & opts...)
+            std::basic_string_view<Char> argv0,
+            std::basic_string_view<Char> desc,
+            Options const &... opts)
         {
             print_help_synopsis(os, detail::program_name(argv0), desc, opts...);
             print_help_positionals(os, opts...);
@@ -507,21 +520,19 @@ namespace boost { namespace program_options_2 {
         }
     }
 
-    /** TODO */
-    inline constexpr int zero_or_one = -1;
-    /** TODO */
-    inline constexpr int zero_or_more = -2;
-    /** TODO */
-    inline constexpr int one_or_more = -3;
-    /** TODO */
-    inline constexpr int remainder = -4;
+    template<typename T>
+    concept option_ = detail::is_option<T>::value;
+    template<typename T>
+    concept group_ = detail::is_group<T>::value;
+    template<typename T>
+    concept option_or_group = option_<T> || group_<T>;
 
     // TODO: Consider making nargs an nttp "Arguments" in all the argument
     // functions, and an nttp "Repetitions" in all the positional functions.
 
     /** TODO */
     template<typename T>
-    constexpr detail::option<T> argument(std::string_view names)
+    detail::option<T> argument(std::string_view names)
     {
         // There's something wrong with the argument names in "names".  Either
         // it contains whitespace, of it contains at least one name that is
@@ -532,7 +543,7 @@ namespace boost { namespace program_options_2 {
 
     /** TODO */
     template<typename T, typename... Choices>
-    constexpr detail::option<T>
+    detail::option<T>
     argument(std::string_view names, int nargs, Choices... choices)
     {
         // Each type in the parameter pack Choices... must be a T.  There's no
@@ -555,7 +566,7 @@ namespace boost { namespace program_options_2 {
 
     /** TODO */
     template<typename T>
-    constexpr detail::option<T>
+    detail::option<T>
     argument_with_default(std::string_view names, T default_value)
     {
         // There's something wrong with the argument names in "names".  Either
@@ -567,7 +578,7 @@ namespace boost { namespace program_options_2 {
 
     /** TODO */
     template<typename T, typename... Choices>
-    constexpr detail::option<T> argument_with_default(
+    detail::option<T> argument_with_default(
         std::string_view names,
         T default_value,
         T choice0,
@@ -587,7 +598,7 @@ namespace boost { namespace program_options_2 {
 
     /** TODO */
     template<typename T>
-    constexpr detail::option<T, detail::no_value, detail::required_t::yes>
+    detail::option<T, detail::no_value, detail::required_t::yes>
     positional(std::string_view name)
     {
         // Looks like you tried to create a positional argument that starts
@@ -598,8 +609,8 @@ namespace boost { namespace program_options_2 {
 
     /** TODO */
     template<typename T, typename... Choices>
-    constexpr detail::
-        option<T, detail::no_value, required_t::yes, sizeof(Choices...)>
+    detail::
+        option<T, detail::no_value, detail::required_t::yes, sizeof...(Choices)>
         positional(std::string_view name, int nargs, Choices... choices)
     {
         // Each type in the parameter pack Choices... must be a T.  There's no
@@ -629,7 +640,7 @@ namespace boost { namespace program_options_2 {
 
     /** TODO */
     template<typename T, typename... Choices>
-    constexpr detail::option<T, T, required_t::yes, sizeof(Choices...)>
+    detail::option<T, T, detail::required_t::yes, sizeof...(Choices)>
     optional_positional(
         std::string_view name, T default_value, Choices... choices)
     {
@@ -651,7 +662,7 @@ namespace boost { namespace program_options_2 {
     // function(s).
     /** TODO */
     template<typename T>
-    constexpr detail::option<T> positional(int nargs = 1)
+    detail::option<T> positional(int nargs = 1)
     {
         // A value of 0 for nargs makes no sense for a positional argument.
         BOOST_ASSERT(nargs != 0);
@@ -671,7 +682,7 @@ namespace boost { namespace program_options_2 {
     // function(s).
     /** TODO */
     template<typename T, typename... Choices>
-    constexpr detail::option<T, T, required_t::yes, sizeof(Choices...)>
+    detail::option<T, T, detail::required_t::yes, sizeof...(Choices)>
     positional(int nargs, Choices... choices)
     {
         // Each type in the parameter pack Choices... must be a T.  There's no
@@ -694,50 +705,50 @@ namespace boost { namespace program_options_2 {
     }
 
     /** TODO */
-    inline constexpr detail::option<bool, bool> flag(std::string_view names)
+    inline detail::option<bool, bool> flag(std::string_view names)
     {
         // Looks like you tried to create a non-positional argument that does
         // not start with a '-'.  Don't do that.
-        BOOST_ASSERT(!detail::positional(name));
+        BOOST_ASSERT(!detail::positional(names));
         return {names, detail::action_kind::assign, 0, true};
     }
 
     /** TODO */
-    inline constexpr detail::option<bool> inverted_flag(std::string_view names)
+    inline detail::option<bool, bool> inverted_flag(std::string_view names)
     {
         // Looks like you tried to create a non-positional argument that does
         // not start with a '-'.  Don't do that.
-        BOOST_ASSERT(!detail::positional(name));
+        BOOST_ASSERT(!detail::positional(names));
         return {names, detail::action_kind::assign, 0, false};
     }
 
     /** TODO */
-    inline constexpr detail::option<int> counted_flag(std::string_view name)
+    inline detail::option<int> counted_flag(std::string_view names)
     {
         // Looks like you tried to create a non-positional argument that does
         // not start with a '-'.  Don't do that.
-        BOOST_ASSERT(!detail::positional(name));
+        BOOST_ASSERT(!detail::positional(names));
         return {names, detail::action_kind::count};
     }
 
     /** TODO */
-    inline constexpr detail::option<void, std::string_view>
+    inline detail::option<void, std::string_view>
     version(std::string_view version, std::string_view names = "--version,-v")
     {
         // Looks like you tried to create a non-positional argument that does
         // not start with a '-'.  Don't do that.
-        BOOST_ASSERT(!detail::positional(name));
+        BOOST_ASSERT(!detail::positional(names));
         return {names, detail::action_kind::version, 1, version};
     }
 
     /** TODO */
     template<typename HelpStringFunc>
-    inline constexpr detail::option<void, HelpStringFunc>
+    inline detail::option<void, HelpStringFunc>
     help(HelpStringFunc f, std::string_view names = "--help,-h")
     {
         // Looks like you tried to create a non-positional argument that does
         // not start with a '-'.  Don't do that.
-        BOOST_ASSERT(!detail::positional(name));
+        BOOST_ASSERT(!detail::positional(names));
         return {names, detail::action_kind::version, 1, f};
     }
 
@@ -745,7 +756,7 @@ namespace boost { namespace program_options_2 {
 
     /** TODO */
     template<option_or_group Option, option_or_group... Options>
-    constexpr detail::option_group<true, Option, Options...>
+    detail::option_group<true, Option, Options...>
     exclusive_group(Option opt, Options... opts)
     {
         return {{}, {std::move(opt), std::move(opts)...}};
@@ -753,7 +764,7 @@ namespace boost { namespace program_options_2 {
 
     /** TODO */
     template<option_or_group Option, option_or_group... Options>
-    constexpr detail::option_group<false, Option, Options...>
+    detail::option_group<false, Option, Options...>
     suboptions(std::string_view name, Option opt, Options... opts)
     {
         return {name, {std::move(opt), std::move(opts)...}};
@@ -761,15 +772,15 @@ namespace boost { namespace program_options_2 {
 
     /** TODO */
     template<option_or_group Option, option_or_group... Options>
-    constexpr detail::option_group<false, Option, Options...>
+    detail::option_group<false, Option, Options...>
     group(Option opt, Options... opts)
     {
         return {{}, {std::move(opt), std::move(opts)...}};
     }
 
     /** TODO */
-    template<typename T, typename Value, required_t Required, int Choices>
-    constexpr auto with_display_name(
+    template<typename T, typename Value, detail::required_t Required, int Choices>
+    auto with_display_name(
         detail::option<T, Value, Required, Choices> opt, std::string_view name)
     {
         opt.arg_display_name = name;
@@ -778,8 +789,8 @@ namespace boost { namespace program_options_2 {
 
 #if 1 // TODO: Add a validator to optional?
     /** TODO */
-    template<typename T, typename Value, required_t Required, int Choices>
-    constexpr auto
+    template<typename T, typename Value, detail::required_t Required, int Choices>
+    auto
     readable_file(detail::option<T, Value, Required, Choices> opt)
     {
         // TODO
@@ -787,8 +798,8 @@ namespace boost { namespace program_options_2 {
     }
 
     /** TODO */
-    template<typename T, typename Value, required_t Required, int Choices>
-    constexpr auto
+    template<typename T, typename Value, detail::required_t Required, int Choices>
+    auto
     writable_file(detail::option<T, Value, Required, Choices> opt)
     {
         // TODO
@@ -796,8 +807,8 @@ namespace boost { namespace program_options_2 {
     }
 
     /** TODO */
-    template<typename T, typename Value, required_t Required, int Choices>
-    constexpr auto
+    template<typename T, typename Value, detail::required_t Required, int Choices>
+    auto
     readable_path(detail::option<T, Value, Required, Choices> opt)
     {
         // TODO
@@ -805,8 +816,8 @@ namespace boost { namespace program_options_2 {
     }
 
     /** TODO */
-    template<typename T, typename Value, required_t Required, int Choices>
-    constexpr auto
+    template<typename T, typename Value, detail::required_t Required, int Choices>
+    auto
     writable_path(detail::option<T, Value, Required, Choices> opt)
     {
         // TODO
@@ -814,10 +825,9 @@ namespace boost { namespace program_options_2 {
     }
 #endif
 
-    // TODO: constexpr!
     /** TODO */
     template<typename... Options>
-    constexpr void check_options(Options const & opts...)
+    void check_options(Options const &... opts)
     {
         detail::check_options(false, opts...);
     }
@@ -829,7 +839,7 @@ namespace boost { namespace program_options_2 {
         char const * (&argv)[],
         std::ostream & os,
         Option opt,
-        Options opts...)
+        Options... opts)
     {
         detail::check_options(false, opt, opts...);
 
@@ -838,7 +848,7 @@ namespace boost { namespace program_options_2 {
         if (no_help &&
             detail::argv_contains_default_help_flag(argv, argv + argc)) {
             detail::print_help<text::format::utf8>(
-                os, argv[0], std::string_view<char>{}, opt, opts...);
+                os, argv[0], std::basic_string_view<char>{}, opt, opts...);
             return;
         }
 
@@ -854,14 +864,14 @@ namespace boost { namespace program_options_2 {
         wchar_t const * (&argv)[],
         std::wostream & os,
         Option opt,
-        Options opts...)
+        Options... opts)
     {
         detail::check_options(false, opt, opts...);
 
         if (detail::no_help_option(opt, opts...) &&
             detail::argv_contains_default_help_flag(argv, argv + argc)) {
             detail::print_help<text::format::utf16>(
-                os, argv[0], std::string_view<wchar_t>{}, opt, opts...);
+                os, argv[0], std::basic_string_view<wchar_t>{}, opt, opts...);
             return;
         }
 
