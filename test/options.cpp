@@ -5,6 +5,8 @@
 // http://www.boost.org/LICENSE_1_0.txt)
 #include <boost/program_options_2/parse_command_line.hpp>
 
+#include "ill_formed.hpp"
+
 #include <boost/mpl/assert.hpp>
 #include <boost/type_traits/is_same.hpp>
 
@@ -17,6 +19,12 @@ using boost::is_same;
 template<typename Option, typename Default>
 using add_default = decltype(
     po2::with_default(std::declval<Option>(), std::declval<Default>()));
+
+template<typename T>
+using argument_with_mixed_choices =
+    decltype(po2::argument<T>("-b,--blah", 1, std::vector<int>{}, 2, 3));
+static_assert(ill_formed<argument_with_mixed_choices, int>::value);
+static_assert(ill_formed<argument_with_mixed_choices, std::vector<int>>::value);
 
 TEST(options, arguments)
 {

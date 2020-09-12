@@ -174,9 +174,6 @@ namespace boost { namespace program_options_2 {
             t.insert(t.end(), u);
         };
         // clang-format on
-        template<typename T, typename Other>
-        concept assignable_to_or_insertable_into =
-            insertable_from<Other, T> || std::assignable_from<Other &, T &>;
 
         template<typename T, typename U, typename = hana::when<true>>
         struct is_insertable_from : std::false_type
@@ -190,30 +187,24 @@ namespace boost { namespace program_options_2 {
             : std::true_type
         {};
 
-        template<typename T, typename U>
-        struct is_assignable_to_or_insertable_from
-            : std::integral_constant<
-                  bool,
-                  std::is_assignable_v<T &, U &> ||
-                      is_insertable_from<T, U>::value>
-        {};
-        template<typename T, typename U>
-        constexpr bool is_assignable_to_or_insertable_from_v =
-            is_assignable_to_or_insertable_from<T, U>::value;
-
-        template<typename T, bool AllAssignable>
+        template<typename T, bool AllAssignable, bool AllInsertable>
         struct choice_type_impl
+        {};
+        template<typename T, bool AllInsertable>
+        struct choice_type_impl<T, true, AllInsertable>
         {
             using type = T;
         };
         template<typename T>
-        struct choice_type_impl<T, false>
+        struct choice_type_impl<T, false, true>
         {
             using type = std::ranges::range_value_t<T>;
         };
         template<typename T, typename... Choices>
-        struct choice_type
-            : choice_type_impl<T, (std::is_assignable_v<T &, Choices &> && ...)>
+        struct choice_type : choice_type_impl<
+                                 T,
+                                 (std::is_assignable_v<T &, Choices> && ...),
+                                 (is_insertable_from<T, Choices>::value && ...)>
         {};
         template<typename T, typename... Choices>
         using choice_type_t = typename choice_type<T, Choices...>::type;
@@ -326,8 +317,9 @@ namespace boost { namespace program_options_2 {
                 auto const trimmed_dashes = name.size() - trimmed_name.size();
                 if (trimmed_dashes != 1u && trimmed_dashes != 2u)
                     return false;
-                // TODO: Check the characters in trimmed_name.  Use the
-                // Unicode word breaking algorithm; numbers are ok, too.
+                // TODO: Check that the characters in trimmed_name are
+                // "letters".  Use the Unicode word breaking algorithm code
+                // point classes (numbers are ok, too).
             }
             return true;
         }
@@ -639,7 +631,12 @@ namespace boost { namespace program_options_2 {
     // TODO: Print choices as a|b|c.
 
     /** TODO */
-    template<typename T, detail::assignable_to_or_insertable_into<T>... Choices>
+    template<typename T, typename... Choices>
+        // clang-format off
+        requires
+            (std::assignable_from<T &, Choices> && ...) ||
+            (detail::insertable_from<T, Choices> && ...)
+    //clang-format on
     detail::option<
         T,
         detail::no_value,
@@ -652,9 +649,8 @@ namespace boost { namespace program_options_2 {
         // Each type in the parameter pack Choices... must be assignable to T,
         // or insertable into T.
         static_assert(
-            (detail::is_assignable_to_or_insertable_from_v<
-                 T,
-                 std::remove_cv_t<Choices>> &&
+            (std::is_assignable_v<T &, Choices> && ...) ||
+            (detail::is_insertable_from<T, Choices>::value &&
              ...));
 #endif
         // There's something wrong with the argument names in "names".  Either
@@ -688,7 +684,7 @@ namespace boost { namespace program_options_2 {
     }
 
     /** TODO */
-    template<typename T, detail::assignable_to_or_insertable_into<T>... Choices>
+    template<typename T, typename... Choices>
     detail::
         option<T, detail::no_value, detail::required_t::yes, sizeof...(Choices)>
         positional(std::string_view name, int args, Choices... choices)
@@ -697,9 +693,8 @@ namespace boost { namespace program_options_2 {
         // Each type in the parameter pack Choices... must be assignable to T,
         // or insertable into T.
         static_assert(
-            (detail::is_assignable_to_or_insertable_from_v<
-                 T,
-                 std::remove_cv_t<Choices>> &&
+            (std::is_assignable_v<T &, Choices> && ...) ||
+            (detail::is_insertable_from<T, Choices>::value &&
              ...));
 #endif
         // Looks like you tried to create a positional argument that starts
@@ -743,7 +738,7 @@ namespace boost { namespace program_options_2 {
     // TODO: Doc that this only works with the hana::tuple-returning parse
     // function(s).
     /** TODO */
-    template<typename T, detail::assignable_to_or_insertable_into<T>... Choices>
+    template<typename T, typename... Choices>
     detail::option<T, T, detail::required_t::yes, sizeof...(Choices)>
     positional(int args, Choices... choices)
     {
@@ -751,9 +746,8 @@ namespace boost { namespace program_options_2 {
         // Each type in the parameter pack Choices... must be assignable to T,
         // or insertable into T.
         static_assert(
-            (detail::is_assignable_to_or_insertable_from_v<
-                 T,
-                 std::remove_cv_t<Choices>> &&
+            (std::is_assignable_v<T &, Choices> && ...) ||
+            (detail::is_insertable_from<T, Choices>::value &&
              ...));
 #endif
         // A value of 0 for args makes no sense for a positional argument.

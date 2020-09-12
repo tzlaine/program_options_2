@@ -106,20 +106,35 @@ TEST(printing, print_option_arguments)
 #if 0 // TODO: Fix.
         std::ostringstream os;
         po2::detail::print_option<boost::text::format::utf8>(os, arg, 8, 8);
-        EXPECT_EQ(os.str(), " [--blah [BLAH ...]]");
+        EXPECT_EQ(os.str(), " [--blah [BLAH]]");
 #endif
     }
     {
         auto const arg =
             po2::argument<std::vector<int>>("-b,--blah", po2::zero_or_more);
+#if 0
+        std::ostringstream os;
+        po2::detail::print_option<boost::text::format::utf8>(os, arg, 8, 8);
+        EXPECT_EQ(os.str(), " [--blah [BLAH ...]]");
+#endif
     }
     {
         auto const arg =
             po2::argument<std::vector<int>>("-b,--blah", po2::one_or_more);
+#if 0
+        std::ostringstream os;
+        po2::detail::print_option<boost::text::format::utf8>(os, arg, 8, 8);
+        EXPECT_EQ(os.str(), " [--blah BLAH ...]");
+#endif
     }
     {
         auto const arg =
             po2::argument<std::vector<int>>("-b,--blah", po2::remainder);
+#if 0
+        std::ostringstream os;
+        po2::detail::print_option<boost::text::format::utf8>(os, arg, 8, 8);
+        EXPECT_EQ(os.str(), " [--blah [BLAH ...]]");
+#endif
     }
 
     {
