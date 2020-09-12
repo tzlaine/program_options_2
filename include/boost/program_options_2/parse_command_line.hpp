@@ -791,6 +791,25 @@ namespace boost { namespace program_options_2 {
     /** TODO */
     template<
         typename T,
+        detail::required_t Required,
+        int Choices,
+        typename DefaultType = std::ranges::range_value_t<T>>
+    detail::option<T, DefaultType, Required, Choices> with_default(
+        detail::option<T, detail::no_value, Required, Choices> opt,
+        DefaultType default_value)
+    {
+        return {
+            opt.names,
+            opt.action,
+            opt.args,
+            std::move(default_value),
+            opt.choices,
+            opt.arg_display_name};
+    }
+
+    /** TODO */
+    template<
+        typename T,
         typename Value,
         detail::required_t Required,
         int Choices>
