@@ -42,7 +42,7 @@ TEST(printing, detail_print_args)
     {
         std::ostringstream os;
         po2::detail::print_args<boost::text::format::utf8>(
-            os, std::string_view("foo"), po2::positional<int>("foo"));
+            os, std::string_view("foo"), po2::positional<int>("foo"), true);
         EXPECT_EQ(os.str(), " FOO");
     }
     {
@@ -50,7 +50,7 @@ TEST(printing, detail_print_args)
         po2::detail::print_args<boost::text::format::utf8>(
             os,
             std::string_view("foo"),
-            po2::positional<std::vector<int>>("foo", 2));
+            po2::positional<std::vector<int>>("foo", 2), true);
         EXPECT_EQ(os.str(), " FOO FOO");
     }
     {
@@ -58,8 +58,9 @@ TEST(printing, detail_print_args)
         po2::detail::print_args<boost::text::format::utf8>(
             os,
             std::string_view("foo"),
-            po2::positional<std::vector<int>>("foo", po2::one_or_more));
-        EXPECT_EQ(os.str(), " FOO ...");
+            po2::positional<std::vector<int>>("foo", po2::one_or_more),
+            false);
+        EXPECT_EQ(os.str(), "FOO ...");
     }
     {
         std::ostringstream os;
@@ -67,7 +68,8 @@ TEST(printing, detail_print_args)
             os,
             std::string_view("foo"),
             po2::with_display_name(
-                po2::positional<std::vector<int>>("foo", 2), "bar"));
+                po2::positional<std::vector<int>>("foo", 2), "bar"),
+            true);
         EXPECT_EQ(os.str(), " bar bar");
     }
     {
@@ -77,8 +79,9 @@ TEST(printing, detail_print_args)
             std::string_view("foo"),
             po2::with_display_name(
                 po2::positional<std::vector<int>>("foo", po2::one_or_more),
-                "bar"));
-        EXPECT_EQ(os.str(), " bar ...");
+                "bar"),
+            false);
+        EXPECT_EQ(os.str(), "bar ...");
     }
 }
 

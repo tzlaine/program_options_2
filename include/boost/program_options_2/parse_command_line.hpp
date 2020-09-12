@@ -371,7 +371,8 @@ namespace boost { namespace program_options_2 {
         template<text::format Format>
         auto usage_colon()
         {
-            return text::as_utf8("usage: ");
+            char const * usage_str = "usage: ";
+            return text::as_utf8(usage_str);
         }
 
         // TODO: -> CPO?
@@ -421,13 +422,18 @@ namespace boost { namespace program_options_2 {
             typename Char,
             typename Option>
         void print_args(
-            Stream & os, std::basic_string_view<Char> name, Option const & opt)
+            Stream & os,
+            std::basic_string_view<Char> name,
+            Option const & opt,
+            bool print_leading_space)
         {
             int repetitions = opt.nargs ? opt.nargs : 0;
             if (repetitions < 0)
                 repetitions = 1;
             for (int i = 0; i < repetitions; ++i) {
-                os << ' ';
+                if (print_leading_space)
+                    os << ' ';
+
                 if (opt.arg_display_name.empty())
                     detail::print_uppercase<Format>(os, name);
                 else
@@ -461,13 +467,16 @@ namespace boost { namespace program_options_2 {
                     os << '[';
 
                 if (detail::positional(opt)) {
-                    detail::print_args<Format>(os, opt.names, opt);
+                    detail::print_args<Format>(os, opt.names, opt, false);
                 } else {
                     auto const shortest_name =
                         detail::first_shortest_name(opt.names);
                     os << shortest_name;
                     detail::print_args<Format>(
-                        os, detail::trim_leading_dashes(shortest_name), opt);
+                        os,
+                        detail::trim_leading_dashes(shortest_name),
+                        opt,
+                        true);
                 }
 
                 if (!opt.required)
@@ -852,7 +861,7 @@ namespace boost { namespace program_options_2 {
                 std::string_view{},
                 opt,
                 opts...);
-            return;
+            std::exit(0);
         }
 
         // TODO
@@ -875,7 +884,7 @@ namespace boost { namespace program_options_2 {
             detail::argv_contains_default_help_flag(argv, argv + argc)) {
             detail::print_help<text::format::utf16>(
                 os, argv[0], std::basic_string_view<wchar_t>{}, opt, opts...);
-            return;
+            std::exit(0);
         }
 
         // TODO
