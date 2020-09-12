@@ -26,6 +26,24 @@ TEST(options, arguments)
         EXPECT_EQ(arg.arg_display_name, "");
     }
     {
+        auto const arg = po2::argument<int>("-b,--blah", po2::zero_or_one);
+        EXPECT_EQ(arg.names, "-b,--blah");
+        EXPECT_EQ(arg.nargs, po2::zero_or_one);
+        EXPECT_EQ(arg.action, po2::detail::action_kind::assign);
+        BOOST_MPL_ASSERT((is_same<decltype(arg.value), po2::detail::no_value>));
+        EXPECT_EQ(arg.choices.size(), 0);
+        EXPECT_EQ(arg.arg_display_name, "");
+    }
+    {
+        auto const arg = po2::argument<std::vector<int>>("-b,--blah", 2);
+        EXPECT_EQ(arg.names, "-b,--blah");
+        EXPECT_EQ(arg.nargs, 2);
+        EXPECT_EQ(arg.action, po2::detail::action_kind::insert);
+        BOOST_MPL_ASSERT((is_same<decltype(arg.value), po2::detail::no_value>));
+        EXPECT_EQ(arg.choices.size(), 0);
+        EXPECT_EQ(arg.arg_display_name, "");
+    }
+    {
         auto const arg = po2::argument<int>("-b,--blah", 1, 1, 2, 3);
         EXPECT_EQ(arg.names, "-b,--blah");
         EXPECT_EQ(arg.nargs, 1);

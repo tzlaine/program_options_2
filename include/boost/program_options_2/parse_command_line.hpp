@@ -449,6 +449,45 @@ namespace boost { namespace program_options_2 {
                 os << " ...";
         }
 
+        template<text::format Format, typename Stream, typename Option>
+        int print_option(
+            Stream & os,
+            Option const & opt,
+            int first_column,
+            int current_width)
+        {
+            std::ostringstream oss;
+
+            oss << ' ';
+
+            if (!opt.required)
+                oss << '[';
+
+            if (detail::positional(opt)) {
+                detail::print_args<Format>(oss, opt.names, opt, false);
+            } else {
+                auto const shortest_name =
+                    detail::first_shortest_name(opt.names);
+                oss << shortest_name;
+                detail::print_args<Format>(
+                    oss, detail::trim_leading_dashes(shortest_name), opt, true);
+            }
+
+            if (!opt.required)
+                oss << ']';
+
+            std::string const str(std::move(oss).str());
+            auto const str_width =
+                text::estimated_width_of_graphemes(text::as_utf32(str));
+            if (detail::max_col_width < current_width + str_width) {
+                os << '\n' << std::string(first_column, ' ');
+            }
+
+            os << str;
+
+            return current_width;
+        }
+
         template<
             text::format Format,
             typename Stream,
@@ -477,37 +516,8 @@ namespace boost { namespace program_options_2 {
             int current_width = first_column;
 
             auto print_opt = [&](auto const & opt) {
-                std::ostringstream oss;
-
-                oss << ' ';
-
-                if (!opt.required)
-                    oss << '[';
-
-                if (detail::positional(opt)) {
-                    detail::print_args<Format>(oss, opt.names, opt, false);
-                } else {
-                    auto const shortest_name =
-                        detail::first_shortest_name(opt.names);
-                    oss << shortest_name;
-                    detail::print_args<Format>(
-                        oss,
-                        detail::trim_leading_dashes(shortest_name),
-                        opt,
-                        true);
-                }
-
-                if (!opt.required)
-                    oss << ']';
-
-                std::string const str(std::move(oss).str());
-                auto const str_width =
-                    text::estimated_width_of_graphemes(text::as_utf32(str));
-                if (detail::max_col_width < current_width + str_width) {
-                    os << '\n' << std::string(first_column, ' ');
-                }
-
-                os << str;
+                current_width = detail::print_option<Format>(
+                    os, opt, first_column, current_width);
             };
 
             if (detail::no_help_option(opts...))
@@ -589,53 +599,17 @@ namespace boost { namespace program_options_2 {
         // An argument with nargs=0 and no default is a flag.  Use flag()
         // instead.
         BOOST_ASSERT(nargs != 0);
-        // TODO: This is a non-positional, typical arg.
+        // If you specify more than one argument with nargs, T must be a type
+        // that can be inserted into.
+        BOOST_ASSERT(
+            nargs == 1 || nargs == zero_or_one || detail::insertable<T>);
         return {
             names,
-            nargs == 1 ? detail::action_kind::assign
-                       : detail::action_kind::insert,
+            nargs == 1 || nargs == zero_or_one ? detail::action_kind::assign
+                                               : detail::action_kind::insert,
             nargs,
             {},
             {{std::move(choices)...}}};
-    }
-
-    /** TODO */
-    template<typename T>
-    detail::option<T>
-    argument_with_default(std::string_view names, T default_value)
-    {
-        // There's something wrong with the argument names in "names".  Either
-        // it contains whitespace, of it contains at least one name that is
-        // not of the form "-<name>" or "--<name>".
-        BOOST_ASSERT(detail::valid_nonpositional_names(names));
-        return {names, detail::action_kind::assign, 1, std::move(default_value)};
-    }
-
-    /** TODO */
-    template<typename T, typename... Choices>
-    detail::
-        option<T, detail::no_value, detail::required_t::yes, sizeof...(Choices)>
-        argument_with_default(
-            std::string_view names,
-            T default_value,
-            T choice0,
-            T choice1,
-            Choices... choices)
-    {
-        // Each type in the parameter pack Choices... must be a T.  There's no
-        // way to spell that in C++ besides this static_assert.
-        static_assert((std::is_same_v<std::remove_cvref_t<Choices>, T> && ...));
-        // There's something wrong with the argument names in "names".  Either
-        // it contains whitespace, of it contains at least one name that is
-        // not of the form "-<name>" or "--<name>".
-        BOOST_ASSERT(detail::valid_nonpositional_names(names));
-        // TODO: This is a non-positional, typical arg.
-        return {
-            names,
-            detail::action_kind::assign,
-            1,
-            std::move(default_value),
-            {{std::move(choice0), std::move(choice1), std::move(choices)...}}};
     }
 
     /** TODO */
@@ -663,15 +637,13 @@ namespace boost { namespace program_options_2 {
         BOOST_ASSERT(detail::positional(name));
         // A value of 0 for nargs makes no sense for a positional argument.
         BOOST_ASSERT(nargs != 0);
-        // To create an optional positional, use optional_positional().
-        BOOST_ASSERT(nargs != zero_or_one);
         // If you specify more than one argument with nargs, T must be a type
         // that can be inserted into.
-        BOOST_ASSERT(nargs == 1 || detail::insertable<T>);
+        BOOST_ASSERT(nargs == 1 || nargs == zero_or_one || detail::insertable<T>);
         return {
             name,
-            nargs == 1 ? detail::action_kind::assign
-                       : detail::action_kind::insert,
+            nargs == 1 || nargs == zero_or_one ? detail::action_kind::assign
+                                               : detail::action_kind::insert,
             nargs,
             {},
             {{std::move(choices)...}}};
@@ -679,26 +651,6 @@ namespace boost { namespace program_options_2 {
 
     // TODO: Add built-in handling of "--" on the command line, when
     // positional args are in play?
-
-    /** TODO */
-    template<typename T, typename... Choices>
-    detail::option<T, T, detail::required_t::yes, sizeof...(Choices)>
-    optional_positional(
-        std::string_view name, T default_value, Choices... choices)
-    {
-        // Each type in the parameter pack Choices... must be a T.  There's no
-        // way to spell that in C++ besides this static_assert.
-        static_assert((std::is_same_v<std::remove_cvref_t<Choices>, T> && ...));
-        // Looks like you tried to create a positional argument that starts
-        // with a '-'.  Don't do that.
-        BOOST_ASSERT(detail::positional(name));
-        return {
-            name,
-            detail::action_kind::assign,
-            zero_or_one,
-            std::move(default_value),
-            {{std::move(choices)...}}};
-    }
 
     // TODO: Doc that this only works with the hana::tuple-returning parse
     // function(s).
@@ -708,15 +660,13 @@ namespace boost { namespace program_options_2 {
     {
         // A value of 0 for nargs makes no sense for a positional argument.
         BOOST_ASSERT(nargs != 0);
-        // To create an optional positional, use optional_positional().
-        BOOST_ASSERT(nargs != zero_or_one);
         // If you specify more than one argument with nargs, T must be a type
         // that can be inserted into.
-        BOOST_ASSERT(nargs == 1 || detail::insertable<T>);
+        BOOST_ASSERT(nargs == 1 || nargs == zero_or_one || detail::insertable<T>);
         return {
             {},
-            nargs == 1 ? detail::action_kind::assign
-                       : detail::action_kind::insert,
+            nargs == 1 || nargs == zero_or_one ? detail::action_kind::assign
+                                               : detail::action_kind::insert,
             nargs};
     }
 
@@ -732,15 +682,13 @@ namespace boost { namespace program_options_2 {
         static_assert((std::is_same_v<std::remove_cvref_t<Choices>, T> && ...));
         // A value of 0 for nargs makes no sense for a positional argument.
         BOOST_ASSERT(nargs != 0);
-        // To create an optional positional, use optional_positional().
-        BOOST_ASSERT(nargs != zero_or_one);
         // If you specify more than one argument with nargs, T must be a type
         // that can be inserted into.
-        BOOST_ASSERT(nargs == 1 || detail::insertable<T>);
+        BOOST_ASSERT(nargs == 1 || nargs == zero_or_one || detail::insertable<T>);
         return {
             {},
-            nargs == 1 ? detail::action_kind::assign
-                       : detail::action_kind::insert,
+            nargs == 1 || nargs == zero_or_one ? detail::action_kind::assign
+                                               : detail::action_kind::insert,
             nargs,
             {},
             {{std::move(choices)...}}};
@@ -770,6 +718,9 @@ namespace boost { namespace program_options_2 {
         // Looks like you tried to create a non-positional argument that does
         // not start with a '-'.  Don't do that.
         BOOST_ASSERT(!detail::positional(names));
+        // Looks like you tried to create a counted flag with names that do
+        // not include a short name (of the form "-c".  Don't do that.
+        BOOST_ASSERT(detail::short_(detail::first_shortest_name(names)));
         return {names, detail::action_kind::count};
     }
 
@@ -799,7 +750,7 @@ namespace boost { namespace program_options_2 {
     /** TODO */
     template<option_or_group Option, option_or_group... Options>
     detail::option_group<true, Option, Options...>
-    exclusive_group(Option opt, Options... opts)
+    exclusive_options(Option opt, Options... opts)
     {
         return {{}, {std::move(opt), std::move(opts)...}};
     }
@@ -815,9 +766,24 @@ namespace boost { namespace program_options_2 {
     /** TODO */
     template<option_or_group Option, option_or_group... Options>
     detail::option_group<false, Option, Options...>
-    group(Option opt, Options... opts)
+    option_group(Option opt, Options... opts)
     {
         return {{}, {std::move(opt), std::move(opts)...}};
+    }
+
+    /** TODO */
+    template<typename T, detail::required_t Required, int Choices>
+    detail::option<T, T, Required, Choices> with_default(
+        detail::option<T, detail::no_value, Required, Choices> opt,
+        T default_value)
+    {
+        return {
+            opt.names,
+            opt.action,
+            opt.nargs,
+            std::move(default_value),
+            opt.choices,
+            opt.arg_display_name};
     }
 
     /** TODO */
@@ -917,7 +883,7 @@ namespace boost { namespace program_options_2 {
         // TODO
     }
 
-    // TODO: Overloads for char const * from WinMain.
+    // TODO: Overload for char const * from WinMain.
 
 #endif
 
