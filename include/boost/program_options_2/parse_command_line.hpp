@@ -22,8 +22,19 @@
 namespace boost { namespace program_options_2 {
 
     namespace detail {
+        template<typename FwdIter, typename T>
+        constexpr FwdIter find(FwdIter first, FwdIter last, T const & x)
+        {
+            for (; first != last; ++first) {
+                if (*first == x)
+                    return first;
+            }
+            return last;
+        }
+
         template<typename BidiIter, typename T>
-        BidiIter find_last_if(BidiIter first, BidiIter last, T const & x)
+        constexpr BidiIter
+        find_last_if(BidiIter first, BidiIter last, T const & x)
         {
             auto it = last;
             while (it != first) {
@@ -54,16 +65,6 @@ namespace boost { namespace program_options_2 {
             if (first == last)
                 return std::string_view<Char>();
             return std::string_view<Char>(&*first, last - first);
-        }
-
-        inline constexpr void check_names(std::string_view names)
-        {
-            // TODO: Use some kind of letter spec a_letter based on the
-            // Unicode word breaking algorithm; numbers are ok, too.
-
-            // TODO: Check that names contains +char_(a_letter) or:
-
-            // "+(("--" >> repeat(2, Inf)[char_(a_letter)]) | ('-' >> char_(a_letter)))"
         }
 
         struct no_value
@@ -156,246 +157,12 @@ namespace boost { namespace program_options_2 {
             t.insert(t.end(), *t.begin());
         };
         // clang-format on
-    }
 
-    /** TODO */
-    inline constexpr int zero_or_one = -1;
-    /** TODO */
-    inline constexpr int zero_or_more = -2;
-    /** TODO */
-    inline constexpr int one_or_more = -3;
-    /** TODO */
-    inline constexpr int remainder = -4;
-
-    /** TODO */
-    template<typename T>
-    detail::option<T> argument(std::string_view name)
-    {
-        // TODO: This is a non-positional, typical arg.
-        return {};
-    }
-
-    /** TODO */
-    template<typename T>
-    detail::option<T, detail::no_value, detail::required_t::yes>
-    positional(std::string_view name)
-    {
-        // Looks like you tried to create a positional argument that starts
-        // with a '-'.  Don't do that.
-        BOOST_ASSERT(detail::positional(name));
-        return {name, detail::action_kind::assign, 1};
-    }
-
-    /** TODO */
-    template<typename T, typename... Choices>
-    detail::option<T, detail::no_value, required_t::yes, sizeof(Choices...)>
-    positional(std::string_view name, int nargs, Choices... choices)
-    {
-        // Each type in the parameter pack Choices... must be a T.  There's no
-        // way to spell that in C++ beasides this static_assert.
-        static_assert((std::is_same_v<std::remove_cvref_t<Choices>, T> && ...));
-        // Looks like you tried to create a positional argument that starts
-        // with a '-'.  Don't do that.
-        BOOST_ASSERT(detail::positional(name));
-        // A value of 0 for nargs makes no sense.
-        BOOST_ASSERT(nargs != 0);
-        // To create an optional positional, use optional_positional().
-        BOOST_ASSERT(nargs != zero_or_one);
-        // If you specify more than one argument with nargs, T must be a type
-        // that can be inserted into.
-        BOOST_ASSERT(nargs == 1 || detail::insertable<T>);
-        return {
-            name,
-            nargs == 1 ? detail::action_kind::assign
-                       : detail::action_kind::insert,
-            nargs,
-            {},
-            {{std::move(choices)...}}};
-    }
-
-    // TODO: Add built-in handling of "--" on the command line, when
-    // positional args are in play?
-
-    /** TODO */
-    template<typename T, typename... Choices>
-    detail::option<T, T, required_t::yes, sizeof(Choices...)>
-    optional_positional(
-        std::string_view name, T default_value, Choices... choices)
-    {
-        // Each type in the parameter pack Choices... must be a T.  There's no
-        // way to spell that in C++ beasides this static_assert.
-        static_assert((std::is_same_v<std::remove_cvref_t<Choices>, T> && ...));
-        // Looks like you tried to create a positional argument that starts
-        // with a '-'.  Don't do that.
-        BOOST_ASSERT(detail::positional(name));
-        return {
-            name,
-            detail::action_kind::assign,
-            zero_or_one,
-            std::move(default_value),
-            {{std::move(choices)...}}};
-    }
-
-    // TODO: Doc that this only works with the hana::tuple-returning parse
-    // function(s).
-    /** TODO */
-    template<typename T>
-    detail::option<T> positional(int nargs = 1)
-    {
-        // A value of 0 for nargs makes no sense.
-        BOOST_ASSERT(nargs != 0);
-        // To create an optional positional, use optional_positional().
-        BOOST_ASSERT(nargs != zero_or_one);
-        // If you specify more than one argument with nargs, T must be a type
-        // that can be inserted into.
-        BOOST_ASSERT(nargs == 1 || detail::insertable<T>);
-        return {
-            {},
-            nargs == 1 ? detail::action_kind::assign
-                       : detail::action_kind::insert,
-            nargs};
-    }
-
-    // TODO: Doc that this only works with the hana::tuple-returning parse
-    // function(s).
-    /** TODO */
-    template<typename T, typename... Choices>
-    detail::option<T, T, required_t::yes, sizeof(Choices...)>
-    positional(int nargs, Choices... choices)
-    {
-        // Each type in the parameter pack Choices... must be a T.  There's no
-        // way to spell that in C++ beasides this static_assert.
-        static_assert((std::is_same_v<std::remove_cvref_t<Choices>, T> && ...));
-        // A value of 0 for nargs makes no sense.
-        BOOST_ASSERT(nargs != 0);
-        // To create an optional positional, use optional_positional().
-        BOOST_ASSERT(nargs != zero_or_one);
-        // If you specify more than one argument with nargs, T must be a type
-        // that can be inserted into.
-        BOOST_ASSERT(nargs == 1 || detail::insertable<T>);
-        return {
-            {},
-            nargs == 1 ? detail::action_kind::assign
-                       : detail::action_kind::insert,
-            nargs,
-            {},
-            {{std::move(choices)...}}};
-    }
-
-    /** TODO */
-    inline detail::option<bool, bool> flag(std::string_view names)
-    {
-        // Looks like you tried to create a non-positional argument that does
-        // not start with a '-'.  Don't do that.
-        BOOST_ASSERT(!detail::positional(name));
-        return {names, detail::action_kind::assign, 1, true};
-    }
-
-    /** TODO */
-    inline detail::option<bool> inverted_flag(std::string_view names)
-    {
-        // Looks like you tried to create a non-positional argument that does
-        // not start with a '-'.  Don't do that.
-        BOOST_ASSERT(!detail::positional(name));
-        return {names, detail::action_kind::assign, 1, false};
-    }
-
-    /** TODO */
-    inline detail::option<int> counted_flag(std::string_view name)
-    {
-        // Looks like you tried to create a non-positional argument that does
-        // not start with a '-'.  Don't do that.
-        BOOST_ASSERT(!detail::positional(name));
-        return {names, detail::action_kind::count};
-    }
-
-    /** TODO */
-    inline detail::option<void, std::string_view>
-    version(std::string_view version, std::string_view names = "--version,-v")
-    {
-        // Looks like you tried to create a non-positional argument that does
-        // not start with a '-'.  Don't do that.
-        BOOST_ASSERT(!detail::positional(name));
-        return {names, detail::action_kind::version, 1, version};
-    }
-
-    /** TODO */
-    template<typename HelpStringFunc>
-    inline detail::option<void, HelpStringFunc>
-    help(HelpStringFunc f, std::string_view names = "--help,-h")
-    {
-        // Looks like you tried to create a non-positional argument that does
-        // not start with a '-'.  Don't do that.
-        BOOST_ASSERT(!detail::positional(name));
-        return {names, detail::action_kind::version, 1, f};
-    }
-
-    // TODO: Form exclusive groups using operator||?
-
-    /** TODO */
-    template<option_or_group Option, option_or_group... Options>
-    detail::option_group<true, Option, Options...>
-    exclusive_group(Option opt, Options... opts)
-    {
-        return {{}, {std::move(opt), std::move(opts)...}};
-    }
-
-    /** TODO */
-    template<option_or_group Option, option_or_group... Options>
-    detail::option_group<false, Option, Options...>
-    suboptions(std::string_view name, Option opt, Options... opts)
-    {
-        return {name, {std::move(opt), std::move(opts)...}};
-    }
-
-    /** TODO */
-    template<option_or_group Option, option_or_group... Options>
-    detail::option_group<false, Option, Options...>
-    group(Option opt, Options... opts)
-    {
-        return {{}, {std::move(opt), std::move(opts)...}};
-    }
-
-#if 1 // TODO: Add a validator to optional?
-    /** TODO */
-    template<typename T, typename Value, required_t Required, int Choices>
-    auto readable_file(detail::option<T, Value, Required, Choices> opt)
-    {
-        // TODO
-        return {};
-    }
-
-    /** TODO */
-    template<typename T, typename Value, required_t Required, int Choices>
-    auto writable_file(detail::option<T, Value, Required, Choices> opt)
-    {
-        // TODO
-        return {};
-    }
-
-    /** TODO */
-    template<typename T, typename Value, required_t Required, int Choices>
-    auto readable_path(detail::option<T, Value, Required, Choices> opt)
-    {
-        // TODO
-        return {};
-    }
-
-    /** TODO */
-    template<typename T, typename Value, required_t Required, int Choices>
-    auto writable_path(detail::option<T, Value, Required, Choices> opt)
-    {
-        // TODO
-        return {};
-    }
-#endif
-
-    namespace detail {
         template<typename R>
-        bool contains_ws(R const & r)
+        constexpr bool contains_ws(R const & r)
         {
-            auto const last = std::ranges::end(r);
-            for (auto first = std::ranges::begin(r); first != last; ++first) {
+            constexpr auto last = r.end();
+            for (auto first = r.begin(); first != last; ++first) {
                 // space, tab through lf
                 if (x == 0x0020 || (0x0009 <= x && x <= 0x000d))
                     return true;
@@ -415,23 +182,24 @@ namespace boost { namespace program_options_2 {
         {
             using sv_iterator = std::string_view::iterator;
 
-            names_iter() = default;
-            names_iter(sv_iterator it, sv_iterator last = it) :
+            constexpr names_iter() = default;
+            constexpr names_iter(sv_iterator it, sv_iterator last = it) :
                 it_(it), last_(last)
             {}
 
-            std::string_view operator*() const
+            constexpr std::string_view operator*() const
             {
-                auto const last = std::find(it_, last_, ',');
+                constexpr auto last = detail::find(it_, last_, ',');
                 BOOST_ASSERT(it_ != last);
                 return {&*it_, last - it_};
             }
-            basic_forward_iter & operator++()
+            constexpr basic_forward_iter & operator++()
             {
-                it_ = std::find(it_, last_, ',');
+                it_ = detail::find(it_, last_, ',');
                 return *this;
             }
-            friend bool operator==(names_iter lhs, names_iter rhs) noexcept
+            friend constexpr bool
+            operator==(names_iter lhs, names_iter rhs) noexcept
             {
                 return lhs.it_ == rhs.it_;
             }
@@ -451,9 +219,10 @@ namespace boost { namespace program_options_2 {
         {
             using iterator = names_iter;
 
-            names_view() = default;
-            names_view(iterator first, iterator last) :
-                first_(first), last_(last)
+            constexpr names_view() = default;
+            constexpr names_view(std::string_view names) :
+                first_(name_iter(names.begin(), names.end())),
+                last_(name_iter(names.end()))
             {}
 
             iterator begin() const { return first_; }
@@ -464,17 +233,11 @@ namespace boost { namespace program_options_2 {
             iterator last_;
         };
 
-        inline name_view names(std::string_view names)
-        {
-            auto const first = std::ranges::begin(r);
-            auto const last = std::ranges::end(r);
-            return {name_iter(first, last), name_iter(last)};
-        }
-
-        inline std::string_view first_shortest_name(std::string_view name)
+        inline constexpr std::string_view
+        first_shortest_name(std::string_view name)
         {
             std::string_view prev_name;
-            for (auto sv : detail::names(name)) {
+            for (auto sv : names_view(name)) {
                 if (detail::short(sv))
                     return sv;
                 prev_name = sv;
@@ -482,7 +245,8 @@ namespace boost { namespace program_options_2 {
             return prev_name;
         }
 
-        inline std::string_view trim_leading_dashes(std::string_view name)
+        inline constexpr std::string_view
+        trim_leading_dashes(std::string_view name)
         {
             char const * first = name.c_str();
             char const * const last = first + name.size();
@@ -492,14 +256,28 @@ namespace boost { namespace program_options_2 {
             return {first, last - first};
         }
 
+        inline constexpr bool valid_nonpositional_names(std::string_view names)
+        {
+            if (detail::contains_ws(names))
+                return false;
+            for (auto name : detail::names_view(names)) {
+                constexpr auto trimmed_name = trim_leading_dashes(name);
+                auto const trimmed_dashes = trimmed_name.size() - name.size();
+                if (trimmed_dashed != 1u && trimmed_dashes != 2u)
+                    return false;
+                // TODO: Check the characters in trimmed_name.  Use the
+                // Unicode word breaking algorithm; numbers are ok, too.
+            }
+            return true;
+        }
+
         // TODO: Another check (must be runtime, and debug-only) to make sure
         // that the each name of each option is unique.  For instance
         // option{"-b,--bogus", ...} and option{"-h,-b", ...} is not allowed,
-        // because of the "-b"s.
+        // because of the "-b"s.  This should include display names.
 
-        // TODO: constexpr?
         template<typename... Options>
-        void
+        constexpr void
         check_options(bool positionals_need_names, Options const & opts...)
         {
             using opt_tuple_type = hana::tuple<Options const &...>;
@@ -729,10 +507,317 @@ namespace boost { namespace program_options_2 {
         }
     }
 
+    /** TODO */
+    inline constexpr int zero_or_one = -1;
+    /** TODO */
+    inline constexpr int zero_or_more = -2;
+    /** TODO */
+    inline constexpr int one_or_more = -3;
+    /** TODO */
+    inline constexpr int remainder = -4;
+
+    // TODO: Consider making nargs an nttp "Arguments" in all the argument
+    // functions, and an nttp "Repetitions" in all the positional functions.
+
+    /** TODO */
+    template<typename T>
+    constexpr detail::option<T> argument(std::string_view names)
+    {
+        // There's something wrong with the argument names in "names".  Either
+        // it contains whitespace, of it contains at least one name that is
+        // not of the form "-<name>" or "--<name>".
+        BOOST_ASSERT(detail::valid_nonpositional_names(names));
+        return {names, detail::action_kind::assign, 1};
+    }
+
+    /** TODO */
+    template<typename T, typename... Choices>
+    constexpr detail::option<T>
+    argument(std::string_view names, int nargs, Choices... choices)
+    {
+        // Each type in the parameter pack Choices... must be a T.  There's no
+        // way to spell that in C++ besides this static_assert.
+        static_assert((std::is_same_v<std::remove_cvref_t<Choices>, T> && ...));
+        // There's something wrong with the argument names in "names".  Either
+        // it contains whitespace, of it contains at least one name that is
+        // not of the form "-<name>" or "--<name>".
+        BOOST_ASSERT(detail::valid_nonpositional_names(names)); // TODO: static_assert()!
+        // An argument with nargs=0 and no default is a flag.  Use flag()
+        // instead.
+        BOOST_ASSERT(nargs != 0);
+        // TODO: This is a non-positional, typical arg.
+        return {
+            names,
+            nargs == 1 ? detail::action_kind::assign
+                       : detail::action_kind::insert,
+            nargs};
+    }
+
+    /** TODO */
+    template<typename T>
+    constexpr detail::option<T>
+    argument_with_default(std::string_view names, T default_value)
+    {
+        // There's something wrong with the argument names in "names".  Either
+        // it contains whitespace, of it contains at least one name that is
+        // not of the form "-<name>" or "--<name>".
+        BOOST_ASSERT(detail::valid_nonpositional_names(names));
+        return {names, detail::action_kind::assign, 1, std::move(default_value)};
+    }
+
+    /** TODO */
+    template<typename T, typename... Choices>
+    constexpr detail::option<T> argument_with_default(
+        std::string_view names,
+        T default_value,
+        T choice0,
+        T choice1,
+        Choices... choices)
+    {
+        // Each type in the parameter pack Choices... must be a T.  There's no
+        // way to spell that in C++ besides this static_assert.
+        static_assert((std::is_same_v<std::remove_cvref_t<Choices>, T> && ...));
+        // There's something wrong with the argument names in "names".  Either
+        // it contains whitespace, of it contains at least one name that is
+        // not of the form "-<name>" or "--<name>".
+        BOOST_ASSERT(detail::valid_nonpositional_names(names));
+        // TODO: This is a non-positional, typical arg.
+        return {};
+    }
+
+    /** TODO */
+    template<typename T>
+    constexpr detail::option<T, detail::no_value, detail::required_t::yes>
+    positional(std::string_view name)
+    {
+        // Looks like you tried to create a positional argument that starts
+        // with a '-'.  Don't do that.
+        BOOST_ASSERT(detail::positional(name));
+        return {name, detail::action_kind::assign, 1};
+    }
+
+    /** TODO */
+    template<typename T, typename... Choices>
+    constexpr detail::
+        option<T, detail::no_value, required_t::yes, sizeof(Choices...)>
+        positional(std::string_view name, int nargs, Choices... choices)
+    {
+        // Each type in the parameter pack Choices... must be a T.  There's no
+        // way to spell that in C++ besides this static_assert.
+        static_assert((std::is_same_v<std::remove_cvref_t<Choices>, T> && ...));
+        // Looks like you tried to create a positional argument that starts
+        // with a '-'.  Don't do that.
+        BOOST_ASSERT(detail::positional(name));
+        // A value of 0 for nargs makes no sense for a positional argument.
+        BOOST_ASSERT(nargs != 0);
+        // To create an optional positional, use optional_positional().
+        BOOST_ASSERT(nargs != zero_or_one);
+        // If you specify more than one argument with nargs, T must be a type
+        // that can be inserted into.
+        BOOST_ASSERT(nargs == 1 || detail::insertable<T>);
+        return {
+            name,
+            nargs == 1 ? detail::action_kind::assign
+                       : detail::action_kind::insert,
+            nargs,
+            {},
+            {{std::move(choices)...}}};
+    }
+
+    // TODO: Add built-in handling of "--" on the command line, when
+    // positional args are in play?
+
+    /** TODO */
+    template<typename T, typename... Choices>
+    constexpr detail::option<T, T, required_t::yes, sizeof(Choices...)>
+    optional_positional(
+        std::string_view name, T default_value, Choices... choices)
+    {
+        // Each type in the parameter pack Choices... must be a T.  There's no
+        // way to spell that in C++ besides this static_assert.
+        static_assert((std::is_same_v<std::remove_cvref_t<Choices>, T> && ...));
+        // Looks like you tried to create a positional argument that starts
+        // with a '-'.  Don't do that.
+        BOOST_ASSERT(detail::positional(name));
+        return {
+            name,
+            detail::action_kind::assign,
+            zero_or_one,
+            std::move(default_value),
+            {{std::move(choices)...}}};
+    }
+
+    // TODO: Doc that this only works with the hana::tuple-returning parse
+    // function(s).
+    /** TODO */
+    template<typename T>
+    constexpr detail::option<T> positional(int nargs = 1)
+    {
+        // A value of 0 for nargs makes no sense for a positional argument.
+        BOOST_ASSERT(nargs != 0);
+        // To create an optional positional, use optional_positional().
+        BOOST_ASSERT(nargs != zero_or_one);
+        // If you specify more than one argument with nargs, T must be a type
+        // that can be inserted into.
+        BOOST_ASSERT(nargs == 1 || detail::insertable<T>);
+        return {
+            {},
+            nargs == 1 ? detail::action_kind::assign
+                       : detail::action_kind::insert,
+            nargs};
+    }
+
+    // TODO: Doc that this only works with the hana::tuple-returning parse
+    // function(s).
+    /** TODO */
+    template<typename T, typename... Choices>
+    constexpr detail::option<T, T, required_t::yes, sizeof(Choices...)>
+    positional(int nargs, Choices... choices)
+    {
+        // Each type in the parameter pack Choices... must be a T.  There's no
+        // way to spell that in C++ besides this static_assert.
+        static_assert((std::is_same_v<std::remove_cvref_t<Choices>, T> && ...));
+        // A value of 0 for nargs makes no sense for a positional argument.
+        BOOST_ASSERT(nargs != 0);
+        // To create an optional positional, use optional_positional().
+        BOOST_ASSERT(nargs != zero_or_one);
+        // If you specify more than one argument with nargs, T must be a type
+        // that can be inserted into.
+        BOOST_ASSERT(nargs == 1 || detail::insertable<T>);
+        return {
+            {},
+            nargs == 1 ? detail::action_kind::assign
+                       : detail::action_kind::insert,
+            nargs,
+            {},
+            {{std::move(choices)...}}};
+    }
+
+    /** TODO */
+    inline constexpr detail::option<bool, bool> flag(std::string_view names)
+    {
+        // Looks like you tried to create a non-positional argument that does
+        // not start with a '-'.  Don't do that.
+        BOOST_ASSERT(!detail::positional(name));
+        return {names, detail::action_kind::assign, 0, true};
+    }
+
+    /** TODO */
+    inline constexpr detail::option<bool> inverted_flag(std::string_view names)
+    {
+        // Looks like you tried to create a non-positional argument that does
+        // not start with a '-'.  Don't do that.
+        BOOST_ASSERT(!detail::positional(name));
+        return {names, detail::action_kind::assign, 0, false};
+    }
+
+    /** TODO */
+    inline constexpr detail::option<int> counted_flag(std::string_view name)
+    {
+        // Looks like you tried to create a non-positional argument that does
+        // not start with a '-'.  Don't do that.
+        BOOST_ASSERT(!detail::positional(name));
+        return {names, detail::action_kind::count};
+    }
+
+    /** TODO */
+    inline constexpr detail::option<void, std::string_view>
+    version(std::string_view version, std::string_view names = "--version,-v")
+    {
+        // Looks like you tried to create a non-positional argument that does
+        // not start with a '-'.  Don't do that.
+        BOOST_ASSERT(!detail::positional(name));
+        return {names, detail::action_kind::version, 1, version};
+    }
+
+    /** TODO */
+    template<typename HelpStringFunc>
+    inline constexpr detail::option<void, HelpStringFunc>
+    help(HelpStringFunc f, std::string_view names = "--help,-h")
+    {
+        // Looks like you tried to create a non-positional argument that does
+        // not start with a '-'.  Don't do that.
+        BOOST_ASSERT(!detail::positional(name));
+        return {names, detail::action_kind::version, 1, f};
+    }
+
+    // TODO: Form exclusive groups using operator||?
+
+    /** TODO */
+    template<option_or_group Option, option_or_group... Options>
+    constexpr detail::option_group<true, Option, Options...>
+    exclusive_group(Option opt, Options... opts)
+    {
+        return {{}, {std::move(opt), std::move(opts)...}};
+    }
+
+    /** TODO */
+    template<option_or_group Option, option_or_group... Options>
+    constexpr detail::option_group<false, Option, Options...>
+    suboptions(std::string_view name, Option opt, Options... opts)
+    {
+        return {name, {std::move(opt), std::move(opts)...}};
+    }
+
+    /** TODO */
+    template<option_or_group Option, option_or_group... Options>
+    constexpr detail::option_group<false, Option, Options...>
+    group(Option opt, Options... opts)
+    {
+        return {{}, {std::move(opt), std::move(opts)...}};
+    }
+
+    /** TODO */
+    template<typename T, typename Value, required_t Required, int Choices>
+    constexpr auto with_display_name(
+        detail::option<T, Value, Required, Choices> opt, std::string_view name)
+    {
+        opt.arg_display_name = name;
+        return opt;
+    }
+
+#if 1 // TODO: Add a validator to optional?
+    /** TODO */
+    template<typename T, typename Value, required_t Required, int Choices>
+    constexpr auto
+    readable_file(detail::option<T, Value, Required, Choices> opt)
+    {
+        // TODO
+        return {};
+    }
+
+    /** TODO */
+    template<typename T, typename Value, required_t Required, int Choices>
+    constexpr auto
+    writable_file(detail::option<T, Value, Required, Choices> opt)
+    {
+        // TODO
+        return {};
+    }
+
+    /** TODO */
+    template<typename T, typename Value, required_t Required, int Choices>
+    constexpr auto
+    readable_path(detail::option<T, Value, Required, Choices> opt)
+    {
+        // TODO
+        return {};
+    }
+
+    /** TODO */
+    template<typename T, typename Value, required_t Required, int Choices>
+    constexpr auto
+    writable_path(detail::option<T, Value, Required, Choices> opt)
+    {
+        // TODO
+        return {};
+    }
+#endif
+
     // TODO: constexpr!
     /** TODO */
     template<typename... Options>
-    void check_options(Options const & opts...)
+    constexpr void check_options(Options const & opts...)
     {
         detail::check_options(false, opts...);
     }
