@@ -484,25 +484,46 @@ TEST(printing, parse_command_line_help)
         strings.c_str(), strings.c_str() + strings.size() - 3};
 
     {
+        std::ostringstream os;
         po2::parse_command_line(
             argc,
             argv,
             "A test program to see how things work.",
-            std::cout,
+            os,
             po2::argument("--non-positional", "A non-positional argument."),
             po2::positional("positional", "A positional argument."),
             po2::positional(
                 "a-very-very-very-obnoxiously-long-positional",
                 "Another positional argument."),
             po2::argument("--non-pos-2", "A second non-positional argument."));
+        EXPECT_EQ(os.str(), R"(usage:  bar [-h] [--non-positional NON-POSITIONAL] POSITIONAL
+            A-VERY-VERY-VERY-OBNOXIOUSLY-LONG-POSITIONAL [--non-pos-2 NON-POS-2]
+
+A test program to see how things work.
+
+positional arguments:
+  positional            A positional argument.
+                        
+  a-very-very-very-obnoxiously-long-positional
+                        Another positional argument.
+                        
+optional arguments:
+  -h, --help            Print this help message and exit
+                        
+  --non-positional      A non-positional argument.
+                        
+  --non-pos-2           A second non-positional argument.
+                        
+)");
     }
 
     {
+        std::ostringstream os;
         po2::parse_command_line(
             argc,
             argv,
             "A test program to see how things work.",
-            std::cout,
+            os,
             po2::argument("--non-positional", "A non-positional argument."),
             po2::positional("positional", "A positional argument."),
             po2::argument(
@@ -514,5 +535,26 @@ TEST(printing, parse_command_line_help)
                 "A second non-positional argument.  This one has a "
                 "particularly long description, just so we can see what the "
                 "column-wrapping looks like."));
+        EXPECT_EQ(os.str(), R"(usage:  bar [-h] [--non-positional NON-POSITIONAL] POSITIONAL [-s S]
+            [--non-pos-2 NON-POS-2]
+
+A test program to see how things work.
+
+positional arguments:
+  positional            A positional argument.
+                        
+optional arguments:
+  -h, --help            Print this help message and exit
+                        
+  --non-positional      A non-positional argument.
+                        
+  --an, --arg, --with, --many-names, --only, -s, --single, --short, --one
+                        Another non-positional argument.
+                        
+  --non-pos-2           A second non-positional argument.  This one has a 
+                        particularly long description, just so we can see what 
+                        the column-wrapping looks like.
+                        
+)");
     }
 }
