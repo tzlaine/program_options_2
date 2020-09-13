@@ -458,28 +458,10 @@ namespace boost { namespace program_options_2 {
                 0};
         }
 
-        template<text::format Format, typename I, typename S>
-        auto as_utf(I first, S last)
-        {
-            if constexpr (Format == text::format::utf8)
-                return text::as_utf8(first, last);
-            else
-                return text::as_utf16(first, last);
-        }
-
-        template<text::format Format, typename R>
-        auto as_utf(R const & r)
-        {
-            if constexpr (Format == text::format::utf8)
-                return text::as_utf8(r);
-            else
-                return text::as_utf16(r);
-        }
-
         constexpr inline int max_col_width = 80;
         constexpr inline int max_option_col_width = 24;
 
-        template<text::format Format, typename Stream, typename Char>
+        template<typename Stream, typename Char>
         void print_uppercase(Stream & os, std::basic_string_view<Char> str)
         {
             auto const first = str.begin();
@@ -487,7 +469,7 @@ namespace boost { namespace program_options_2 {
             auto it = first;
 
             char buf[256];
-            int const increment = Format == text::format::utf8 ? 126 : 64;
+            int const increment = 64;
             while (increment < it - first) {
                 auto out = text::to_upper(
                     text::as_utf32(it, last), text::utf_32_to_8_out(buf));
@@ -530,11 +512,7 @@ namespace boost { namespace program_options_2 {
             return true;
         }
 
-        template<
-            text::format Format,
-            typename Stream,
-            typename Char,
-            typename Option>
+        template<typename Stream, typename Char, typename Option>
         void print_args(
             Stream & os,
             std::basic_string_view<Char> name,
@@ -566,7 +544,7 @@ namespace boost { namespace program_options_2 {
                 }
 
                 if (opt.arg_display_name.empty())
-                    detail::print_uppercase<Format>(os, name);
+                    detail::print_uppercase(os, name);
                 else
                     os << text::as_utf8(opt.arg_display_name);
             }
@@ -588,7 +566,7 @@ namespace boost { namespace program_options_2 {
 
         // brief=true is used to print the comma-delimited names in the
         // desciptions.
-        template<text::format Format, typename Stream, typename Option>
+        template<typename Stream, typename Option>
         int print_option(
             Stream & os,
             Option const & opt,
@@ -616,7 +594,7 @@ namespace boost { namespace program_options_2 {
                     oss << text::as_utf8(name);
                 }
             } else if (detail::positional(opt)) {
-                detail::print_args<Format>(oss, opt.names, opt, false);
+                detail::print_args(oss, opt.names, opt, false);
             } else if (opt.action == action_kind::count) {
                 auto const shortest_name =
                     detail::first_shortest_name(opt.names);
@@ -629,7 +607,7 @@ namespace boost { namespace program_options_2 {
                 auto const shortest_name =
                     detail::first_shortest_name(opt.names);
                 oss << text::as_utf8(shortest_name);
-                detail::print_args<Format>(
+                detail::print_args(
                     oss, detail::trim_leading_dashes(shortest_name), opt, true);
             }
 
@@ -653,11 +631,7 @@ namespace boost { namespace program_options_2 {
             return current_width;
         }
 
-        template<
-            text::format Format,
-            typename Stream,
-            typename Char,
-            typename... Options>
+        template<typename Stream, typename Char, typename... Options>
         void print_help_synopsis(
             Stream & os,
             std::basic_string_view<Char> prog,
@@ -681,8 +655,8 @@ namespace boost { namespace program_options_2 {
             int current_width = first_column;
 
             auto print_opt = [&](auto const & opt) {
-                current_width = detail::print_option<Format>(
-                    os, opt, first_column, current_width);
+                current_width =
+                    detail::print_option(os, opt, first_column, current_width);
             };
 
             hana::for_each(opt_tuple, print_opt);
@@ -739,7 +713,7 @@ namespace boost { namespace program_options_2 {
             }
         }
 
-        template<text::format Format, typename Stream, typename... Options>
+        template<typename Stream, typename... Options>
         void print_options_and_descs(
             Stream & os,
             std::vector<printed_names_and_desc> const & names_and_descs,
@@ -764,7 +738,7 @@ namespace boost { namespace program_options_2 {
             }
         }
 
-        template<text::format Format, typename Stream, typename... Options>
+        template<typename Stream, typename... Options>
         void print_help_post_synopsis(Stream & os, Options const &... opts)
         {
             using opt_tuple_type = hana::tuple<Options const &...>;
@@ -778,7 +752,7 @@ namespace boost { namespace program_options_2 {
                     detail::positional(opt) ? printed_positionals
                                             : printed_arguments;
                 std::ostringstream oss;
-                detail::print_option<Format>(oss, opt, 0, 0, INT_MAX, true);
+                detail::print_option(oss, opt, 0, 0, INT_MAX, true);
                 vec.emplace_back(std::move(oss).str(), opt.help_text, 0);
                 auto const opt_width =
                     detail::estimated_width(vec.back().printed_names);
@@ -795,7 +769,7 @@ namespace boost { namespace program_options_2 {
                 // TODO: Need some kind of customization point for this.
                 std::string_view const section_text = "positional arguments:";
                 os << text::as_utf8(section_text) << '\n';
-                print_options_and_descs<Format>(
+                print_options_and_descs(
                     os, printed_positionals, description_column);
             }
 
@@ -803,12 +777,12 @@ namespace boost { namespace program_options_2 {
                 // TODO: Need some kind of customization point for this.
                 std::string_view const section_text = "optional arguments:";
                 os << text::as_utf8(section_text) << '\n';
-                print_options_and_descs<Format>(
+                print_options_and_descs(
                     os, printed_arguments, description_column);
             }
         }
 
-        template<text::format Format, typename Char, typename... Options>
+        template<typename Char, typename... Options>
         void print_help(
             std::basic_ostream<Char> & os,
             std::basic_string_view<Char> argv0,
@@ -816,9 +790,9 @@ namespace boost { namespace program_options_2 {
             Options const &... opts)
         {
             std::basic_ostringstream<Char> oss;
-            print_help_synopsis<Format>(
+            print_help_synopsis(
                 oss, detail::program_name(argv0), desc, opts...);
-            print_help_post_synopsis<Format>(oss, opts...);
+            print_help_post_synopsis(oss, opts...);
             auto const str = std::move(oss).str();
             for (auto const & range :
                  text::bidirectional_subranges(text::as_utf32(str))) {
@@ -1185,7 +1159,7 @@ namespace boost { namespace program_options_2 {
 
         if (no_help &&
             detail::argv_contains_default_help_flag(argv, argv + argc)) {
-            detail::print_help<text::format::utf8>(
+            detail::print_help(
                 os,
                 std::string_view(argv[0]),
                 program_desc,
@@ -1216,7 +1190,7 @@ namespace boost { namespace program_options_2 {
 
         if (detail::no_help_option(opt, opts...) &&
             detail::argv_contains_default_help_flag(argv, argv + argc)) {
-            detail::print_help<text::format::utf16>(
+            detail::print_help(
                 os,
                 argv[0],
                 program_desc,
