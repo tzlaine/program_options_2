@@ -109,11 +109,11 @@ TEST(options, arguments)
     }
     {
         auto const arg =
-            po2::with_default(po2::argument<int>("-b,--blah", 1, 1, 2, 3), 42);
+            po2::with_default(po2::argument<int>("-b,--blah", 1, 1, 2, 3), 3);
         EXPECT_EQ(arg.names, "-b,--blah");
         EXPECT_EQ(arg.args, 1);
         EXPECT_EQ(arg.action, po2::detail::action_kind::assign);
-        EXPECT_EQ(arg.value, 42);
+        EXPECT_EQ(arg.value, 3);
         EXPECT_EQ(arg.choices, (std::array<int, 3>{{1, 2, 3}}));
         EXPECT_EQ(arg.arg_display_name, "");
     }

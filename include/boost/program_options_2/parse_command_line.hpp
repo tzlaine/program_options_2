@@ -115,8 +115,14 @@ namespace boost { namespace program_options_2 {
         template<typename T>
         struct is_option : std::false_type
         {};
-        template<typename T, typename Value, required_t Required, int Choices>
-        struct is_option<option<T, Value, Required, Choices>> : std::true_type
+        template<
+            typename T,
+            typename Value,
+            required_t Required,
+            int Choices,
+            typename ChoiceType>
+        struct is_option<option<T, Value, Required, Choices, ChoiceType>>
+            : std::true_type
         {};
 
         template<bool MutuallyExclusive, typename... Options>
@@ -151,14 +157,39 @@ namespace boost { namespace program_options_2 {
             return name[0] == '-' && name[1] == '-';
         }
 
-        template<typename T, typename Value, required_t Required, int Choices>
-        bool positional(option<T, Value, Required, Choices> const & opt)
+        template<
+            typename T,
+            typename Value,
+            required_t Required,
+            int Choices,
+            typename ChoiceType>
+        bool
+        positional(option<T, Value, Required, Choices, ChoiceType> const & opt)
         {
             return detail::positional(opt.names);
         }
 
-        template<typename T, typename Value, required_t Required, int Choices>
-        bool multi_arg(option<T, Value, Required, Choices> const & opt)
+        template<
+            typename T,
+            typename Value,
+            required_t Required,
+            int Choices,
+            typename ChoiceType>
+        bool optional_arg(
+            option<T, Value, Required, Choices, ChoiceType> const & opt)
+        {
+            return opt.args == zero_or_one || opt.args == zero_or_more ||
+                   opt.args == remainder;
+        }
+
+        template<
+            typename T,
+            typename Value,
+            required_t Required,
+            int Choices,
+            typename ChoiceType>
+        bool
+        multi_arg(option<T, Value, Required, Choices, ChoiceType> const & opt)
         {
             return opt.args == zero_or_more || opt.args == one_or_more ||
                    opt.args == remainder;
@@ -464,6 +495,37 @@ namespace boost { namespace program_options_2 {
             os << detail::as_utf<Format>(buf, out.base());
         }
 
+        template<typename Stream, typename T, typename = hana::when<true>>
+        struct is_printable : std::false_type
+        {};
+        template<typename Stream, typename T>
+        struct is_printable<
+            Stream,
+            T,
+            hana::when_valid<decltype(
+                std::declval<Stream &>() << std::declval<T>())>>
+            : std::true_type
+        {};
+
+        template<typename Stream, typename Option>
+        bool print_choices(Stream & os, Option const & opt)
+        {
+            if (opt.choices.empty())
+                return false;
+
+            os << '{';
+            bool print_comma = false;
+            for (auto const & choice : opt.choices) {
+                if (print_comma)
+                    os << ',';
+                print_comma = true;
+                os << choice;
+            }
+            os << '}';
+
+            return true;
+        }
+
         template<
             text::format Format,
             typename Stream,
@@ -475,6 +537,14 @@ namespace boost { namespace program_options_2 {
             Option const & opt,
             bool print_leading_space)
         {
+            bool const args_optional = detail::optional_arg(opt);
+            if (args_optional) {
+                if (print_leading_space)
+                    os << ' ';
+                os << '[';
+                print_leading_space = false;
+            }
+
             int repetitions = opt.args ? opt.args : 0;
             if (repetitions < 0)
                 repetitions = 1;
@@ -482,6 +552,14 @@ namespace boost { namespace program_options_2 {
                 if (print_leading_space)
                     os << ' ';
                 print_leading_space = true;
+
+                if constexpr (is_printable<
+                                  Stream,
+                                  typename Option::choice_type const &>::
+                                  value) {
+                    if (detail::print_choices(os, opt))
+                        continue;
+                }
 
                 if (opt.arg_display_name.empty())
                     detail::print_uppercase<Format>(os, name);
@@ -491,6 +569,9 @@ namespace boost { namespace program_options_2 {
 
             if (detail::multi_arg(opt))
                 os << " ...";
+
+            if (args_optional)
+                os << ']';
         }
 
         template<text::format Format, typename Stream, typename Option>
@@ -628,22 +709,20 @@ namespace boost { namespace program_options_2 {
         return {names, detail::action_kind::assign, 1};
     }
 
-    // TODO: Print choices as a|b|c.
-
     /** TODO */
     template<typename T, typename... Choices>
         // clang-format off
         requires
             (std::assignable_from<T &, Choices> && ...) ||
             (detail::insertable_from<T, Choices> && ...)
-    //clang-format on
     detail::option<
-        T,
+        T ,
         detail::no_value,
         detail::required_t::no,
         sizeof...(Choices),
         detail::choice_type_t<T, Choices...>>
     argument(std::string_view names, int args, Choices... choices)
+    // clang-format on
     {
 #if !BOOST_PROGRAM_OPTIONS_2_USE_CONCEPTS
         // Each type in the parameter pack Choices... must be assignable to T,
@@ -685,9 +764,14 @@ namespace boost { namespace program_options_2 {
 
     /** TODO */
     template<typename T, typename... Choices>
+        // clang-format off
+        requires
+            (std::assignable_from<T &, Choices> && ...) ||
+            (detail::insertable_from<T, Choices> && ...)
     detail::
         option<T, detail::no_value, detail::required_t::yes, sizeof...(Choices)>
         positional(std::string_view name, int args, Choices... choices)
+    // clang-format on
     {
 #if !BOOST_PROGRAM_OPTIONS_2_USE_CONCEPTS
         // Each type in the parameter pack Choices... must be assignable to T,
@@ -739,8 +823,13 @@ namespace boost { namespace program_options_2 {
     // function(s).
     /** TODO */
     template<typename T, typename... Choices>
+        // clang-format off
+        requires
+            (std::assignable_from<T &, Choices> && ...) ||
+            (detail::insertable_from<T, Choices> && ...)
     detail::option<T, T, detail::required_t::yes, sizeof...(Choices)>
     positional(int args, Choices... choices)
+    // clang-format on
     {
 #if !BOOST_PROGRAM_OPTIONS_2_USE_CONCEPTS
         // Each type in the parameter pack Choices... must be assignable to T,
@@ -843,30 +932,32 @@ namespace boost { namespace program_options_2 {
     }
 
     /** TODO */
-    template<typename T, detail::required_t Required, int Choices>
-    detail::option<T, T, Required, Choices> with_default(
-        detail::option<T, detail::no_value, Required, Choices> opt,
-        T default_value)
-    {
-        return {
-            opt.names,
-            opt.action,
-            opt.args,
-            std::move(default_value),
-            opt.choices,
-            opt.arg_display_name};
-    }
-
-    /** TODO */
     template<
         typename T,
         detail::required_t Required,
         int Choices,
-        typename DefaultType = std::ranges::range_value_t<T>>
-    detail::option<T, DefaultType, Required, Choices> with_default(
-        detail::option<T, detail::no_value, Required, Choices> opt,
+        typename ChoiceType,
+        typename DefaultType>
+        // clang-format off
+        requires 
+            (Choices == 0 ||
+             std::equality_comparable_with<DefaultType, ChoiceType>) &&
+            (std::assignable_from<T &, DefaultType> ||
+             detail::insertable_from<T, DefaultType>)
+    detail::option<T, DefaultType, Required, Choices, ChoiceType> with_default(
+        detail::option<T, detail::no_value, Required, Choices, ChoiceType> opt,
         DefaultType default_value)
+    // clang-format on
     {
+        if constexpr (std::equality_comparable_with<DefaultType, ChoiceType>){
+            // If there are choices specified, the default must be one of the
+            // choices.
+            BOOST_ASSERT(
+                opt.choices.empty() ||
+                std::find(
+                    opt.choices.begin(), opt.choices.end(), default_value) !=
+                    opt.choices.end());
+        }
         return {
             opt.names,
             opt.action,
@@ -881,13 +972,17 @@ namespace boost { namespace program_options_2 {
         typename T,
         typename Value,
         detail::required_t Required,
-        int Choices>
+        int Choices,
+        typename ChoiceType>
     auto with_display_name(
-        detail::option<T, Value, Required, Choices> opt, std::string_view name)
+        detail::option<T, Value, Required, Choices, ChoiceType> opt,
+        std::string_view name)
     {
         // A display name for a flag or other option with no arguments will
         // never be displayed.
         BOOST_ASSERT(opt.args != 0);
+        // A display name for an option with choices will never be displayed.
+        BOOST_ASSERT(opt.choices.size() == 0);
         opt.arg_display_name = name;
         return opt;
     }
@@ -898,8 +993,10 @@ namespace boost { namespace program_options_2 {
         typename T,
         typename Value,
         detail::required_t Required,
-        int Choices>
-    auto readable_file(detail::option<T, Value, Required, Choices> opt)
+        int Choices,
+        typename ChoiceType>
+    auto
+    readable_file(detail::option<T, Value, Required, Choices, ChoiceType> opt)
     {
         // TODO
         return {};
@@ -910,8 +1007,10 @@ namespace boost { namespace program_options_2 {
         typename T,
         typename Value,
         detail::required_t Required,
-        int Choices>
-    auto writable_file(detail::option<T, Value, Required, Choices> opt)
+        int Choices,
+        typename ChoiceType>
+    auto
+    writable_file(detail::option<T, Value, Required, Choices, ChoiceType> opt)
     {
         // TODO
         return {};
@@ -922,8 +1021,10 @@ namespace boost { namespace program_options_2 {
         typename T,
         typename Value,
         detail::required_t Required,
-        int Choices>
-    auto readable_path(detail::option<T, Value, Required, Choices> opt)
+        int Choices,
+        typename ChoiceType>
+    auto
+    readable_path(detail::option<T, Value, Required, Choices, ChoiceType> opt)
     {
         // TODO
         return {};
@@ -934,8 +1035,10 @@ namespace boost { namespace program_options_2 {
         typename T,
         typename Value,
         detail::required_t Required,
-        int Choices>
-    auto writable_path(detail::option<T, Value, Required, Choices> opt)
+        int Choices,
+        typename ChoiceType>
+    auto
+    writable_path(detail::option<T, Value, Required, Choices, ChoiceType> opt)
     {
         // TODO
         return {};
