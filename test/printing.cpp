@@ -427,6 +427,7 @@ TEST(printing, detail_print_help_synopsis)
     {
         std::ostringstream os;
         po2::detail::print_help_synopsis(
+            po2::detail::default_strings_tag{},
             os,
             sv(exe),
             sv("A program that does things."),
@@ -441,6 +442,7 @@ A program that does things.
     {
         std::ostringstream os;
         po2::detail::print_help_synopsis(
+            po2::detail::default_strings_tag{},
             os,
             sv(exe),
             sv("A program that does things."),
@@ -458,6 +460,7 @@ A program that does things.
                                      "barrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr";
         std::ostringstream os;
         po2::detail::print_help_synopsis(
+            po2::detail::default_strings_tag{},
             os,
             sv(long_exe),
             sv("A program that does things."),
@@ -469,6 +472,21 @@ A program that does things.
 A program that does things.
 
 )");
+    }
+}
+
+namespace user_namespace {
+    struct tag
+    {};
+    po2::customizable_strings help_text_customizable_strings(tag)
+    {
+        po2::customizable_strings retval;
+        retval.usage_text = "USAGE: ";
+        retval.positional_section_text = "POSITIONAL arguments:";
+        retval.optional_section_text = "OPTIONAL arguments:";
+        retval.help_names = "-r,--redacted";
+        retval.help_description = "Nothing to see here.";
+        return retval;
     }
 }
 
@@ -545,6 +563,57 @@ positional arguments:
                         
 optional arguments:
   -h, --help            Print this help message and exit
+                        
+  --non-positional      A non-positional argument.
+                        
+  --an, --arg, --with, --many-names, --only, -s, --single, --short, --one
+                        Another non-positional argument.
+                        
+  --non-pos-2           A second non-positional argument.  This one has a 
+                        particularly long description, just so we can see what 
+                        the column-wrapping looks like.
+                        
+)");
+    }
+
+    {
+        std::string strings = std::string("foo") + po2::detail::fs_sep + "bar";
+        strings += '\0';
+        strings += "-r";
+        strings += '\0';
+
+        int const argc = 2;
+        char const * argv[2] = {
+            strings.c_str(), strings.c_str() + strings.size() - 3};
+
+        std::ostringstream os;
+        po2::parse_command_line(
+            user_namespace::tag{},
+            argc,
+            argv,
+            "A test program to see how things work.",
+            os,
+            po2::argument("--non-positional", "A non-positional argument."),
+            po2::positional("positional", "A positional argument."),
+            po2::argument(
+                "--an,--arg,--with,--many-names,--only,-s,--single,--short,--"
+                "one",
+                "Another non-positional argument."),
+            po2::argument(
+                "--non-pos-2",
+                "A second non-positional argument.  This one has a "
+                "particularly long description, just so we can see what the "
+                "column-wrapping looks like."));
+        EXPECT_EQ(os.str(), R"(USAGE:  bar [-r] [--non-positional NON-POSITIONAL] POSITIONAL [-s S]
+            [--non-pos-2 NON-POS-2]
+
+A test program to see how things work.
+
+POSITIONAL arguments:
+  positional            A positional argument.
+                        
+OPTIONAL arguments:
+  -r, --redacted        Nothing to see here.
                         
   --non-positional      A non-positional argument.
                         

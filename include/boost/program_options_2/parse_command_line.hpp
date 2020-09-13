@@ -438,22 +438,20 @@ namespace boost { namespace program_options_2 {
             return ((opts.action != detail::action_kind::help) && ...);
         }
 
-        struct cust_strings_tag
+        struct default_strings_tag
         {};
 
-        customizable_strings help_text_customizable_strings(cust_strings_tag)
+        customizable_strings help_text_customizable_strings(default_strings_tag)
         {
             return customizable_strings{};
         }
 
-        // TODO: -> CPO? (may require passing some tag param)
-        template<typename Char>
-        bool
-        argv_contains_default_help_flag(Char const ** first, Char const ** last)
+        template<typename CustomStringsTag, typename Char>
+        bool argv_contains_default_help_flag(
+            CustomStringsTag tag, Char const ** first, Char const ** last)
         {
-            // TODO: Pass a tag in here to use.
             customizable_strings const strings =
-                help_text_customizable_strings(cust_strings_tag{});
+                help_text_customizable_strings(tag);
             auto const names = names_view(strings.help_names);
             for (; first != last; ++first) {
                 auto const str = std::basic_string_view<Char>(*first);
@@ -465,11 +463,11 @@ namespace boost { namespace program_options_2 {
             return false;
         }
 
-        inline option<void> default_help()
+        template<typename CustomStringsTag>
+        option<void> default_help(CustomStringsTag tag)
         {
-            // TODO: Pass a tag in here to use.
             customizable_strings const strings =
-                help_text_customizable_strings(cust_strings_tag{});
+                help_text_customizable_strings(tag);
             return {
                 strings.help_names,
                 strings.help_description,
@@ -650,8 +648,13 @@ namespace boost { namespace program_options_2 {
             return current_width;
         }
 
-        template<typename Stream, typename Char, typename... Options>
+        template<
+            typename CustomStringsTag,
+            typename Stream,
+            typename Char,
+            typename... Options>
         void print_help_synopsis(
+            CustomStringsTag tag,
             Stream & os,
             std::basic_string_view<Char> prog,
             std::basic_string_view<Char> prog_desc,
@@ -660,9 +663,8 @@ namespace boost { namespace program_options_2 {
             using opt_tuple_type = hana::tuple<Options const &...>;
             opt_tuple_type opt_tuple{opts...};
 
-            // TODO: Pass a tag in here to use.
             customizable_strings const strings =
-                help_text_customizable_strings(cust_strings_tag{});
+                help_text_customizable_strings(tag);
 
             os << text::as_utf8(strings.usage_text) << ' '
                << text::as_utf8(prog);
@@ -761,8 +763,12 @@ namespace boost { namespace program_options_2 {
             }
         }
 
-        template<typename Stream, typename... Options>
-        void print_help_post_synopsis(Stream & os, Options const &... opts)
+        template<
+            typename CustomStringsTag,
+            typename Stream,
+            typename... Options>
+        void print_help_post_synopsis(
+            CustomStringsTag tag, Stream & os, Options const &... opts)
         {
             using opt_tuple_type = hana::tuple<Options const &...>;
             opt_tuple_type opt_tuple{opts...};
@@ -788,9 +794,8 @@ namespace boost { namespace program_options_2 {
             int const description_column = (std::min)(
                 max_option_length + min_help_column_gap, max_option_col_width);
 
-            // TODO: Pass a tag in here to use.
             customizable_strings const strings =
-                help_text_customizable_strings(cust_strings_tag{});
+                help_text_customizable_strings(tag);
 
             if (!printed_positionals.empty()) {
                 os << text::as_utf8(strings.positional_section_text) << '\n';
@@ -805,8 +810,9 @@ namespace boost { namespace program_options_2 {
             }
         }
 
-        template<typename Char, typename... Options>
+        template<typename CustomStringsTag, typename Char, typename... Options>
         void print_help(
+            CustomStringsTag tag,
             std::basic_ostream<Char> & os,
             std::basic_string_view<Char> argv0,
             std::basic_string_view<Char> desc,
@@ -814,8 +820,8 @@ namespace boost { namespace program_options_2 {
         {
             std::basic_ostringstream<Char> oss;
             print_help_synopsis(
-                oss, detail::program_name(argv0), desc, opts...);
-            print_help_post_synopsis(oss, opts...);
+                tag, oss, detail::program_name(argv0), desc, opts...);
+            print_help_post_synopsis(tag, oss, opts...);
             auto const str = std::move(oss).str();
             for (auto const & range :
                  text::bidirectional_subranges(text::as_utf32(str))) {
@@ -1167,8 +1173,12 @@ namespace boost { namespace program_options_2 {
 #endif
 
     /** TODO */
-    template<option_or_group Option, option_or_group... Options>
+    template<
+        typename CustomStringsTag,
+        option_or_group Option,
+        option_or_group... Options>
     auto parse_command_line(
+        CustomStringsTag tag,
         int argc,
         char const ** argv,
         std::string_view program_desc,
@@ -1181,12 +1191,13 @@ namespace boost { namespace program_options_2 {
         bool const no_help = detail::no_help_option(opt, opts...);
 
         if (no_help &&
-            detail::argv_contains_default_help_flag(argv, argv + argc)) {
+            detail::argv_contains_default_help_flag(tag, argv, argv + argc)) {
             detail::print_help(
+                tag,
                 os,
                 std::string_view(argv[0]),
                 program_desc,
-                detail::default_help(),
+                detail::default_help(tag),
                 opt,
                 opts...);
 #ifndef BOOST_PROGRAM_OPTIONS_2_TESTING
@@ -1197,7 +1208,61 @@ namespace boost { namespace program_options_2 {
         // TODO
     }
 
+    /** TODO */
+    template<option_or_group Option, option_or_group... Options>
+    auto parse_command_line(
+        int argc,
+        char const ** argv,
+        std::string_view program_desc,
+        std::ostream & os,
+        Option opt,
+        Options... opts)
+    {
+        return program_options_2::parse_command_line(
+            detail::default_strings_tag{},
+            argc,
+            argv,
+            program_desc,
+            os,
+            opt,
+            opts...);
+    }
+
 #if defined(BOOST_PROGRAM_OPTIONS_2_DOXYGEN) || defined(_MSC_VER)
+
+    /** TODO */
+    template<
+        typename CustomStringsTag,
+        option_or_group Option,
+        option_or_group... Options>
+    auto parse_command_line(
+        CustomStringsTag tag,
+        int argc,
+        wchar_t const ** argv,
+        std::wstring_view program_desc,
+        std::wostream & os,
+        Option opt,
+        Options... opts)
+    {
+        detail::check_options(false, opt, opts...);
+
+        if (detail::no_help_option(opt, opts...) &&
+            detail::argv_contains_default_help_flag(tag, argv, argv + argc)) {
+            detail::print_help(
+                tag,
+                os,
+                argv[0],
+                program_desc,
+                detail::default_help(tag),
+                opt,
+                opts...);
+#ifndef BOOST_PROGRAM_OPTIONS_2_TESTING
+            std::exit(0);
+#endif
+        }
+
+        // TODO
+    }
 
     /** TODO */
     template<option_or_group Option, option_or_group... Options>
@@ -1209,23 +1274,14 @@ namespace boost { namespace program_options_2 {
         Option opt,
         Options... opts)
     {
-        detail::check_options(false, opt, opts...);
-
-        if (detail::no_help_option(opt, opts...) &&
-            detail::argv_contains_default_help_flag(argv, argv + argc)) {
-            detail::print_help(
-                os,
-                argv[0],
-                program_desc,
-                detail::default_help(),
-                opt,
-                opts...);
-#ifndef BOOST_PROGRAM_OPTIONS_2_TESTING
-            std::exit(0);
-#endif
-        }
-
-        // TODO
+        return program_options_2::parse_command_line(
+            detail::default_strings_tag{},
+            argc,
+            argv,
+            program_desc,
+            os,
+            opt,
+            opts...);
     }
 
     // TODO: Overload for char const * from WinMain.

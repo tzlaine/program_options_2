@@ -52,6 +52,17 @@ TEST(detail, names_view)
     }
 }
 
+namespace user_namespace {
+    struct tag
+    {};
+    po2::customizable_strings help_text_customizable_strings(tag)
+    {
+        po2::customizable_strings retval;
+        retval.help_names = "-r,--redacted";
+        return retval;
+    }
+}
+
 TEST(detail, misc)
 {
     // first_shortest_name
@@ -77,21 +88,38 @@ TEST(detail, misc)
     {
         char const * argv[] = {"", "help"};
         EXPECT_FALSE(po2::detail::argv_contains_default_help_flag(
-            std::begin(argv), std::end(argv)));
+            po2::detail::default_strings_tag{},
+            std::begin(argv),
+            std::end(argv)));
     }
     {
         char const * argv[] = {"foo", "-h"};
         EXPECT_TRUE(po2::detail::argv_contains_default_help_flag(
-            std::begin(argv), std::end(argv)));
+            po2::detail::default_strings_tag{},
+            std::begin(argv),
+            std::end(argv)));
     }
     {
         char const * argv[] = {"foo", "--help"};
         EXPECT_TRUE(po2::detail::argv_contains_default_help_flag(
-            std::begin(argv), std::end(argv)));
+            po2::detail::default_strings_tag{},
+            std::begin(argv),
+            std::end(argv)));
     }
-}
-
-TEST(detail, check_options)
-{
-    // TODO
+    // user-customized strings
+    {
+        char const * argv[] = {"", "redacted"};
+        EXPECT_FALSE(po2::detail::argv_contains_default_help_flag(
+            user_namespace::tag{}, std::begin(argv), std::end(argv)));
+    }
+    {
+        char const * argv[] = {"foo", "-r"};
+        EXPECT_TRUE(po2::detail::argv_contains_default_help_flag(
+            user_namespace::tag{}, std::begin(argv), std::end(argv)));
+    }
+    {
+        char const * argv[] = {"foo", "--redacted"};
+        EXPECT_TRUE(po2::detail::argv_contains_default_help_flag(
+            user_namespace::tag{}, std::begin(argv), std::end(argv)));
+    }
 }
