@@ -643,6 +643,9 @@ namespace boost { namespace program_options_2 {
                 for (int i = 0; i < first_column; ++i) {
                     os << ' ';
                 }
+                current_width = first_column;
+            } else {
+                current_width += str_width;
             }
 
             os << text::as_utf8(str);
