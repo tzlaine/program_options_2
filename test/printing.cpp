@@ -375,6 +375,47 @@ TEST(printing, print_option_positionals)
     }
 }
 
+TEST(printing, print_option_other)
+{
+    {
+        auto const arg = po2::flag("--foo");
+        std::ostringstream os;
+        po2::detail::print_option<boost::text::format::utf8>(os, arg, 8, 8);
+        EXPECT_EQ(os.str(), " [--foo]");
+    }
+    {
+        auto const arg = po2::inverted_flag("--foo");
+        std::ostringstream os;
+        po2::detail::print_option<boost::text::format::utf8>(os, arg, 8, 8);
+        EXPECT_EQ(os.str(), " [--foo]");
+    }
+    {
+        auto const arg = po2::counted_flag("--foo,-f");
+        std::ostringstream os;
+        po2::detail::print_option<boost::text::format::utf8>(os, arg, 8, 8);
+        EXPECT_EQ(os.str(), " [-f[f...]]");
+    }
+    {
+        auto const arg = po2::version("3.2.1");
+        std::ostringstream os;
+        po2::detail::print_option<boost::text::format::utf8>(os, arg, 8, 8);
+        EXPECT_EQ(os.str(), " [-v]");
+    }
+    {
+        auto const arg = po2::help("-a,--ayuda");
+        std::ostringstream os;
+        po2::detail::print_option<boost::text::format::utf8>(os, arg, 8, 8);
+        EXPECT_EQ(os.str(), " [-a]");
+    }
+    {
+        auto help_str = [] { return sv("Help message goes here."); };
+        auto const arg = po2::help(help_str);
+        std::ostringstream os;
+        po2::detail::print_option<boost::text::format::utf8>(os, arg, 8, 8);
+        EXPECT_EQ(os.str(), " [-h]");
+    }
+}
+
 TEST(printing, detail_print_help_synopsis)
 {
     std::string const exe = std::string("foo") + po2::detail::fs_sep + "bar";

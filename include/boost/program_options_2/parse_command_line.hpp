@@ -455,7 +455,6 @@ namespace boost { namespace program_options_2 {
             return text::as_utf8(usage_str);
         }
 
-        // TODO: -> CPO?
         inline option<void> default_help()
         {
             return {"-h,--help", action_kind::help, 0};
@@ -593,6 +592,12 @@ namespace boost { namespace program_options_2 {
 
             if (detail::positional(opt)) {
                 detail::print_args<Format>(oss, opt.names, opt, false);
+            } else if (opt.action == action_kind::count) {
+                auto const shortest_name =
+                    detail::first_shortest_name(opt.names);
+                auto const trimmed_name =
+                    detail::trim_leading_dashes(shortest_name);
+                oss << shortest_name << '[' << trimmed_name << "...]";
             } else {
                 auto const shortest_name =
                     detail::first_shortest_name(opt.names);
@@ -838,10 +843,11 @@ namespace boost { namespace program_options_2 {
         // Looks like you tried to create a non-positional argument that does
         // not start with a '-'.  Don't do that.
         BOOST_ASSERT(!detail::positional(names));
-        // Looks like you tried to create a counted flag with names that do
-        // not include a short name (of the form "-<name>", where "<name>" is
-        // a single character).  Don't do that.
-        BOOST_ASSERT(detail::short_(detail::first_shortest_name(names)));
+        // For a counted flag, the first short name in names must be of the
+        // form "-<name>", where "<name>" is a single character.
+        BOOST_ASSERT(
+            detail::short_(detail::first_shortest_name(names)) &&
+            detail::first_shortest_name(names).size() == 2u);
         return {names, detail::action_kind::count};
     }
 
@@ -856,14 +862,23 @@ namespace boost { namespace program_options_2 {
     }
 
     /** TODO */
-    template<typename HelpStringFunc>
-    inline detail::option<void, HelpStringFunc>
+    template<std::invocable HelpStringFunc>
+    detail::option<void, HelpStringFunc>
     help(HelpStringFunc f, std::string_view names = "--help,-h")
     {
         // Looks like you tried to create a non-positional argument that does
         // not start with a '-'.  Don't do that.
         BOOST_ASSERT(!detail::positional(names));
-        return {names, detail::action_kind::version, 0, f};
+        return {names, detail::action_kind::version, 0, std::move(f)};
+    }
+
+    /** TODO */
+    inline detail::option<void> help(std::string_view names)
+    {
+        // Looks like you tried to create a non-positional argument that does
+        // not start with a '-'.  Don't do that.
+        BOOST_ASSERT(!detail::positional(names));
+        return {names, detail::action_kind::version, 0};
     }
 
     // TODO: Form exclusive groups using operator||?
