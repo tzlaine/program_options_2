@@ -99,7 +99,7 @@ namespace boost { namespace program_options_2 {
             typename ChoiceType = T>
         struct option
         {
-            std::string_view names; // a single name, or --a,-b,--c,...
+            std::string_view names;
             std::string_view help_text;
             action_kind action;
             int args;
@@ -109,8 +109,7 @@ namespace boost { namespace program_options_2 {
                 no_value,
                 ChoiceType>;
             std::array<choice_type, Choices> choices;
-            std::string_view arg_display_name; // argparse's "metavar"; only used here for non-positionals
-            // TODO: Need this (probably not)? std::string_view stored_name;      // argparse's "dest"
+            std::string_view arg_display_name;
 
             constexpr static bool required = Required == required_t::yes;
         };
@@ -448,12 +447,7 @@ namespace boost { namespace program_options_2 {
         }
 
         // TODO: -> CPO?
-        template<text::format Format>
-        auto usage_colon()
-        {
-            char const * usage_str = "usage: ";
-            return text::as_utf8(usage_str);
-        }
+        inline std::string_view usage_colon() { return "usage: "; }
 
         inline option<void> default_help()
         {
@@ -497,12 +491,12 @@ namespace boost { namespace program_options_2 {
             while (increment < it - first) {
                 auto out = text::to_upper(
                     text::as_utf32(it, last), text::utf_32_to_8_out(buf));
-                os << detail::as_utf<Format>(buf, out.base());
+                os << text::as_utf8(buf, out.base());
                 it += increment;
             }
             auto out = text::to_upper(
                 text::as_utf32(it, last), text::utf_32_to_8_out(buf));
-            os << detail::as_utf<Format>(buf, out.base());
+            os << text::as_utf8(buf, out.base());
         }
 
         template<typename Stream, typename T, typename = hana::when<true>>
@@ -586,6 +580,14 @@ namespace boost { namespace program_options_2 {
                 os << ']';
         }
 
+        template<typename R>
+        int estimated_width(R const & r)
+        {
+            return text::estimated_width_of_graphemes(text::as_utf32(r));
+        }
+
+        // brief=true is used to print the comma-delimited names in the
+        // desciptions.
         template<text::format Format, typename Stream, typename Option>
         int print_option(
             Stream & os,
@@ -602,39 +604,48 @@ namespace boost { namespace program_options_2 {
             if (!opt.required && !brief)
                 oss << '[';
 
-            if (detail::positional(opt)) {
+            if (brief) {
+                // This, plus the leading space in the first name printed
+                // below, gives us a 2-space indent.
+                oss << ' ';
+                bool print_separator = false;
+                for (auto name : names_view(opt.names)) {
+                    if (print_separator)
+                        oss << ',' << ' ';
+                    print_separator = true;
+                    oss << text::as_utf8(name);
+                }
+            } else if (detail::positional(opt)) {
                 detail::print_args<Format>(oss, opt.names, opt, false);
-            } else if (opt.action == action_kind::count && !brief) {
+            } else if (opt.action == action_kind::count) {
                 auto const shortest_name =
                     detail::first_shortest_name(opt.names);
                 auto const trimmed_name =
                     detail::trim_leading_dashes(shortest_name);
                 char const * close = "...]";
-                oss << shortest_name << '[' << trimmed_name
-                    << text::as_utf8(close);
+                oss << text::as_utf8(shortest_name) << '['
+                    << text::as_utf8(trimmed_name) << text::as_utf8(close);
             } else {
                 auto const shortest_name =
                     detail::first_shortest_name(opt.names);
-                oss << shortest_name;
-                if (!brief) {
-                    detail::print_args<Format>(
-                        oss,
-                        detail::trim_leading_dashes(shortest_name),
-                        opt,
-                        true);
-                }
+                oss << text::as_utf8(shortest_name);
+                detail::print_args<Format>(
+                    oss, detail::trim_leading_dashes(shortest_name), opt, true);
             }
 
             if (!opt.required && !brief)
                 oss << ']';
 
             std::string const str(std::move(oss).str());
-            auto const str_width =
-                text::estimated_width_of_graphemes(text::as_utf32(str));
-            if (max_width < int(current_width + str_width))
-                os << '\n' << std::string(first_column, ' ');
+            auto const str_width = detail::estimated_width(str);
+            if (max_width < current_width + str_width) {
+                os << '\n';
+                for (int i = 0; i < first_column; ++i) {
+                    os << ' ';
+                }
+            }
 
-            os << str;
+            os << text::as_utf8(str);
 
             return current_width;
         }
@@ -653,12 +664,12 @@ namespace boost { namespace program_options_2 {
             using opt_tuple_type = hana::tuple<Options const &...>;
             opt_tuple_type opt_tuple{opts...};
 
-            os << detail::usage_colon<Format>() << ' ' << prog;
+            os << text::as_utf8(detail::usage_colon()) << ' '
+               << text::as_utf8(prog);
 
-            int const usage_colon_width = text::estimated_width_of_graphemes(
-                text::as_utf32(detail::usage_colon<Format>()));
-            int const prog_width =
-                text::estimated_width_of_graphemes(text::as_utf32(prog));
+            int const usage_colon_width =
+                detail::estimated_width(detail::usage_colon());
+            int const prog_width = detail::estimated_width(prog);
 
             int first_column = usage_colon_width + 1 + prog_width;
             if (detail::max_col_width / 2 < first_column)
@@ -679,7 +690,7 @@ namespace boost { namespace program_options_2 {
             if (prog_desc.empty())
                 os << '\n';
             else
-                os << '\n' << '\n' << prog_desc << '\n' << '\n';
+                os << '\n' << '\n' << text::as_utf8(prog_desc) << '\n' << '\n';
 
             // TODO: When there are one or more subcommands in use, print all
             // the non-subcommand options, as above, but then end with
@@ -687,18 +698,49 @@ namespace boost { namespace program_options_2 {
             // user-configurable.
         }
 
-        struct printed_option_and_desc
+        struct printed_names_and_desc
         {
-            std::string printed_option;
+            printed_names_and_desc() = default;
+            printed_names_and_desc(
+                std::string printed_names,
+                std::string_view desc,
+                int estimated_width) :
+                printed_names(std::move(printed_names)),
+                desc(desc),
+                estimated_width(estimated_width)
+            {}
+            std::string printed_names;
             std::string_view desc;
+            int estimated_width;
         };
+
+        // This is the minimum allowed gap between the options and their
+        // descriptions.
+        constexpr int min_help_column_gap = 2;
 
         template<text::format Format, typename Stream, typename... Options>
         void print_options_and_descs(
             Stream & os,
-            std::vector<printed_option_and_desc> const & printed_options,
+            std::vector<printed_names_and_desc> const & names_and_descs,
             int description_column)
-        {}
+        {
+            for (auto const & name_and_desc : names_and_descs) {
+                os << text::as_utf8(name_and_desc.printed_names);
+                int const limit = description_column - min_help_column_gap;
+                int const needed_spacing =
+                    name_and_desc.estimated_width <= limit
+                        ? limit - name_and_desc.estimated_width +
+                              min_help_column_gap
+                        : description_column;
+                if (needed_spacing == description_column)
+                    os << '\n';
+                for (int i = 0; i < needed_spacing; ++i) {
+                    os << ' ';
+                }
+                os << text::as_utf8(name_and_desc.desc); // TODO: Needs wrapping.
+                os << '\n';
+            }
+        }
 
         template<text::format Format, typename Stream, typename... Options>
         void print_help_post_synopsis(Stream & os, Options const &... opts)
@@ -706,25 +748,26 @@ namespace boost { namespace program_options_2 {
             using opt_tuple_type = hana::tuple<Options const &...>;
             opt_tuple_type opt_tuple{opts...};
 
-            std::size_t max_option_length = 0;
-            std::vector<printed_option_and_desc> printed_positionals;
-            std::vector<printed_option_and_desc> printed_arguments;
+            int max_option_length = 0;
+            std::vector<printed_names_and_desc> printed_positionals;
+            std::vector<printed_names_and_desc> printed_arguments;
             hana::for_each(opt_tuple, [&](auto const & opt) {
-                std::vector<printed_option_and_desc> & vec =
+                std::vector<printed_names_and_desc> & vec =
                     detail::positional(opt) ? printed_positionals
                                             : printed_arguments;
                 std::ostringstream oss;
                 detail::print_option<Format>(oss, opt, 0, 0, INT_MAX, true);
-                vec.emplace_back(std::move(oss).str(), opt.help_text);
-                max_option_length = (std::max)(
-                    max_option_length, vec.back().printed_option.size());
+                vec.emplace_back(std::move(oss).str(), opt.help_text, 0);
+                auto const opt_width =
+                    detail::estimated_width(vec.back().printed_names);
+                vec.back().estimated_width = opt_width;
+                max_option_length = (std::max)(max_option_length, opt_width);
             });
 
-            int const indent = 2;
-            int const min_gap = 2; // between the option and its description
-
-            int const description_column = std::min<int>(
-                indent + max_option_length + min_gap, max_option_col_width);
+            // max_option_length includes a 2-space initial sequence, which acts
+            // as an indent.
+            int const description_column = (std::min)(
+                max_option_length + min_help_column_gap, max_option_col_width);
 
             if (!printed_positionals.empty()) {
                 // TODO: Need some kind of customization point for this.
@@ -1111,6 +1154,7 @@ namespace boost { namespace program_options_2 {
     auto parse_command_line(
         int argc,
         char const ** argv,
+        std::string_view program_desc,
         std::ostream & os,
         Option opt,
         Options... opts)
@@ -1122,12 +1166,10 @@ namespace boost { namespace program_options_2 {
         if (no_help &&
             detail::argv_contains_default_help_flag(argv, argv + argc)) {
             detail::print_help<text::format::utf8>(
-                os,
-                std::string_view(argv[0]),
-                std::string_view{},
-                opt,
-                opts...);
+                os, std::string_view(argv[0]), program_desc, opt, opts...);
+#ifndef BOOST_PROGRAM_OPTIONS_2_TESTING
             std::exit(0);
+#endif
         }
 
         // TODO
@@ -1140,6 +1182,7 @@ namespace boost { namespace program_options_2 {
     auto parse_command_line(
         int argc,
         wchar_t const ** argv,
+        std::wstring_view program_desc,
         std::wostream & os,
         Option opt,
         Options... opts)
@@ -1149,8 +1192,10 @@ namespace boost { namespace program_options_2 {
         if (detail::no_help_option(opt, opts...) &&
             detail::argv_contains_default_help_flag(argv, argv + argc)) {
             detail::print_help<text::format::utf16>(
-                os, argv[0], std::basic_string_view<wchar_t>{}, opt, opts...);
+                os, argv[0], program_desc, opt, opts...);
+#ifndef BOOST_PROGRAM_OPTIONS_2_TESTING
             std::exit(0);
+#endif
         }
 
         // TODO

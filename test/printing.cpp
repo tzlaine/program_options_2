@@ -3,6 +3,7 @@
 // Distributed under the Boost Software License, Version 1.0. (See
 // accompanying file LICENSE_1_0.txt or copy at
 // http://www.boost.org/LICENSE_1_0.txt)
+#define BOOST_PROGRAM_OPTIONS_2_TESTING
 #include <boost/program_options_2/parse_command_line.hpp>
 
 #include <boost/mpl/assert.hpp>
@@ -471,4 +472,43 @@ A program that does things.
     }
 }
 
-// TODO
+TEST(printing, parse_command_line_help)
+{
+    std::string strings = std::string("foo") + po2::detail::fs_sep + "bar";
+    strings += '\0';
+    strings += "-h";
+    strings += '\0';
+
+    int const argc = 2;
+    char const * argv[2] = {
+        strings.c_str(), strings.c_str() + strings.size() - 3};
+
+    {
+        po2::parse_command_line(
+            argc,
+            argv,
+            "A test program to see how things work.",
+            std::cout,
+            po2::argument("--non-positional", "A non-positional argument."),
+            po2::positional("positional", "A positional argument."),
+            po2::positional(
+                "a-very-very-very-obnoxiously-long-positional",
+                "Another positional argument."),
+            po2::argument("--non-pos-2", "A second non-positional argument."));
+    }
+
+    {
+        po2::parse_command_line(
+            argc,
+            argv,
+            "A test program to see how things work.",
+            std::cout,
+            po2::argument("--non-positional", "A non-positional argument."),
+            po2::positional("positional", "A positional argument."),
+            po2::argument(
+                "--an,--arg,--with,--many-names,--only,-s,--single,--short,--"
+                "one",
+                "Another non-positional argument."),
+            po2::argument("--non-pos-2", "A second non-positional argument."));
+    }
+}

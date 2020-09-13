@@ -16,6 +16,7 @@ int main(int argc, char const * argv[])
     po2::parse_command_line(
         argc,
         argv,
+        "A program that prints hello.",
         std::cout,
         po2::positional("addressee", "The person to say hello to."));
 
