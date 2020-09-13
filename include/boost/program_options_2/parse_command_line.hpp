@@ -814,69 +814,6 @@ namespace boost { namespace program_options_2 {
     // TODO: Add built-in handling of "--" on the command line, when
     // positional args are in play?
 
-    // TODO: Doc that this only works with the hana::tuple-returning parse
-    // function(s).
-    /** TODO */
-    template<typename T>
-    detail::option<T> positional(int args = 1)
-    {
-        // A value of 0 for args makes no sense for a positional argument.
-        BOOST_ASSERT(args != 0);
-        // args must be one of the named values, like zero_or_one, or must be
-        // non-negative.
-        BOOST_ASSERT(remainder <= args);
-        // If you specify more than one argument with args, T must be a type
-        // that can be inserted into.
-        BOOST_ASSERT(args == 1 || args == zero_or_one || detail::insertable<T>);
-        return {
-            {},
-            args == 1 || args == zero_or_one ? detail::action_kind::assign
-                                             : detail::action_kind::insert,
-            args};
-    }
-
-    // TODO: Doc that this only works with the hana::tuple-returning parse
-    // function(s).
-    /** TODO */
-    template<typename T, typename... Choices>
-        // clang-format off
-        requires
-            (std::assignable_from<T &, Choices> && ...) ||
-            (detail::insertable_from<T, Choices> && ...)
-    detail::option<
-        T ,
-        detail::no_value,
-        detail::required_t::yes,
-        sizeof...(Choices),
-        detail::choice_type_t<T, Choices...>>
-    positional(int args, Choices... choices)
-    // clang-format on
-    {
-#if !BOOST_PROGRAM_OPTIONS_2_USE_CONCEPTS
-        // Each type in the parameter pack Choices... must be assignable to T,
-        // or insertable into T.
-        static_assert(
-            (std::is_assignable_v<T &, Choices> && ...) ||
-            (detail::is_insertable_from<T, Choices>::value &&
-             ...));
-#endif
-        // A value of 0 for args makes no sense for a positional argument.
-        BOOST_ASSERT(args != 0);
-        // args must be one of the named values, like zero_or_one, or must be
-        // non-negative.
-        BOOST_ASSERT(remainder <= args);
-        // If you specify more than one argument with args, T must be a type
-        // that can be inserted into.
-        BOOST_ASSERT(args == 1 || args == zero_or_one || detail::insertable<T>);
-        return {
-            {},
-            args == 1 || args == zero_or_one ? detail::action_kind::assign
-                                             : detail::action_kind::insert,
-            args,
-            {},
-            {{std::move(choices)...}}};
-    }
-
     /** TODO */
     inline detail::option<bool, bool> flag(std::string_view names)
     {
