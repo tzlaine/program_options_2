@@ -51,7 +51,8 @@ TEST(printing, detail_print_args)
         po2::detail::print_args<boost::text::format::utf8>(
             os,
             std::string_view("foo"),
-            po2::positional<std::vector<int>>("foo", 2), true);
+            po2::positional<std::vector<int>>("foo", 2),
+            true);
         EXPECT_EQ(os.str(), " FOO FOO");
     }
     {
@@ -234,6 +235,146 @@ TEST(printing, print_option_arguments)
     }
 }
 
+TEST(printing, print_option_positionals)
+{
+    // no defaults
+    {
+        auto const arg = po2::positional<int>("blah");
+        std::ostringstream os;
+        po2::detail::print_option<boost::text::format::utf8>(os, arg, 8, 8);
+        EXPECT_EQ(os.str(), " BLAH");
+    }
+    {
+        auto const arg = po2::positional<std::vector<int>>("blah", 2);
+        std::ostringstream os;
+        po2::detail::print_option<boost::text::format::utf8>(os, arg, 8, 8);
+        EXPECT_EQ(os.str(), " BLAH BLAH");
+    }
+    {
+        auto const arg = po2::positional<int>("blah", po2::zero_or_one);
+        std::ostringstream os;
+        po2::detail::print_option<boost::text::format::utf8>(os, arg, 8, 8);
+        EXPECT_EQ(os.str(), " [BLAH]");
+    }
+    {
+        auto const arg =
+            po2::positional<std::vector<int>>("blah", po2::zero_or_more);
+        std::ostringstream os;
+        po2::detail::print_option<boost::text::format::utf8>(os, arg, 8, 8);
+        EXPECT_EQ(os.str(), " [BLAH ...]");
+    }
+    {
+        auto const arg =
+            po2::positional<std::vector<int>>("blah", po2::one_or_more);
+        std::ostringstream os;
+        po2::detail::print_option<boost::text::format::utf8>(os, arg, 8, 8);
+        EXPECT_EQ(os.str(), " BLAH ...");
+    }
+    {
+        auto const arg =
+            po2::positional<std::vector<int>>("blah", po2::remainder);
+        std::ostringstream os;
+        po2::detail::print_option<boost::text::format::utf8>(os, arg, 8, 8);
+        EXPECT_EQ(os.str(), " [BLAH ...]");
+    }
+
+    // unprintable choice type
+    {
+        auto const arg =
+            po2::positional<my_int>("blah", 1, my_int{1}, my_int{2}, my_int{3});
+        std::ostringstream os;
+        po2::detail::print_option<boost::text::format::utf8>(os, arg, 8, 8);
+        EXPECT_EQ(os.str(), " BLAH");
+    }
+    // printable choices
+    {
+        auto const arg = po2::positional<int>("blah", 1, 1, 2, 3);
+        std::ostringstream os;
+        po2::detail::print_option<boost::text::format::utf8>(os, arg, 8, 8);
+        EXPECT_EQ(os.str(), " {1,2,3}");
+    }
+    {
+        auto const arg = po2::positional<std::vector<int>>("blah", 2, 1, 2, 3);
+        std::ostringstream os;
+        po2::detail::print_option<boost::text::format::utf8>(os, arg, 8, 8);
+        EXPECT_EQ(os.str(), " {1,2,3} {1,2,3}");
+    }
+    {
+        auto const arg =
+            po2::positional<int>("blah", po2::zero_or_one, 1, 2, 3);
+        std::ostringstream os;
+        po2::detail::print_option<boost::text::format::utf8>(os, arg, 8, 8);
+        EXPECT_EQ(os.str(), " [{1,2,3}]");
+    }
+    {
+        auto const arg = po2::positional<std::vector<int>>(
+            "blah", po2::zero_or_more, 1, 2, 3);
+        std::ostringstream os;
+        po2::detail::print_option<boost::text::format::utf8>(os, arg, 8, 8);
+        EXPECT_EQ(os.str(), " [{1,2,3} ...]");
+    }
+    {
+        auto const arg = po2::positional<std::vector<int>>(
+            "blah", po2::one_or_more, 1, 2, 3);
+        std::ostringstream os;
+        po2::detail::print_option<boost::text::format::utf8>(os, arg, 8, 8);
+        EXPECT_EQ(os.str(), " {1,2,3} ...");
+    }
+    {
+        auto const arg =
+            po2::positional<std::vector<int>>("blah", po2::remainder, 1, 2, 3);
+        std::ostringstream os;
+        po2::detail::print_option<boost::text::format::utf8>(os, arg, 8, 8);
+        EXPECT_EQ(os.str(), " [{1,2,3} ...]");
+    }
+
+    // with defaults
+    {
+        auto const arg = po2::with_default(po2::positional<int>("blah"), 42);
+        std::ostringstream os;
+        po2::detail::print_option<boost::text::format::utf8>(os, arg, 8, 8);
+        EXPECT_EQ(os.str(), " BLAH");
+    }
+    {
+        auto const arg = po2::with_default(
+            po2::positional<int>("blah", po2::zero_or_one), 42);
+        std::ostringstream os;
+        po2::detail::print_option<boost::text::format::utf8>(os, arg, 8, 8);
+        EXPECT_EQ(os.str(), " [BLAH]");
+    }
+    {
+        auto const arg = po2::with_default(
+            po2::positional<std::vector<int>>("blah", 2),
+            std::vector<int>({42}));
+        std::ostringstream os;
+        po2::detail::print_option<boost::text::format::utf8>(os, arg, 8, 8);
+        EXPECT_EQ(os.str(), " BLAH BLAH");
+    }
+    {
+        auto const arg =
+            po2::with_default(po2::positional<std::vector<int>>("blah", 2), 42);
+        std::ostringstream os;
+        po2::detail::print_option<boost::text::format::utf8>(os, arg, 8, 8);
+        EXPECT_EQ(os.str(), " BLAH BLAH");
+    }
+    {
+        auto const arg =
+            po2::with_default(po2::positional<int>("blah", 1, 1, 2, 3), 3);
+        std::ostringstream os;
+        po2::detail::print_option<boost::text::format::utf8>(os, arg, 8, 8);
+        EXPECT_EQ(os.str(), " {1,2,3}");
+    }
+
+    // add a display name
+    {
+        auto const arg =
+            po2::with_display_name(po2::positional<int>("blah"), "blerg");
+        std::ostringstream os;
+        po2::detail::print_option<boost::text::format::utf8>(os, arg, 8, 8);
+        EXPECT_EQ(os.str(), " blerg");
+    }
+}
+
 TEST(printing, detail_print_help_synopsis)
 {
     std::string const exe = std::string("foo") + po2::detail::fs_sep + "bar";
@@ -245,7 +386,7 @@ TEST(printing, detail_print_help_synopsis)
             sv(exe),
             sv("A program that does things."),
             po2::positional<int>("foo"));
-        //EXPECT_EQ(os.str(), " FOO");
+        // EXPECT_EQ(os.str(), " FOO");
     }
 
     {
@@ -255,7 +396,7 @@ TEST(printing, detail_print_help_synopsis)
             sv(exe),
             sv("A program that does things."),
             po2::positional<std::vector<int>>("foo", 30));
-        //EXPECT_EQ(os.str(), " FOO");
+        // EXPECT_EQ(os.str(), " FOO");
     }
 
     {
@@ -267,7 +408,7 @@ TEST(printing, detail_print_help_synopsis)
             sv(long_exe),
             sv("A program that does things."),
             po2::positional<std::vector<int>>("foo", 30));
-        //EXPECT_EQ(os.str(), " FOO");
+        // EXPECT_EQ(os.str(), " FOO");
     }
 }
 

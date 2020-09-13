@@ -774,9 +774,13 @@ namespace boost { namespace program_options_2 {
         requires
             (std::assignable_from<T &, Choices> && ...) ||
             (detail::insertable_from<T, Choices> && ...)
-    detail::
-        option<T, detail::no_value, detail::required_t::yes, sizeof...(Choices)>
-        positional(std::string_view name, int args, Choices... choices)
+    detail::option<
+        T ,
+        detail::no_value,
+        detail::required_t::yes,
+        sizeof...(Choices),
+        detail::choice_type_t<T, Choices...>>
+    positional(std::string_view name, int args, Choices... choices)
     // clang-format on
     {
 #if !BOOST_PROGRAM_OPTIONS_2_USE_CONCEPTS
@@ -839,7 +843,12 @@ namespace boost { namespace program_options_2 {
         requires
             (std::assignable_from<T &, Choices> && ...) ||
             (detail::insertable_from<T, Choices> && ...)
-    detail::option<T, T, detail::required_t::yes, sizeof...(Choices)>
+    detail::option<
+        T ,
+        detail::no_value,
+        detail::required_t::yes,
+        sizeof...(Choices),
+        detail::choice_type_t<T, Choices...>>
     positional(int args, Choices... choices)
     // clang-format on
     {
