@@ -801,8 +801,6 @@ namespace boost { namespace program_options_2 {
             for (auto const & range :
                  text::bidirectional_subranges(text::as_utf32(str))) {
                 os << text::as_utf32(range);
-                if (range.hard_break())
-                    os << '\n';
             }
         }
     }
