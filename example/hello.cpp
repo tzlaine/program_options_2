@@ -17,8 +17,7 @@ int main(int argc, char const * argv[])
         argc,
         argv,
         std::cout,
-        po2::positional<std::string_view>(
-            "addressee", "The person to whom to say hello."));
+        po2::positional("addressee", "The person to say hello to."));
 
     std::cout << "Hello, TODO!\n";
 }

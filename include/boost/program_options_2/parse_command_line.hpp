@@ -776,7 +776,7 @@ namespace boost { namespace program_options_2 {
     concept option_or_group = option_<T> || group_<T>;
 
     /** TODO */
-    template<typename T>
+    template<typename T = std::string_view>
     detail::option<T> argument(std::string_view names, std::string_view help_text)
     {
         // There's something wrong with the argument names in "names".  Either
@@ -787,7 +787,7 @@ namespace boost { namespace program_options_2 {
     }
 
     /** TODO */
-    template<typename T, typename... Choices>
+    template<typename T = std::string_view, typename... Choices>
         // clang-format off
         requires
             (std::assignable_from<T &, Choices> && ...) ||
@@ -837,7 +837,7 @@ namespace boost { namespace program_options_2 {
     }
 
     /** TODO */
-    template<typename T>
+    template<typename T = std::string_view>
     detail::option<T, detail::no_value, detail::required_t::yes>
     positional(std::string_view name, std::string_view help_text)
     {
@@ -848,7 +848,7 @@ namespace boost { namespace program_options_2 {
     }
 
     /** TODO */
-    template<typename T, typename... Choices>
+    template<typename T = std::string_view, typename... Choices>
         // clang-format off
         requires
             (std::assignable_from<T &, Choices> && ...) ||
@@ -1007,7 +1007,8 @@ namespace boost { namespace program_options_2 {
              std::equality_comparable_with<DefaultType, ChoiceType>) &&
             (std::assignable_from<T &, DefaultType> ||
              detail::insertable_from<T, DefaultType>)
-    detail::option<T, DefaultType, Required, Choices, ChoiceType> with_default(
+    detail::option<T, DefaultType, Required, Choices, ChoiceType>
+    with_default(
         detail::option<T, detail::no_value, Required, Choices, ChoiceType> opt,
         DefaultType default_value)
     // clang-format on
