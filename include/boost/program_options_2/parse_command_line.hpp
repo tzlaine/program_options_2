@@ -718,6 +718,27 @@ namespace boost { namespace program_options_2 {
         // descriptions.
         constexpr int min_help_column_gap = 2;
 
+        template<typename Stream, typename... Options>
+        void
+        print_wrapped_column(Stream & os, std::string_view str, int min_column)
+        {
+            for (auto range : text::bidirectional_subranges(
+                     text::as_utf32(str),
+                     max_col_width - min_column,
+                     [](auto first, auto last) {
+                         return detail::estimated_width(
+                             text::as_utf32(first, last));
+                     })) {
+                os << text::as_utf32(range);
+                if (range.allowed_break()) {
+                    os << '\n';
+                    for (int i = 0; i < min_column; ++i) {
+                        os << ' ';
+                    }
+                }
+            }
+        }
+
         template<text::format Format, typename Stream, typename... Options>
         void print_options_and_descs(
             Stream & os,
@@ -737,7 +758,8 @@ namespace boost { namespace program_options_2 {
                 for (int i = 0; i < needed_spacing; ++i) {
                     os << ' ';
                 }
-                os << text::as_utf8(name_and_desc.desc); // TODO: Needs wrapping.
+                detail::print_wrapped_column(
+                    os, name_and_desc.desc, description_column);
                 os << '\n';
             }
         }

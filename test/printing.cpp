@@ -509,6 +509,10 @@ TEST(printing, parse_command_line_help)
                 "--an,--arg,--with,--many-names,--only,-s,--single,--short,--"
                 "one",
                 "Another non-positional argument."),
-            po2::argument("--non-pos-2", "A second non-positional argument."));
+            po2::argument(
+                "--non-pos-2",
+                "A second non-positional argument.  This one has a "
+                "particularly long description, just so we can see what the "
+                "column-wrapping looks like."));
     }
 }
