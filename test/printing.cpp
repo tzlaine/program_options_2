@@ -431,7 +431,7 @@ TEST(printing, detail_print_help_synopsis)
             sv(exe),
             sv("A program that does things."),
             po2::positional<int>("foo", ""));
-        EXPECT_EQ(os.str(), R"(usage:  foo/bar [-h] FOO
+        EXPECT_EQ(os.str(), R"(usage:  foo/bar FOO
 
 A program that does things.
 
@@ -445,7 +445,7 @@ A program that does things.
             sv(exe),
             sv("A program that does things."),
             po2::positional<std::vector<int>>("foo", "", 30));
-        EXPECT_EQ(os.str(), R"(usage:  foo/bar [-h]
+        EXPECT_EQ(os.str(), R"(usage:  foo/bar
                 FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO
 
 A program that does things.
@@ -463,7 +463,7 @@ A program that does things.
             sv("A program that does things."),
             po2::positional<std::vector<int>>("foo", "", 30));
         EXPECT_EQ(
-            os.str(), R"(usage:  foo/barrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr [-h]
+            os.str(), R"(usage:  foo/barrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr
         FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO
 
 A program that does things.

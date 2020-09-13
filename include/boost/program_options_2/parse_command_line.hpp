@@ -682,9 +682,6 @@ namespace boost { namespace program_options_2 {
                     os, opt, first_column, current_width);
             };
 
-            if (detail::no_help_option(opts...))
-                print_opt(detail::default_help());
-
             hana::for_each(opt_tuple, print_opt);
 
             if (prog_desc.empty())
@@ -1164,7 +1161,12 @@ namespace boost { namespace program_options_2 {
         if (no_help &&
             detail::argv_contains_default_help_flag(argv, argv + argc)) {
             detail::print_help<text::format::utf8>(
-                os, std::string_view(argv[0]), program_desc, opt, opts...);
+                os,
+                std::string_view(argv[0]),
+                program_desc,
+                detail::default_help(),
+                opt,
+                opts...);
 #ifndef BOOST_PROGRAM_OPTIONS_2_TESTING
             std::exit(0);
 #endif
@@ -1190,7 +1192,12 @@ namespace boost { namespace program_options_2 {
         if (detail::no_help_option(opt, opts...) &&
             detail::argv_contains_default_help_flag(argv, argv + argc)) {
             detail::print_help<text::format::utf16>(
-                os, argv[0], program_desc, opt, opts...);
+                os,
+                argv[0],
+                program_desc,
+                detail::default_help(),
+                opt,
+                opts...);
 #ifndef BOOST_PROGRAM_OPTIONS_2_TESTING
             std::exit(0);
 #endif
