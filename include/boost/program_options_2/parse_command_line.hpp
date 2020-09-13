@@ -52,6 +52,16 @@ namespace boost { namespace program_options_2 {
 
     // TODO: Does remainder make sense for arguments?
 
+    /** TODO help_text_customizable_strings() returns one of these.... */
+    struct customizable_strings
+    {
+        std::string_view usage_text = "usage: ";
+        std::string_view positional_section_text = "positional arguments:";
+        std::string_view optional_section_text = "optional arguments:";
+        std::string_view help_names = "-h,--help";
+        std::string_view help_description = "Print this help message and exit";
+    };
+
     namespace detail {
         template<typename BidiIter, typename T>
         BidiIter find_last(BidiIter first, BidiIter last, T const & x)
@@ -428,32 +438,41 @@ namespace boost { namespace program_options_2 {
             return ((opts.action != detail::action_kind::help) && ...);
         }
 
+        struct cust_strings_tag
+        {};
+
+        customizable_strings help_text_customizable_strings(cust_strings_tag)
+        {
+            return customizable_strings{};
+        }
+
         // TODO: -> CPO? (may require passing some tag param)
         template<typename Char>
         bool
         argv_contains_default_help_flag(Char const ** first, Char const ** last)
         {
-            // TODO: Need some kind of customization point for these strings.
-            std::string_view const long_form = "--help";
-            std::string_view const short_form = "-h";
+            // TODO: Pass a tag in here to use.
+            customizable_strings const strings =
+                help_text_customizable_strings(cust_strings_tag{});
+            auto const names = names_view(strings.help_names);
             for (; first != last; ++first) {
                 auto const str = std::basic_string_view<Char>(*first);
-                if (std::ranges::equal(str, long_form) ||
-                    std::ranges::equal(str, short_form)) {
-                    return true;
+                for (auto name : names) {
+                    if (std::ranges::equal(str, name))
+                        return true;
                 }
             }
             return false;
         }
 
-        // TODO: -> CPO?
-        inline std::string_view usage_colon() { return "usage: "; }
-
         inline option<void> default_help()
         {
+            // TODO: Pass a tag in here to use.
+            customizable_strings const strings =
+                help_text_customizable_strings(cust_strings_tag{});
             return {
-                "-h,--help",
-                "Print this help message and exit",
+                strings.help_names,
+                strings.help_description,
                 action_kind::help,
                 0};
         }
@@ -641,11 +660,15 @@ namespace boost { namespace program_options_2 {
             using opt_tuple_type = hana::tuple<Options const &...>;
             opt_tuple_type opt_tuple{opts...};
 
-            os << text::as_utf8(detail::usage_colon()) << ' '
+            // TODO: Pass a tag in here to use.
+            customizable_strings const strings =
+                help_text_customizable_strings(cust_strings_tag{});
+
+            os << text::as_utf8(strings.usage_text) << ' '
                << text::as_utf8(prog);
 
             int const usage_colon_width =
-                detail::estimated_width(detail::usage_colon());
+                detail::estimated_width(strings.usage_text);
             int const prog_width = detail::estimated_width(prog);
 
             int first_column = usage_colon_width + 1 + prog_width;
@@ -765,18 +788,18 @@ namespace boost { namespace program_options_2 {
             int const description_column = (std::min)(
                 max_option_length + min_help_column_gap, max_option_col_width);
 
+            // TODO: Pass a tag in here to use.
+            customizable_strings const strings =
+                help_text_customizable_strings(cust_strings_tag{});
+
             if (!printed_positionals.empty()) {
-                // TODO: Need some kind of customization point for this.
-                std::string_view const section_text = "positional arguments:";
-                os << text::as_utf8(section_text) << '\n';
+                os << text::as_utf8(strings.positional_section_text) << '\n';
                 print_options_and_descs(
                     os, printed_positionals, description_column);
             }
 
             if (!printed_arguments.empty()) {
-                // TODO: Need some kind of customization point for this.
-                std::string_view const section_text = "optional arguments:";
-                os << text::as_utf8(section_text) << '\n';
+                os << text::as_utf8(strings.optional_section_text) << '\n';
                 print_options_and_descs(
                     os, printed_arguments, description_column);
             }
