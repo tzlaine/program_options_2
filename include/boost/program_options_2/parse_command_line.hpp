@@ -147,10 +147,7 @@ namespace boost { namespace program_options_2 {
             : std::true_type
         {};
 
-        inline bool positional(std::string_view name)
-        {
-            return name[0] != '-';
-        }
+        inline bool positional(std::string_view name) { return name[0] != '-'; }
         inline bool short_(std::string_view name)
         {
             return name[0] == '-' && name[1] != '-';
@@ -701,8 +698,7 @@ namespace boost { namespace program_options_2 {
             Stream & os,
             std::vector<printed_option_and_desc> const & printed_options,
             int description_column)
-        {
-        }
+        {}
 
         template<text::format Format, typename Stream, typename... Options>
         void print_help_post_synopsis(Stream & os, Options const &... opts)
@@ -777,7 +773,8 @@ namespace boost { namespace program_options_2 {
 
     /** TODO */
     template<typename T = std::string_view>
-    detail::option<T> argument(std::string_view names, std::string_view help_text)
+    detail::option<T>
+    argument(std::string_view names, std::string_view help_text)
     {
         // There's something wrong with the argument names in "names".  Either
         // it contains whitespace, or it contains at least one name that is
@@ -810,8 +807,7 @@ namespace boost { namespace program_options_2 {
         // or insertable into T.
         static_assert(
             (std::is_assignable_v<T &, Choices> && ...) ||
-            (detail::is_insertable_from<T, Choices>::value &&
-             ...));
+            (detail::is_insertable_from<T, Choices>::value && ...));
 #endif
         // There's something wrong with the argument names in "names".  Either
         // it contains whitespace, or it contains at least one name that is
@@ -871,8 +867,7 @@ namespace boost { namespace program_options_2 {
         // or insertable into T.
         static_assert(
             (std::is_assignable_v<T &, Choices> && ...) ||
-            (detail::is_insertable_from<T, Choices>::value &&
-             ...));
+            (detail::is_insertable_from<T, Choices>::value && ...));
 #endif
         // Looks like you tried to create a positional argument that starts
         // with a '-'.  Don't do that.
@@ -955,7 +950,8 @@ namespace boost { namespace program_options_2 {
         // Looks like you tried to create a non-positional argument that does
         // not start with a '-'.  Don't do that.
         BOOST_ASSERT(!detail::positional(names));
-        return {names, help_text, detail::action_kind::version, 0, std::move(f)};
+        return {
+            names, help_text, detail::action_kind::version, 0, std::move(f)};
     }
 
     /** TODO */
@@ -1013,7 +1009,7 @@ namespace boost { namespace program_options_2 {
         DefaultType default_value)
     // clang-format on
     {
-        if constexpr (std::equality_comparable_with<DefaultType, ChoiceType>){
+        if constexpr (std::equality_comparable_with<DefaultType, ChoiceType>) {
             // If there are choices specified, the default must be one of the
             // choices.
             BOOST_ASSERT(
