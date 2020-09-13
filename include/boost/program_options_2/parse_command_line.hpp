@@ -360,6 +360,9 @@ namespace boost { namespace program_options_2 {
         // option{"-b,--bogus", ...} and option{"-h,-b", ...} is not allowed,
         // because of the "-b"s.  This should include display names.
 
+        // TODO: Another runtime check: make sure that the choices within an
+        // options are unique.
+
         template<typename... Options>
         void check_options(bool positionals_need_names, Options const &... opts)
         {

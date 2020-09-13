@@ -187,29 +187,42 @@ TEST(printing, print_option_arguments)
         EXPECT_EQ(os.str(), " [-b [{1,2,3} ...]]");
     }
 
-#if 0
     // with defaults
     {
         auto const arg = po2::with_default(po2::argument<int>("-b,--blah"), 42);
+        std::ostringstream os;
+        po2::detail::print_option<boost::text::format::utf8>(os, arg, 8, 8);
+        EXPECT_EQ(os.str(), " [-b B]");
     }
     {
         auto const arg = po2::with_default(
             po2::argument<int>("-b,--blah", po2::zero_or_one), 42);
+        std::ostringstream os;
+        po2::detail::print_option<boost::text::format::utf8>(os, arg, 8, 8);
+        EXPECT_EQ(os.str(), " [-b [B]]");
     }
     {
         auto const arg = po2::with_default(
             po2::argument<std::vector<int>>("-b,--blah", 2),
             std::vector<int>({42}));
+        std::ostringstream os;
+        po2::detail::print_option<boost::text::format::utf8>(os, arg, 8, 8);
+        EXPECT_EQ(os.str(), " [-b B B]");
     }
     {
         auto const arg = po2::with_default(
             po2::argument<std::vector<int>>("-b,--blah", 2), 42);
+        std::ostringstream os;
+        po2::detail::print_option<boost::text::format::utf8>(os, arg, 8, 8);
+        EXPECT_EQ(os.str(), " [-b B B]");
     }
     {
         auto const arg =
-            po2::with_default(po2::argument<int>("-b,--blah", 1, 1, 2, 3), 42);
+            po2::with_default(po2::argument<int>("-b,--blah", 1, 1, 2, 3), 3);
+        std::ostringstream os;
+        po2::detail::print_option<boost::text::format::utf8>(os, arg, 8, 8);
+        EXPECT_EQ(os.str(), " [-b {1,2,3}]");
     }
-#endif
 
     // add a display name
     {
