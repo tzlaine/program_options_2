@@ -30,8 +30,9 @@ TEST(options, arguments)
 {
     // no defaults
     {
-        auto const arg = po2::argument<int>("-b,--blah");
+        auto const arg = po2::argument<int>("-b,--blah", "bleurgh");
         EXPECT_EQ(arg.names, "-b,--blah");
+        EXPECT_EQ(arg.help_text, "bleurgh");
         EXPECT_EQ(arg.args, 1);
         EXPECT_EQ(arg.action, po2::detail::action_kind::assign);
         BOOST_MPL_ASSERT((is_same<decltype(arg.value), po2::detail::no_value>));
@@ -39,8 +40,10 @@ TEST(options, arguments)
         EXPECT_EQ(arg.arg_display_name, "");
     }
     {
-        auto const arg = po2::argument<int>("-b,--blah", po2::zero_or_one);
+        auto const arg =
+            po2::argument<int>("-b,--blah", "bleurgh", po2::zero_or_one);
         EXPECT_EQ(arg.names, "-b,--blah");
+        EXPECT_EQ(arg.help_text, "bleurgh");
         EXPECT_EQ(arg.args, po2::zero_or_one);
         EXPECT_EQ(arg.action, po2::detail::action_kind::assign);
         BOOST_MPL_ASSERT((is_same<decltype(arg.value), po2::detail::no_value>));
@@ -48,8 +51,10 @@ TEST(options, arguments)
         EXPECT_EQ(arg.arg_display_name, "");
     }
     {
-        auto const arg = po2::argument<std::vector<int>>("-b,--blah", 2);
+        auto const arg =
+            po2::argument<std::vector<int>>("-b,--blah", "bleurgh", 2);
         EXPECT_EQ(arg.names, "-b,--blah");
+        EXPECT_EQ(arg.help_text, "bleurgh");
         EXPECT_EQ(arg.args, 2);
         EXPECT_EQ(arg.action, po2::detail::action_kind::insert);
         BOOST_MPL_ASSERT((is_same<decltype(arg.value), po2::detail::no_value>));
@@ -57,8 +62,9 @@ TEST(options, arguments)
         EXPECT_EQ(arg.arg_display_name, "");
     }
     {
-        auto const arg = po2::argument<int>("-b,--blah", 1, 1, 2, 3);
+        auto const arg = po2::argument<int>("-b,--blah", "bleurgh", 1, 1, 2, 3);
         EXPECT_EQ(arg.names, "-b,--blah");
+        EXPECT_EQ(arg.help_text, "bleurgh");
         EXPECT_EQ(arg.args, 1);
         EXPECT_EQ(arg.action, po2::detail::action_kind::assign);
         BOOST_MPL_ASSERT((is_same<decltype(arg.value), po2::detail::no_value>));
@@ -68,8 +74,10 @@ TEST(options, arguments)
 
     // with defaults
     {
-        auto const arg = po2::with_default(po2::argument<int>("-b,--blah"), 42);
+        auto const arg =
+            po2::with_default(po2::argument<int>("-b,--blah", "bleurgh"), 42);
         EXPECT_EQ(arg.names, "-b,--blah");
+        EXPECT_EQ(arg.help_text, "bleurgh");
         EXPECT_EQ(arg.args, 1);
         EXPECT_EQ(arg.action, po2::detail::action_kind::assign);
         EXPECT_EQ(arg.value, 42);
@@ -78,8 +86,9 @@ TEST(options, arguments)
     }
     {
         auto const arg = po2::with_default(
-            po2::argument<int>("-b,--blah", po2::zero_or_one), 42);
+            po2::argument<int>("-b,--blah", "bleurgh", po2::zero_or_one), 42);
         EXPECT_EQ(arg.names, "-b,--blah");
+        EXPECT_EQ(arg.help_text, "bleurgh");
         EXPECT_EQ(arg.args, po2::zero_or_one);
         EXPECT_EQ(arg.action, po2::detail::action_kind::assign);
         EXPECT_EQ(arg.value, 42);
@@ -88,9 +97,10 @@ TEST(options, arguments)
     }
     {
         auto const arg = po2::with_default(
-            po2::argument<std::vector<int>>("-b,--blah", 2),
+            po2::argument<std::vector<int>>("-b,--blah", "bleurgh", 2),
             std::vector<int>({42}));
         EXPECT_EQ(arg.names, "-b,--blah");
+        EXPECT_EQ(arg.help_text, "bleurgh");
         EXPECT_EQ(arg.args, 2);
         EXPECT_EQ(arg.action, po2::detail::action_kind::insert);
         EXPECT_EQ(arg.value, std::vector<int>({42}));
@@ -99,8 +109,9 @@ TEST(options, arguments)
     }
     {
         auto const arg = po2::with_default(
-            po2::argument<std::vector<int>>("-b,--blah", 2), 42);
+            po2::argument<std::vector<int>>("-b,--blah", "bleurgh", 2), 42);
         EXPECT_EQ(arg.names, "-b,--blah");
+        EXPECT_EQ(arg.help_text, "bleurgh");
         EXPECT_EQ(arg.args, 2);
         EXPECT_EQ(arg.action, po2::detail::action_kind::insert);
         EXPECT_EQ(arg.value, 42);
@@ -108,9 +119,10 @@ TEST(options, arguments)
         EXPECT_EQ(arg.arg_display_name, "");
     }
     {
-        auto const arg =
-            po2::with_default(po2::argument<int>("-b,--blah", 1, 1, 2, 3), 3);
+        auto const arg = po2::with_default(
+            po2::argument<int>("-b,--blah", "bleurgh", 1, 1, 2, 3), 3);
         EXPECT_EQ(arg.names, "-b,--blah");
+        EXPECT_EQ(arg.help_text, "bleurgh");
         EXPECT_EQ(arg.args, 1);
         EXPECT_EQ(arg.action, po2::detail::action_kind::assign);
         EXPECT_EQ(arg.value, 3);
@@ -120,9 +132,10 @@ TEST(options, arguments)
 
     // add a display name
     {
-        auto const arg =
-            po2::with_display_name(po2::argument<int>("-b,--blah"), "blerg");
+        auto const arg = po2::with_display_name(
+            po2::argument<int>("-b,--blah", "bleurgh"), "blerg");
         EXPECT_EQ(arg.names, "-b,--blah");
+        EXPECT_EQ(arg.help_text, "bleurgh");
         EXPECT_EQ(arg.args, 1);
         EXPECT_EQ(arg.action, po2::detail::action_kind::assign);
         BOOST_MPL_ASSERT((is_same<decltype(arg.value), po2::detail::no_value>));

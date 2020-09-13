@@ -14,7 +14,11 @@ int main(int argc, char const * argv[])
 {
     // TODO: Catch hana::tuple; use below.
     po2::parse_command_line(
-        argc, argv, std::cerr, po2::positional<std::string_view>("addressee"));
+        argc,
+        argv,
+        std::cout,
+        po2::positional<std::string_view>(
+            "addressee", "The person to whom to say hello."));
 
     std::cout << "Hello, TODO!\n";
 }
