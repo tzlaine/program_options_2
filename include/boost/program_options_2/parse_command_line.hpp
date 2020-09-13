@@ -742,6 +742,9 @@ namespace boost { namespace program_options_2 {
         // An argument with args=0 and no default is a flag.  Use flag()
         // instead.
         BOOST_ASSERT(args != 0);
+        // args must be one of the named values, like zero_or_one, or must be
+        // non-negative.
+        BOOST_ASSERT(remainder <= args);
         // If you specify more than one argument with args, T must be a type
         // that can be inserted into.
         BOOST_ASSERT(args == 1 || args == zero_or_one || detail::insertable<T>);
@@ -789,6 +792,9 @@ namespace boost { namespace program_options_2 {
         BOOST_ASSERT(detail::positional(name));
         // A value of 0 for args makes no sense for a positional argument.
         BOOST_ASSERT(args != 0);
+        // args must be one of the named values, like zero_or_one, or must be
+        // non-negative.
+        BOOST_ASSERT(remainder <= args);
         // If you specify more than one argument with args, T must be a type
         // that can be inserted into.
         BOOST_ASSERT(args == 1 || args == zero_or_one || detail::insertable<T>);
@@ -812,6 +818,9 @@ namespace boost { namespace program_options_2 {
     {
         // A value of 0 for args makes no sense for a positional argument.
         BOOST_ASSERT(args != 0);
+        // args must be one of the named values, like zero_or_one, or must be
+        // non-negative.
+        BOOST_ASSERT(remainder <= args);
         // If you specify more than one argument with args, T must be a type
         // that can be inserted into.
         BOOST_ASSERT(args == 1 || args == zero_or_one || detail::insertable<T>);
@@ -844,6 +853,9 @@ namespace boost { namespace program_options_2 {
 #endif
         // A value of 0 for args makes no sense for a positional argument.
         BOOST_ASSERT(args != 0);
+        // args must be one of the named values, like zero_or_one, or must be
+        // non-negative.
+        BOOST_ASSERT(remainder <= args);
         // If you specify more than one argument with args, T must be a type
         // that can be inserted into.
         BOOST_ASSERT(args == 1 || args == zero_or_one || detail::insertable<T>);
