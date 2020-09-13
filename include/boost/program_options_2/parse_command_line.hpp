@@ -711,7 +711,7 @@ namespace boost { namespace program_options_2 {
     detail::option<T> argument(std::string_view names)
     {
         // There's something wrong with the argument names in "names".  Either
-        // it contains whitespace, of it contains at least one name that is
+        // it contains whitespace, or it contains at least one name that is
         // not of the form "-<name>" or "--<name>".
         BOOST_ASSERT(detail::valid_nonpositional_names(names));
         return {names, detail::action_kind::assign, 1};
@@ -741,7 +741,7 @@ namespace boost { namespace program_options_2 {
              ...));
 #endif
         // There's something wrong with the argument names in "names".  Either
-        // it contains whitespace, of it contains at least one name that is
+        // it contains whitespace, or it contains at least one name that is
         // not of the form "-<name>" or "--<name>".
         BOOST_ASSERT(detail::valid_nonpositional_names(names));
         // An argument with args=0 and no default is a flag.  Use flag()
@@ -894,7 +894,7 @@ namespace boost { namespace program_options_2 {
     /** TODO */
     template<option_or_group Option, option_or_group... Options>
     detail::option_group<false, Option, Options...>
-    suboptions(std::string_view name, Option opt, Options... opts)
+    subcommand_options(std::string_view name, Option opt, Options... opts)
     {
         return {name, {std::move(opt), std::move(opts)...}};
     }

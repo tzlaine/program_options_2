@@ -423,21 +423,30 @@ TEST(printing, detail_print_help_synopsis)
     {
         std::ostringstream os;
         po2::detail::print_help_synopsis<boost::text::format::utf8>(
-            std::cout,
+            os,
             sv(exe),
             sv("A program that does things."),
             po2::positional<int>("foo"));
-        // EXPECT_EQ(os.str(), " FOO");
+        EXPECT_EQ(os.str(), R"(usage:  foo/bar [-h] FOO
+
+A program that does things.
+
+)");
     }
 
     {
         std::ostringstream os;
         po2::detail::print_help_synopsis<boost::text::format::utf8>(
-            std::cout,
+            os,
             sv(exe),
             sv("A program that does things."),
             po2::positional<std::vector<int>>("foo", 30));
-        // EXPECT_EQ(os.str(), " FOO");
+        EXPECT_EQ(os.str(), R"(usage:  foo/bar [-h]
+                FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO
+
+A program that does things.
+
+)");
     }
 
     {
@@ -445,11 +454,17 @@ TEST(printing, detail_print_help_synopsis)
                                      "barrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr";
         std::ostringstream os;
         po2::detail::print_help_synopsis<boost::text::format::utf8>(
-            std::cout,
+            os,
             sv(long_exe),
             sv("A program that does things."),
             po2::positional<std::vector<int>>("foo", 30));
-        // EXPECT_EQ(os.str(), " FOO");
+        EXPECT_EQ(
+            os.str(), R"(usage:  foo/barrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr [-h]
+        FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO
+
+A program that does things.
+
+)");
     }
 }
 
