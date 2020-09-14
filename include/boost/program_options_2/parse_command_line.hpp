@@ -689,7 +689,7 @@ namespace boost { namespace program_options_2 {
             if (prog_desc.empty())
                 os << '\n';
             else
-                os << '\n' << '\n' << text::as_utf8(prog_desc) << '\n' << '\n';
+                os << '\n' << '\n' << text::as_utf8(prog_desc) << '\n';
 
             // TODO: When there are one or more subcommands in use, print all
             // the non-subcommand options, as above, but then end with
@@ -721,6 +721,7 @@ namespace boost { namespace program_options_2 {
         void
         print_wrapped_column(Stream & os, std::string_view str, int min_column)
         {
+            bool need_newline = false;
             for (auto range : text::bidirectional_subranges(
                      text::as_utf32(str),
                      max_col_width - min_column,
@@ -728,13 +729,16 @@ namespace boost { namespace program_options_2 {
                          return detail::estimated_width(
                              text::as_utf32(first, last));
                      })) {
-                os << text::as_utf32(range);
-                if (range.allowed_break()) {
+                if (need_newline) {
                     os << '\n';
                     for (int i = 0; i < min_column; ++i) {
                         os << ' ';
                     }
+                    need_newline = false;
                 }
+                os << text::as_utf32(range);
+                if (range.allowed_break())
+                    need_newline = true;
             }
         }
 
@@ -798,13 +802,15 @@ namespace boost { namespace program_options_2 {
                 help_text_customizable_strings(tag);
 
             if (!printed_positionals.empty()) {
-                os << text::as_utf8(strings.positional_section_text) << '\n';
+                os << '\n'
+                   << text::as_utf8(strings.positional_section_text) << '\n';
                 print_options_and_descs(
                     os, printed_positionals, description_column);
             }
 
             if (!printed_arguments.empty()) {
-                os << text::as_utf8(strings.optional_section_text) << '\n';
+                os << '\n'
+                   << text::as_utf8(strings.optional_section_text) << '\n';
                 print_options_and_descs(
                     os, printed_arguments, description_column);
             }

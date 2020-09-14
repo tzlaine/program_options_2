@@ -435,7 +435,6 @@ TEST(printing, detail_print_help_synopsis)
         EXPECT_EQ(os.str(), R"(usage:  foo/bar FOO
 
 A program that does things.
-
 )");
     }
 
@@ -451,7 +450,6 @@ A program that does things.
                 FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO
 
 A program that does things.
-
 )");
     }
 
@@ -470,7 +468,6 @@ A program that does things.
         FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO
 
 A program that does things.
-
 )");
     }
 }
@@ -521,17 +518,13 @@ A test program to see how things work.
 
 positional arguments:
   positional            A positional argument.
-                        
   a-very-very-very-obnoxiously-long-positional
                         Another positional argument.
-                        
+
 optional arguments:
   -h, --help            Print this help message and exit
-                        
   --non-positional      A non-positional argument.
-                        
   --non-pos-2           A second non-positional argument.
-                        
 )");
     }
 
@@ -560,19 +553,15 @@ A test program to see how things work.
 
 positional arguments:
   positional            A positional argument.
-                        
+
 optional arguments:
   -h, --help            Print this help message and exit
-                        
   --non-positional      A non-positional argument.
-                        
   --an, --arg, --with, --many-names, --only, -s, --single, --short, --one
                         Another non-positional argument.
-                        
   --non-pos-2           A second non-positional argument.  This one has a 
                         particularly long description, just so we can see what 
                         the column-wrapping looks like.
-                        
 )");
     }
 
@@ -611,19 +600,15 @@ A test program to see how things work.
 
 POSITIONAL arguments:
   positional            A positional argument.
-                        
+
 OPTIONAL arguments:
   -r, --redacted        Nothing to see here.
-                        
   --non-positional      A non-positional argument.
-                        
   --an, --arg, --with, --many-names, --only, -s, --single, --short, --one
                         Another non-positional argument.
-                        
   --non-pos-2           A second non-positional argument.  This one has a 
                         particularly long description, just so we can see what 
                         the column-wrapping looks like.
-                        
 )");
     }
 }
