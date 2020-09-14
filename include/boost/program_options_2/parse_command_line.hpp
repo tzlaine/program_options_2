@@ -135,11 +135,14 @@ namespace boost { namespace program_options_2 {
         struct no_value
         {};
 
+        enum struct option_kind { positional, argument };
+
         enum struct required_t { yes, no };
 
         enum struct action_kind { assign, count, insert, help, version };
 
         template<
+            option_kind Kind,
             typename T,
             typename Value = no_value,
             required_t Required = required_t::no,
@@ -159,6 +162,7 @@ namespace boost { namespace program_options_2 {
             std::array<choice_type, Choices> choices;
             std::string_view arg_display_name;
 
+            constexpr static bool positional = Kind == option_kind::positional;
             constexpr static bool required = Required == required_t::yes;
         };
 
@@ -166,12 +170,13 @@ namespace boost { namespace program_options_2 {
         struct is_option : std::false_type
         {};
         template<
+            option_kind Kind,
             typename T,
             typename Value,
             required_t Required,
             int Choices,
             typename ChoiceType>
-        struct is_option<option<T, Value, Required, Choices, ChoiceType>>
+        struct is_option<option<Kind, T, Value, Required, Choices, ChoiceType>>
             : std::true_type
         {};
 
@@ -205,38 +210,41 @@ namespace boost { namespace program_options_2 {
         }
 
         template<
+            option_kind Kind,
             typename T,
             typename Value,
             required_t Required,
             int Choices,
             typename ChoiceType>
-        bool
-        positional(option<T, Value, Required, Choices, ChoiceType> const & opt)
+        bool positional(
+            option<Kind, T, Value, Required, Choices, ChoiceType> const & opt)
         {
             return detail::positional(opt.names);
         }
 
         template<
+            option_kind Kind,
             typename T,
             typename Value,
             required_t Required,
             int Choices,
             typename ChoiceType>
         bool optional_arg(
-            option<T, Value, Required, Choices, ChoiceType> const & opt)
+            option<Kind, T, Value, Required, Choices, ChoiceType> const & opt)
         {
             return opt.args == zero_or_one || opt.args == zero_or_more ||
                    opt.args == remainder;
         }
 
         template<
+            option_kind Kind,
             typename T,
             typename Value,
             required_t Required,
             int Choices,
             typename ChoiceType>
-        bool
-        multi_arg(option<T, Value, Required, Choices, ChoiceType> const & opt)
+        bool multi_arg(
+            option<Kind, T, Value, Required, Choices, ChoiceType> const & opt)
         {
             return opt.args == zero_or_more || opt.args == one_or_more ||
                    opt.args == remainder;
@@ -501,7 +509,7 @@ namespace boost { namespace program_options_2 {
         }
 
         template<typename CustomStringsTag>
-        option<void> default_help(CustomStringsTag tag)
+        option<option_kind::argument, void> default_help(CustomStringsTag tag)
         {
             customizable_strings const strings =
                 help_text_customizable_strings(tag);
@@ -964,7 +972,7 @@ namespace boost { namespace program_options_2 {
 
     /** TODO */
     template<typename T = std::string_view>
-    detail::option<T>
+    detail::option<detail::option_kind::argument, T>
     argument(std::string_view names, std::string_view help_text)
     {
         // There's something wrong with the argument names in "names".  Either
@@ -981,6 +989,7 @@ namespace boost { namespace program_options_2 {
             (std::assignable_from<T &, Choices> && ...) ||
             (detail::insertable_from<T, Choices> && ...)
     detail::option<
+        detail::option_kind::argument,
         T,
         detail::no_value,
         detail::required_t::no,
@@ -1025,7 +1034,11 @@ namespace boost { namespace program_options_2 {
 
     /** TODO */
     template<typename T = std::string_view>
-    detail::option<T, detail::no_value, detail::required_t::yes>
+    detail::option<
+        detail::option_kind::positional,
+        T,
+        detail::no_value,
+        detail::required_t::yes>
     positional(std::string_view name, std::string_view help_text)
     {
         // Looks like you tried to create a positional argument that starts
@@ -1041,6 +1054,7 @@ namespace boost { namespace program_options_2 {
             (std::assignable_from<T &, Choices> && ...) ||
             (detail::insertable_from<T, Choices> && ...)
     detail::option<
+        detail::option_kind::positional,
         T,
         detail::no_value,
         detail::required_t::yes,
@@ -1085,7 +1099,7 @@ namespace boost { namespace program_options_2 {
     // positional args are in play?
 
     /** TODO */
-    inline detail::option<bool, bool>
+    inline detail::option<detail::option_kind::argument, bool, bool>
     flag(std::string_view names, std::string_view help_text)
     {
         // Looks like you tried to create a non-positional argument that does
@@ -1095,7 +1109,7 @@ namespace boost { namespace program_options_2 {
     }
 
     /** TODO */
-    inline detail::option<bool, bool>
+    inline detail::option<detail::option_kind::argument, bool, bool>
     inverted_flag(std::string_view names, std::string_view help_text)
     {
         // Looks like you tried to create a non-positional argument that does
@@ -1105,7 +1119,7 @@ namespace boost { namespace program_options_2 {
     }
 
     /** TODO */
-    inline detail::option<int>
+    inline detail::option<detail::option_kind::argument, int>
     counted_flag(std::string_view names, std::string_view help_text)
     {
         // Looks like you tried to create a non-positional argument that does
@@ -1120,7 +1134,8 @@ namespace boost { namespace program_options_2 {
     }
 
     /** TODO */
-    inline detail::option<void, std::string_view> version(
+    inline detail::option<detail::option_kind::argument, void, std::string_view>
+    version(
         std::string_view version,
         std::string_view names = "--version,-v",
         std::string_view help_text = "Print the version and exit")
@@ -1133,7 +1148,7 @@ namespace boost { namespace program_options_2 {
 
     /** TODO */
     template<std::invocable HelpStringFunc>
-    detail::option<void, HelpStringFunc> help(
+    detail::option<detail::option_kind::argument, void, HelpStringFunc> help(
         HelpStringFunc f,
         std::string_view names = "--help,-h",
         std::string_view help_text = "Print this help message and exit")
@@ -1146,7 +1161,7 @@ namespace boost { namespace program_options_2 {
     }
 
     /** TODO */
-    inline detail::option<void>
+    inline detail::option<detail::option_kind::argument, void>
     help(std::string_view names, std::string_view help_text)
     {
         // Looks like you tried to create a non-positional argument that does
@@ -1183,6 +1198,7 @@ namespace boost { namespace program_options_2 {
 
     /** TODO */
     template<
+        detail::option_kind Kind,
         typename T,
         detail::required_t Required,
         int Choices,
@@ -1194,9 +1210,11 @@ namespace boost { namespace program_options_2 {
              std::equality_comparable_with<DefaultType, ChoiceType>) &&
             (std::assignable_from<T &, DefaultType> ||
              detail::insertable_from<T, DefaultType>)
-    detail::option<T, DefaultType, Required, Choices, ChoiceType>
+    detail::option<Kind, T, DefaultType, Required, Choices, ChoiceType>
     with_default(
-        detail::option<T, detail::no_value, Required, Choices, ChoiceType> opt,
+        detail::
+            option<Kind, T, detail::no_value, Required, Choices, ChoiceType>
+                opt,
         DefaultType default_value)
     // clang-format on
     {
@@ -1221,13 +1239,14 @@ namespace boost { namespace program_options_2 {
 
     /** TODO */
     template<
+        detail::option_kind Kind,
         typename T,
         typename Value,
         detail::required_t Required,
         int Choices,
         typename ChoiceType>
     auto with_display_name(
-        detail::option<T, Value, Required, Choices, ChoiceType> opt,
+        detail::option<Kind, T, Value, Required, Choices, ChoiceType> opt,
         std::string_view name)
     {
         // A display name for a flag or other option with no arguments will
@@ -1242,13 +1261,14 @@ namespace boost { namespace program_options_2 {
 #if 1 // TODO: Add a validator to option?
     /** TODO */
     template<
+        detail::option_kind Kind,
         typename T,
         typename Value,
         detail::required_t Required,
         int Choices,
         typename ChoiceType>
-    auto
-    readable_file(detail::option<T, Value, Required, Choices, ChoiceType> opt)
+    auto readable_file(
+        detail::option<Kind, T, Value, Required, Choices, ChoiceType> opt)
     {
         // TODO
         return {};
@@ -1256,13 +1276,14 @@ namespace boost { namespace program_options_2 {
 
     /** TODO */
     template<
+        detail::option_kind Kind,
         typename T,
         typename Value,
         detail::required_t Required,
         int Choices,
         typename ChoiceType>
-    auto
-    writable_file(detail::option<T, Value, Required, Choices, ChoiceType> opt)
+    auto writable_file(
+        detail::option<Kind, T, Value, Required, Choices, ChoiceType> opt)
     {
         // TODO
         return {};
@@ -1270,13 +1291,14 @@ namespace boost { namespace program_options_2 {
 
     /** TODO */
     template<
+        detail::option_kind Kind,
         typename T,
         typename Value,
         detail::required_t Required,
         int Choices,
         typename ChoiceType>
-    auto
-    readable_path(detail::option<T, Value, Required, Choices, ChoiceType> opt)
+    auto readable_path(
+        detail::option<Kind, T, Value, Required, Choices, ChoiceType> opt)
     {
         // TODO
         return {};
@@ -1284,13 +1306,14 @@ namespace boost { namespace program_options_2 {
 
     /** TODO */
     template<
+        detail::option_kind Kind,
         typename T,
         typename Value,
         detail::required_t Required,
         int Choices,
         typename ChoiceType>
-    auto
-    writable_path(detail::option<T, Value, Required, Choices, ChoiceType> opt)
+    auto writable_path(
+        detail::option<Kind, T, Value, Required, Choices, ChoiceType> opt)
     {
         // TODO
         return {};
