@@ -486,15 +486,14 @@ namespace boost { namespace program_options_2 {
 
         template<typename CustomStringsTag, typename Char>
         bool argv_contains_default_help_flag(
-            CustomStringsTag tag, Char const ** first, Char const ** last)
+            CustomStringsTag tag, arg_view<Char> args)
         {
             customizable_strings const strings =
                 help_text_customizable_strings(tag);
             auto const names = names_view(strings.help_names);
-            for (; first != last; ++first) {
-                auto const str = std::basic_string_view<Char>(*first);
+            for (auto arg : args) {
                 for (auto name : names) {
-                    if (std::ranges::equal(str, name))
+                    if (std::ranges::equal(arg, name))
                         return true;
                 }
             }
@@ -881,6 +880,88 @@ namespace boost { namespace program_options_2 {
     template<typename T>
     concept option_or_group = option_<T> || group_<T>;
 
+    namespace detail {
+        // TODO: Add a custom error handler facility.
+        template<
+            typename CustomStringsTag,
+            typename Char,
+            option_or_group Option,
+            option_or_group... Options>
+        auto print_help_and_exit(
+            int exit_code,
+            CustomStringsTag tag,
+            std::basic_string_view<Char> program_name,
+            std::basic_string_view<Char> program_desc,
+            std::basic_ostream<Char> & os,
+            bool no_help,
+            Option opt,
+            Options... opts)
+        {
+            if (no_help) {
+                detail::print_help(
+                    tag,
+                    os,
+                    program_name,
+                    program_desc,
+                    detail::default_help(tag),
+                    opt,
+                    opts...);
+            } else {
+                detail::print_help(
+                    tag, os, program_name, program_desc, opt, opts...);
+            }
+#ifndef BOOST_PROGRAM_OPTIONS_2_TESTING
+            std::exit(exit_code);
+#endif
+        }
+
+        template<class Char>
+        struct command_line_arg
+        {
+            std::basic_string_view<Char> arg;
+            int original_position;
+        };
+
+        template<
+            typename CustomStringsTag,
+            typename Char,
+            option_or_group Option,
+            option_or_group... Options>
+        auto parse_options_into_tuple(
+            CustomStringsTag tag,
+            arg_view<Char> args,
+            std::basic_string_view<Char> program_desc,
+            std::basic_ostream<Char> & os,
+            bool no_help,
+            Option opt,
+            Options... opts)
+        {
+            auto fail = [&] {
+                detail::print_help_and_exit(
+                    1, tag, args[0], program_desc, os, no_help, opt, opts...);
+            };
+            (void)fail; // TODO
+
+            std::vector<command_line_arg<Char>> pos_args;
+            std::vector<command_line_arg<Char>> opt_args;
+            int i = 0;
+            for (auto arg : args) {
+                if (!arg.empty() && arg[0] == '-')
+                    opt_args.emplace_back(arg, i);
+                else
+                    pos_args.emplace_back(arg, i);
+                ++i;
+            }
+
+            // TODO: Make positional vs. non- a part or option's type, and
+            // then use that to make one seq parser for the positional args,
+            // then one or parser for the optional args.  Parse each,
+            // reporting an error on the first one that fails to parse.  If
+            // both parsers fail, report the error for the first one, based on
+            // original_position in the command_line_arg for the failure.
+        }
+    }
+
     /** TODO */
     template<typename T = std::string_view>
     detail::option<T>
@@ -1232,24 +1313,24 @@ namespace boost { namespace program_options_2 {
     {
         detail::check_options(false, opt, opts...);
 
+        arg_view const args(argc, argv);
+
         bool const no_help = detail::no_help_option(opt, opts...);
 
-        if (no_help &&
-            detail::argv_contains_default_help_flag(tag, argv, argv + argc)) {
-            detail::print_help(
+        if (no_help && detail::argv_contains_default_help_flag(tag, args)) {
+            detail::print_help_and_exit(
+                0,
                 tag,
-                os,
                 std::string_view(argv[0]),
                 program_desc,
-                detail::default_help(tag),
+                os,
+                true,
                 opt,
                 opts...);
-#ifndef BOOST_PROGRAM_OPTIONS_2_TESTING
-            std::exit(0);
-#endif
         }
 
-        // TODO
+        return detail::parse_options_into_tuple(
+            tag, args, program_desc, os, no_help, opt, opts...);
     }
 
     /** TODO */
@@ -1290,22 +1371,24 @@ namespace boost { namespace program_options_2 {
     {
         detail::check_options(false, opt, opts...);
 
-        if (detail::no_help_option(opt, opts...) &&
-            detail::argv_contains_default_help_flag(tag, argv, argv + argc)) {
-            detail::print_help(
+        arg_view const args(argc, argv);
+
+        bool const no_help = detail::no_help_option(opt, opts...);
+
+        if (no_help && detail::argv_contains_default_help_flag(tag, args)) {
+            detail::print_help_and_exit(
+                0,
                 tag,
-                os,
-                argv[0],
+                std::wstring_view(argv[0]),
                 program_desc,
-                detail::default_help(tag),
+                os,
+                true,
                 opt,
                 opts...);
-#ifndef BOOST_PROGRAM_OPTIONS_2_TESTING
-            std::exit(0);
-#endif
         }
 
-        // TODO
+        return detail::parse_options_into_tuple(
+            tag, args, program_desc, os, no_help, opt, opts...);
     }
 
     /** TODO */

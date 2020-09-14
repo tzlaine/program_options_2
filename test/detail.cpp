@@ -88,38 +88,32 @@ TEST(detail, misc)
     {
         char const * argv[] = {"", "help"};
         EXPECT_FALSE(po2::detail::argv_contains_default_help_flag(
-            po2::detail::default_strings_tag{},
-            std::begin(argv),
-            std::end(argv)));
+            po2::detail::default_strings_tag{}, po2::arg_view(2, argv)));
     }
     {
         char const * argv[] = {"foo", "-h"};
         EXPECT_TRUE(po2::detail::argv_contains_default_help_flag(
-            po2::detail::default_strings_tag{},
-            std::begin(argv),
-            std::end(argv)));
+            po2::detail::default_strings_tag{}, po2::arg_view(2, argv)));
     }
     {
         char const * argv[] = {"foo", "--help"};
         EXPECT_TRUE(po2::detail::argv_contains_default_help_flag(
-            po2::detail::default_strings_tag{},
-            std::begin(argv),
-            std::end(argv)));
+            po2::detail::default_strings_tag{}, po2::arg_view(2, argv)));
     }
     // user-customized strings
     {
         char const * argv[] = {"", "redacted"};
         EXPECT_FALSE(po2::detail::argv_contains_default_help_flag(
-            user_namespace::tag{}, std::begin(argv), std::end(argv)));
+            user_namespace::tag{}, po2::arg_view(2, argv)));
     }
     {
         char const * argv[] = {"foo", "-r"};
         EXPECT_TRUE(po2::detail::argv_contains_default_help_flag(
-            user_namespace::tag{}, std::begin(argv), std::end(argv)));
+            user_namespace::tag{}, po2::arg_view(2, argv)));
     }
     {
         char const * argv[] = {"foo", "--redacted"};
         EXPECT_TRUE(po2::detail::argv_contains_default_help_flag(
-            user_namespace::tag{}, std::begin(argv), std::end(argv)));
+            user_namespace::tag{}, po2::arg_view(2, argv)));
     }
 }
