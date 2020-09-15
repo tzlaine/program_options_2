@@ -40,8 +40,8 @@ TEST(options, arguments)
         EXPECT_EQ(arg.arg_display_name, "");
     }
     {
-        auto const arg =
-            po2::argument<int>("-b,--blah", "bleurgh", po2::zero_or_one);
+        auto const arg = po2::argument<std::optional<int>>(
+            "-b,--blah", "bleurgh", po2::zero_or_one);
         EXPECT_EQ(arg.names, "-b,--blah");
         EXPECT_EQ(arg.help_text, "bleurgh");
         EXPECT_EQ(arg.args, po2::zero_or_one);
@@ -86,7 +86,9 @@ TEST(options, arguments)
     }
     {
         auto const arg = po2::with_default(
-            po2::argument<int>("-b,--blah", "bleurgh", po2::zero_or_one), 42);
+            po2::argument<std::optional<int>>(
+                "-b,--blah", "bleurgh", po2::zero_or_one),
+            42);
         EXPECT_EQ(arg.names, "-b,--blah");
         EXPECT_EQ(arg.help_text, "bleurgh");
         EXPECT_EQ(arg.args, po2::zero_or_one);

@@ -12,13 +12,13 @@ namespace po2 = boost::program_options_2;
 
 int main(int argc, char const * argv[])
 {
-    // TODO: Catch hana::tuple; use below.
-    po2::parse_command_line(
+    auto const result = po2::parse_command_line(
         argc,
         argv,
         "A program that prints hello.",
         std::cout,
         po2::positional("addressee", "The person to say hello to."));
 
-    std::cout << "Hello, TODO!\n";
+    using namespace boost::hana::literals;
+    std::cout << "Hello, " << result[0_c] << "!\n";
 }

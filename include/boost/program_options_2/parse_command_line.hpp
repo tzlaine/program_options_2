@@ -150,15 +150,18 @@ namespace boost { namespace program_options_2 {
             typename ChoiceType = T>
         struct option
         {
-            std::string_view names;
-            std::string_view help_text;
-            action_kind action;
-            int args;
-            Value value; // argparse's "const" or "default"
+            using type = T;
+            using value_type = Value;
             using choice_type = std::conditional_t<
                 std::is_same_v<ChoiceType, void>,
                 no_value,
                 ChoiceType>;
+
+            std::string_view names;
+            std::string_view help_text;
+            action_kind action;
+            int args;
+            value_type value; // argparse's "const" or "default"
             std::array<choice_type, Choices> choices;
             std::string_view arg_display_name;
 
@@ -273,24 +276,39 @@ namespace boost { namespace program_options_2 {
             : std::true_type
         {};
 
-        template<typename T, bool AllAssignable, bool AllInsertable>
+        template<typename T>
+        struct is_optional : std::false_type
+        {};
+        template<typename T>
+        struct is_optional<std::optional<T>> : std::true_type
+        {};
+
+        template<
+            typename T,
+            typename Choice,
+            bool AllAssignable,
+            bool AllInsertable>
         struct choice_type_impl
         {};
-        template<typename T, bool AllInsertable>
-        struct choice_type_impl<T, true, AllInsertable>
+        template<typename T, typename Choice, bool AllInsertable>
+        struct choice_type_impl<T, Choice, true, AllInsertable>
         {
-            using type = T;
+            using type = Choice;
         };
-        template<typename T>
-        struct choice_type_impl<T, false, true>
+        template<typename T, typename Choice>
+        struct choice_type_impl<T, Choice, false, true>
         {
             using type = std::ranges::range_value_t<T>;
         };
-        template<typename T, typename... Choices>
-        struct choice_type : choice_type_impl<
-                                 T,
-                                 (std::is_assignable_v<T &, Choices> && ...),
-                                 (is_insertable_from<T, Choices>::value && ...)>
+        template<typename T, typename Choice = T, typename... Choices>
+        struct choice_type
+            : choice_type_impl<
+                  T,
+                  Choice,
+                  std::is_assignable_v<T &, Choice> &&
+                      (std::is_assignable_v<T &, Choices> && ...),
+                  is_insertable_from<T, Choice>::value &&
+                      (is_insertable_from<T, Choices>::value && ...)>
         {};
         template<typename T, typename... Choices>
         using choice_type_t = typename choice_type<T, Choices...>::type;
@@ -926,9 +944,36 @@ namespace boost { namespace program_options_2 {
         template<class Char>
         struct command_line_arg
         {
-            std::basic_string_view<Char> arg;
+            std::basic_string_view<Char> str;
             int original_position;
         };
+
+        template<typename... Options>
+        auto make_result_tuple(Options const &... opts)
+        {
+            using opt_tuple_type = hana::tuple<Options const &...>;
+            opt_tuple_type opt_tuple{opts...};
+            return hana::transform(opt_tuple, [](auto const & opt) {
+                using opt_type = std::remove_cvref_t<decltype(opt)>;
+                constexpr bool required_option =
+                    opt_type::positional && opt_type::required;
+                constexpr bool has_value =
+                    !std::is_same_v<typename opt_type::value_type, no_value>;
+                if constexpr (std::is_same_v<typename opt_type::type, bool>) {
+                    if constexpr (has_value) {
+                        return !(bool)opt.value;
+                    } else if constexpr (required_option) {
+                        return bool{};
+                    } else {
+                        return std::optional<bool>{};
+                    }
+                } else if constexpr (required_option) {
+                    return typename opt_type::type{};
+                } else {
+                    return std::optional<typename opt_type::type>{};
+                }
+            });
+        }
 
         template<
             typename CustomStringsTag,
@@ -950,6 +995,16 @@ namespace boost { namespace program_options_2 {
             };
             (void)fail; // TODO
 
+            auto result = detail::make_result_tuple(opt, opts...);
+
+#if 0
+            using opt_tuple_type = hana::tuple<Options const &...>;
+            opt_tuple_type opt_tuple{opts...};
+            for (auto arg : args) {
+                hana::for_each(opt_tuple, [&](auto const & opt) {});
+            }
+#endif
+
             std::vector<command_line_arg<Char>> pos_args;
             std::vector<command_line_arg<Char>> opt_args;
             int i = 0;
@@ -960,6 +1015,34 @@ namespace boost { namespace program_options_2 {
                     pos_args.emplace_back(arg, i);
                 ++i;
             }
+
+#if 0
+            int next_positional_index = 0;
+            auto positional_parser = detail::make_positionals_parser(
+                result, next_positional_index, opt, opts...);
+            int positionals_failure_index = -1;
+            for (auto arg : pos_args) {
+                int prev_positional_index = next_positional_index;
+                if (!parser::parse(arg.str, positionals_parser) ||
+                    next_positional_index != prev_positional_index + 1) {
+                    positionals_failure_index = arg.original_position;
+                }
+            }
+#endif
+
+#if 0
+            auto optionals_parser =
+                detail::make_optionals_parser(result, opt, opts...);
+            int optionals_failure_index = -1;
+            for (auto arg : opt_args) {
+                if (!parser::parse(arg.str, optionals_parser))
+                    optionals_failure_index = arg.original_position;
+            }
+#endif
+
+            // TODO: Handle failues....
+
+            return result;
 
             // TODO: Make positional vs. non- a part or option's type, and
             // then use that to make one seq parser for the positional args,
@@ -1022,6 +1105,9 @@ namespace boost { namespace program_options_2 {
         // If you specify more than one argument with args, T must be a type
         // that can be inserted into.
         BOOST_ASSERT(args == 1 || args == zero_or_one || detail::insertable<T>);
+        // For a argument that takes zero or more args, T must be a
+        // std::optional.
+        // TODO BOOST_ASSERT(args != zero_or_one || detail::is_optional<T>::value);
         return {
             names,
             help_text,
@@ -1085,6 +1171,10 @@ namespace boost { namespace program_options_2 {
         // If you specify more than one argument with args, T must be a type
         // that can be inserted into.
         BOOST_ASSERT(args == 1 || args == zero_or_one || detail::insertable<T>);
+        BOOST_ASSERT(args == 1 || args == zero_or_one || detail::insertable<T>);
+        // For a positional that takes zero or more args, T must be a
+        // std::optional.
+        BOOST_ASSERT(args != zero_or_one || detail::is_optional<T>::value);
         return {
             name,
             help_text,

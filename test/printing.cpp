@@ -111,7 +111,8 @@ TEST(printing, print_option_arguments)
         EXPECT_EQ(os.str(), " [-b B B]");
     }
     {
-        auto const arg = po2::argument<int>("--blah", "", po2::zero_or_one);
+        auto const arg =
+            po2::argument<std::optional<int>>("--blah", "", po2::zero_or_one);
         std::ostringstream os;
         po2::detail::print_option(os, arg, 8, 8);
         EXPECT_EQ(os.str(), " [--blah [BLAH]]");
@@ -161,8 +162,8 @@ TEST(printing, print_option_arguments)
         EXPECT_EQ(os.str(), " [-b {1,2,3} {1,2,3}]");
     }
     {
-        auto const arg =
-            po2::argument<int>("-b,--blah", "", po2::zero_or_one, 1, 2, 3);
+        auto const arg = po2::argument<std::optional<int>>(
+            "-b,--blah", "", po2::zero_or_one, 1, 2, 3);
         std::ostringstream os;
         po2::detail::print_option(os, arg, 8, 8);
         EXPECT_EQ(os.str(), " [-b [{1,2,3}]]");
@@ -199,7 +200,9 @@ TEST(printing, print_option_arguments)
     }
     {
         auto const arg = po2::with_default(
-            po2::argument<int>("-b,--blah", "", po2::zero_or_one), 42);
+            po2::argument<std::optional<int>>(
+                "-b,--blah", "", po2::zero_or_one),
+            42);
         std::ostringstream os;
         po2::detail::print_option(os, arg, 8, 8);
         EXPECT_EQ(os.str(), " [-b [B]]");
@@ -253,7 +256,8 @@ TEST(printing, print_option_positionals)
         EXPECT_EQ(os.str(), " BLAH BLAH");
     }
     {
-        auto const arg = po2::positional<int>("blah", "", po2::zero_or_one);
+        auto const arg =
+            po2::positional<std::optional<int>>("blah", "", po2::zero_or_one);
         std::ostringstream os;
         po2::detail::print_option(os, arg, 8, 8);
         EXPECT_EQ(os.str(), " [BLAH]");
@@ -303,8 +307,8 @@ TEST(printing, print_option_positionals)
         EXPECT_EQ(os.str(), " {1,2,3} {1,2,3}");
     }
     {
-        auto const arg =
-            po2::positional<int>("blah", "", po2::zero_or_one, 1, 2, 3);
+        auto const arg = po2::positional<std::optional<int>>(
+            "blah", "", po2::zero_or_one, 1, 2, 3);
         std::ostringstream os;
         po2::detail::print_option(os, arg, 8, 8);
         EXPECT_EQ(os.str(), " [{1,2,3}]");
@@ -341,7 +345,8 @@ TEST(printing, print_option_positionals)
     }
     {
         auto const arg = po2::with_default(
-            po2::positional<int>("blah", "", po2::zero_or_one), 42);
+            po2::positional<std::optional<int>>("blah", "", po2::zero_or_one),
+            42);
         std::ostringstream os;
         po2::detail::print_option(os, arg, 8, 8);
         EXPECT_EQ(os.str(), " [BLAH]");
@@ -511,7 +516,9 @@ TEST(printing, parse_command_line_help)
                 "a-very-very-very-obnoxiously-long-positional",
                 "Another positional argument."),
             po2::argument("--non-pos-2", "A second non-positional argument."));
-        EXPECT_EQ(os.str(), R"(usage:  bar [-h] [--non-positional NON-POSITIONAL] POSITIONAL
+        EXPECT_EQ(
+            os.str(),
+            R"(usage:  bar [-h] [--non-positional NON-POSITIONAL] POSITIONAL
             A-VERY-VERY-VERY-OBNOXIOUSLY-LONG-POSITIONAL [--non-pos-2 NON-POS-2]
 
 A test program to see how things work.
@@ -546,7 +553,9 @@ optional arguments:
                 "A second non-positional argument.  This one has a "
                 "particularly long description, just so we can see what the "
                 "column-wrapping looks like."));
-        EXPECT_EQ(os.str(), R"(usage:  bar [-h] [--non-positional NON-POSITIONAL] POSITIONAL [-s S]
+        EXPECT_EQ(
+            os.str(),
+            R"(usage:  bar [-h] [--non-positional NON-POSITIONAL] POSITIONAL [-s S]
             [--non-pos-2 NON-POS-2]
 
 A test program to see how things work.
@@ -593,7 +602,9 @@ optional arguments:
                 "A second non-positional argument.  This one has a "
                 "particularly long description, just so we can see what the "
                 "column-wrapping looks like."));
-        EXPECT_EQ(os.str(), R"(USAGE:  bar [-r] [--non-positional NON-POSITIONAL] POSITIONAL [-s S]
+        EXPECT_EQ(
+            os.str(),
+            R"(USAGE:  bar [-r] [--non-positional NON-POSITIONAL] POSITIONAL [-s S]
             [--non-pos-2 NON-POS-2]
 
 A test program to see how things work.
