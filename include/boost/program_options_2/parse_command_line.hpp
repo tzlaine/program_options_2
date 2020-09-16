@@ -18,6 +18,7 @@
 #pragma GCC diagnostic pop
 #endif
 
+#include <boost/parser/parser.hpp>
 #include <boost/stl_interfaces/iterator_interface.hpp>
 #include <boost/stl_interfaces/view_interface.hpp>
 #include <boost/text/bidirectional.hpp>
@@ -168,6 +169,7 @@ namespace boost { namespace program_options_2 {
 
             constexpr static bool positional = Kind == option_kind::positional;
             constexpr static bool required = Required == required_t::yes;
+            constexpr static int num_choices = Choices;
         };
 
         template<typename T>
@@ -939,9 +941,21 @@ namespace boost { namespace program_options_2 {
                 detail::print_help(
                     tag, os, program_name, program_desc, opt, opts...);
             }
-#ifndef BOOST_PROGRAM_OPTIONS_2_TESTING
-            std::exit(exit_code);
+#ifdef BOOST_PROGRAM_OPTIONS_2_TESTING
+            throw 0;
 #endif
+            std::exit(exit_code);
+        }
+
+        template<typename Option>
+        constexpr bool has_choices()
+        {
+            return Option::num_choices != 0;
+        }
+        template<typename Option>
+        constexpr bool has_default()
+        {
+            return !std::is_same_v<typename Option::value_type, no_value>;
         }
 
         template<class Char>
@@ -960,8 +974,7 @@ namespace boost { namespace program_options_2 {
                 using opt_type = std::remove_cvref_t<decltype(opt)>;
                 constexpr bool required_option =
                     opt_type::positional && opt_type::required;
-                constexpr bool has_default =
-                    !std::is_same_v<typename opt_type::value_type, no_value>;
+                constexpr bool has_default = detail::has_default<opt_type>();
                 using T = typename opt_type::type;
                 if constexpr (std::is_same_v<T, void>) {
                     return no_value{};
@@ -979,6 +992,178 @@ namespace boost { namespace program_options_2 {
             });
         }
 
+        template<typename T>
+        auto parser_for()
+        {
+            if constexpr (std::is_unsigned_v<T>) {
+                return parser::uint_parser<T>{};
+            } else if constexpr (std::is_signed_v<T>) {
+                return parser::int_parser<T>{};
+            } else if constexpr (std::is_floating_point_v<T>) {
+                return parser::float_parser<T>{};
+            } else if constexpr (std::is_same_v<T, bool>) {
+                return parser::bool_parser{};
+            } else if constexpr (insertable<T>) {
+                return detail::parser_for<std::ranges::range_value_t<T>>();
+            } else {
+                return parser::raw[+parser::char_];
+            }
+        }
+
+        template<typename T, typename U>
+        void assign_or_insert(T & t, U & u)
+        {
+            if constexpr (std::is_assignable_v<T &, U &>) {
+                t = std::move(u);
+            } else {
+                t.insert(t.end(), std::move(u));
+            }
+        }
+
+        enum struct parse_option_error {
+            none,
+            wrong_number_of_args,
+            cannot_parse_arg,
+            missing_positional
+        };
+
+        struct parse_option_result
+        {
+            explicit operator bool() const { return keep_parsing; }
+
+            bool keep_parsing = true;
+            parse_option_error error = parse_option_error::none;
+        };
+
+        // TODO: Should this return a more complicated result -- one that
+        // conveys whether the parse is failed, etc.?
+        template<
+            typename ArgsIter,
+            typename Option,
+            typename ResultType,
+            typename PositionIndicesTuple>
+        parse_option_result parse_option(
+            ArgsIter & first,
+            ArgsIter last,
+            Option const & opt,
+            ResultType & result,
+            int & next_positional,
+            PositionIndicesTuple const & positional_indices)
+        {
+            if (first == last)
+                return {};
+
+            if (!detail::positional(opt)) {
+                auto names = names_view(opt.names);
+                if (std::find_if(
+                        names.begin(), names.end(), [first](auto name) {
+                            return std::ranges::equal(
+                                text::as_utf8(name), text::as_utf8(*first));
+                        }) != names.end()) {
+                    return {};
+                }
+                ++first;
+
+                if (std::is_same_v<typename Option::type, bool> && !opt.args) {
+                    if constexpr (detail::has_default<Option>())
+                        result = !bool{opt.default_value};
+                    return {};
+                }
+            }
+
+            // It makes no sense to have a non-positional argument that takes
+            // no argument, unless the non-positional argument's type T is
+            // bool (handled above).  It also makes no sense to have a
+            // positional argument of any type that is supposed to occur 0
+            // times.
+            BOOST_ASSERT(opt.args);
+
+            auto min_reps = opt.args;
+            if (min_reps < 0)
+                min_reps = min_reps == one_or_more ? 1 : 0;
+            auto max_reps = opt.args;
+            if (max_reps < 0)
+                max_reps = max_reps == zero_or_one ? 1 : INT_MAX;
+
+            if (first == last) {
+                return min_reps == 0
+                           ? parse_option_result{}
+                           : parse_option_result{
+                                 false,
+                                 parse_option_error::wrong_number_of_args};
+            }
+
+            if constexpr (detail::has_choices<Option>()) {
+                auto check_choice = [&](auto & ctx) {
+                    auto const & attr = _attr(ctx);
+                    // TODO: Might need to be transcoded if the compareds are
+                    // basic_string_view<T>s.
+                    if (std::find(
+                            opt.choices.begin(), opt.choices.end(), attr) ==
+                        opt.choices.end()) {
+                        _pass(ctx) = false;
+                    } else {
+                        detail::assign_or_insert(attr, result);
+                    }
+                };
+                auto const choice = detail::parser_for<
+                    typename Option::choice_type>()[check_choice];
+                auto success = parser::parse(*first, choice);
+                if (success) {
+                    ++first;
+                    int limit = opt.args;
+                    if (limit < 0)
+                        limit = limit == zero_or_one ? 1 : INT_MAX;
+                    for (int i = 1; success && i < limit && first != last;
+                         ++i) {
+                        success = parser::parse(*first, choice);
+                        if (success)
+                            ++first;
+                    }
+                    return {};
+                } else {
+                    return min_reps == 0
+                               ? parse_option_result{}
+                               : parse_option_result{
+                                     false,
+                                     parse_option_error::wrong_number_of_args};
+                }
+            } else {
+                // TODO
+            }
+
+            return {};
+        }
+
+        template<typename OptTuple>
+        int count_positionals(OptTuple const & opt_tuple)
+        {
+            int retval = 0;
+            hana::for_each(opt_tuple, [&](auto const & opt) {
+                if (detail::positional(opt))
+                    ++retval;
+            });
+            return retval;
+        }
+
+        template<typename OptTuple>
+        int count_arguments(OptTuple const & opt_tuple)
+        {
+            return (int)hana::size(opt_tuple) - count_positionals(opt_tuple);
+        }
+
+        template<typename OptTuple>
+        std::string_view optional_name(OptTuple const & opt_tuple, int i)
+        {
+            BOOST_ASSERT(i < (int)hana::size(opt_tuple));
+            std::string_view retval;
+            hana::for_each(opt_tuple, [&](auto const & opt) {
+                if (!i--)
+                    retval = opt.names;
+            });
+            return retval;
+        }
+
         template<
             typename CustomStringsTag,
             typename Char,
@@ -993,67 +1178,56 @@ namespace boost { namespace program_options_2 {
             Option opt,
             Options... opts)
         {
-            auto fail = [&] {
+            auto fail = [&](parse_option_error error, std::string_view names) {
+                // TODO: Report error, using names.
                 detail::print_help_and_exit(
                     1, tag, args[0], program_desc, os, no_help, opt, opts...);
             };
-            (void)fail; // TODO
 
             auto result = detail::make_result_tuple(opt, opts...);
 
-#if 0
             using opt_tuple_type = hana::tuple<Options const &...>;
             opt_tuple_type opt_tuple{opts...};
-            for (auto arg : args) {
-                hana::for_each(opt_tuple, [&](auto const & opt) {});
-            }
-#endif
 
-            std::vector<command_line_arg<Char>> pos_args;
-            std::vector<command_line_arg<Char>> opt_args;
-            int i = 0;
-            for (auto arg : args) {
-                if (!arg.empty() && arg[0] == '-')
-                    opt_args.emplace_back(arg, i);
-                else
-                    pos_args.emplace_back(arg, i);
-                ++i;
+            int positional_index = -1;
+            auto const positional_indices =
+                hana::transform(opt_tuple, [&](auto const & opt) {
+                    if (detail::positional(opt))
+                        ++positional_index;
+                    return positional_index;
+                });
+
+            auto args_first = args.begin();
+            auto const args_last = args.end();
+            int next_positional = 0;
+            while (args_first != args_last) {
+                using namespace hana::literals;
+                int opt_index = 0;
+                hana::fold(opt_tuple, 0_c, [&](auto i, auto const & opt) {
+                    auto const parse_result = detail::parse_option(
+                        args_first,
+                        args_last,
+                        opt,
+                        result[i],
+                        next_positional,
+                        positional_indices);
+                    if (!parse_result) {
+                        fail(
+                            parse_result.error,
+                            detail::optional_name(opt_tuple, opt_index));
+                    }
+                    ++opt_index;
+                    return hana::llong_c<decltype(i)::value + 1>;
+                });
             }
 
-#if 0
-            int next_positional_index = 0;
-            auto positional_parser = detail::make_positionals_parser(
-                result, next_positional_index, opt, opts...);
-            int positionals_failure_index = -1;
-            for (auto arg : pos_args) {
-                int prev_positional_index = next_positional_index;
-                if (!parser::parse(arg.str, positionals_parser) ||
-                    next_positional_index != prev_positional_index + 1) {
-                    positionals_failure_index = arg.original_position;
-                }
+            if (next_positional != detail::count_positionals(opt_tuple)) {
+                fail(
+                    parse_option_error::missing_positional,
+                    detail::optional_name(opt_tuple, next_positional));
             }
-#endif
-
-#if 0
-            auto optionals_parser =
-                detail::make_optionals_parser(result, opt, opts...);
-            int optionals_failure_index = -1;
-            for (auto arg : opt_args) {
-                if (!parser::parse(arg.str, optionals_parser))
-                    optionals_failure_index = arg.original_position;
-            }
-#endif
-
-            // TODO: Handle failues....
 
             return result;
-
-            // TODO: Make positional vs. non- a part or option's type, and
-            // then use that to make one seq parser for the positional args,
-            // then one or parser for the optional args.  Parse each,
-            // reporting an error on the first one that fails to parse.  If
-            // both parsers fail, report the error for the first one, based on
-            // original_position in the command_line_arg for the failure.
         }
     }
 

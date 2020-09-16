@@ -505,17 +505,21 @@ TEST(printing, parse_command_line_help)
 
     {
         std::ostringstream os;
-        po2::parse_command_line(
-            argc,
-            argv,
-            "A test program to see how things work.",
-            os,
-            po2::argument("--non-positional", "A non-positional argument."),
-            po2::positional("positional", "A positional argument."),
-            po2::positional(
-                "a-very-very-very-obnoxiously-long-positional",
-                "Another positional argument."),
-            po2::argument("--non-pos-2", "A second non-positional argument."));
+        try {
+            po2::parse_command_line(
+                argc,
+                argv,
+                "A test program to see how things work.",
+                os,
+                po2::argument("--non-positional", "A non-positional argument."),
+                po2::positional("positional", "A positional argument."),
+                po2::positional(
+                    "a-very-very-very-obnoxiously-long-positional",
+                    "Another positional argument."),
+                po2::argument(
+                    "--non-pos-2", "A second non-positional argument."));
+        } catch (int) {
+        }
         EXPECT_EQ(
             os.str(),
             R"(usage:  bar [-h] [--non-positional NON-POSITIONAL] POSITIONAL
@@ -537,22 +541,26 @@ optional arguments:
 
     {
         std::ostringstream os;
-        po2::parse_command_line(
-            argc,
-            argv,
-            "A test program to see how things work.",
-            os,
-            po2::argument("--non-positional", "A non-positional argument."),
-            po2::positional("positional", "A positional argument."),
-            po2::argument(
-                "--an,--arg,--with,--many-names,--only,-s,--single,--short,--"
-                "one",
-                "Another non-positional argument."),
-            po2::argument(
-                "--non-pos-2",
-                "A second non-positional argument.  This one has a "
-                "particularly long description, just so we can see what the "
-                "column-wrapping looks like."));
+        try {
+            po2::parse_command_line(
+                argc,
+                argv,
+                "A test program to see how things work.",
+                os,
+                po2::argument("--non-positional", "A non-positional argument."),
+                po2::positional("positional", "A positional argument."),
+                po2::argument(
+                    "--an,--arg,--with,--many-names,--only,-s,--single,--short,"
+                    "--one",
+                    "Another non-positional argument."),
+                po2::argument(
+                    "--non-pos-2",
+                    "A second non-positional argument.  This one has a "
+                    "particularly long description, just so we can see what "
+                    "the "
+                    "column-wrapping looks like."));
+        } catch (int) {
+        }
         EXPECT_EQ(
             os.str(),
             R"(usage:  bar [-h] [--non-positional NON-POSITIONAL] POSITIONAL [-s S]
@@ -585,23 +593,27 @@ optional arguments:
             strings.c_str(), strings.c_str() + strings.size() - 3};
 
         std::ostringstream os;
-        po2::parse_command_line(
-            user_namespace::tag{},
-            argc,
-            argv,
-            "A test program to see how things work.",
-            os,
-            po2::argument("--non-positional", "A non-positional argument."),
-            po2::positional("positional", "A positional argument."),
-            po2::argument(
-                "--an,--arg,--with,--many-names,--only,-s,--single,--short,--"
-                "one",
-                "Another non-positional argument."),
-            po2::argument(
-                "--non-pos-2",
-                "A second non-positional argument.  This one has a "
-                "particularly long description, just so we can see what the "
-                "column-wrapping looks like."));
+        try {
+            po2::parse_command_line(
+                user_namespace::tag{},
+                argc,
+                argv,
+                "A test program to see how things work.",
+                os,
+                po2::argument("--non-positional", "A non-positional argument."),
+                po2::positional("positional", "A positional argument."),
+                po2::argument(
+                    "--an,--arg,--with,--many-names,--only,-s,--single,--short,"
+                    "--one",
+                    "Another non-positional argument."),
+                po2::argument(
+                    "--non-pos-2",
+                    "A second non-positional argument.  This one has a "
+                    "particularly long description, just so we can see what "
+                    "the "
+                    "column-wrapping looks like."));
+        } catch (int) {
+        }
         EXPECT_EQ(
             os.str(),
             R"(USAGE:  bar [-r] [--non-positional NON-POSITIONAL] POSITIONAL [-s S]
