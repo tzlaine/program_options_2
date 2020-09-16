@@ -965,14 +965,6 @@ namespace boost { namespace program_options_2 {
                 using T = typename opt_type::type;
                 if constexpr (std::is_same_v<T, void>) {
                     return no_value{};
-                } else if constexpr (std::is_same_v<T, bool>) {
-                    if constexpr (has_default) {
-                        return (bool)opt.default_value;
-                    } else if constexpr (required_option) {
-                        return bool{};
-                    } else {
-                        return std::optional<bool>{};
-                    }
                 } else if constexpr (required_option) {
                     if constexpr (has_default)
                         return T{opt.default_value};
