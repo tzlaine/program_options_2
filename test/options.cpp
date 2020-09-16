@@ -35,7 +35,7 @@ TEST(options, arguments)
         EXPECT_EQ(arg.help_text, "bleurgh");
         EXPECT_EQ(arg.args, 1);
         EXPECT_EQ(arg.action, po2::detail::action_kind::assign);
-        BOOST_MPL_ASSERT((is_same<decltype(arg.value), po2::detail::no_value>));
+        BOOST_MPL_ASSERT((is_same<decltype(arg.default_value), po2::no_value>));
         EXPECT_EQ(arg.choices.size(), 0);
         EXPECT_EQ(arg.arg_display_name, "");
     }
@@ -46,7 +46,7 @@ TEST(options, arguments)
         EXPECT_EQ(arg.help_text, "bleurgh");
         EXPECT_EQ(arg.args, po2::zero_or_one);
         EXPECT_EQ(arg.action, po2::detail::action_kind::assign);
-        BOOST_MPL_ASSERT((is_same<decltype(arg.value), po2::detail::no_value>));
+        BOOST_MPL_ASSERT((is_same<decltype(arg.default_value), po2::no_value>));
         EXPECT_EQ(arg.choices.size(), 0);
         EXPECT_EQ(arg.arg_display_name, "");
     }
@@ -57,7 +57,7 @@ TEST(options, arguments)
         EXPECT_EQ(arg.help_text, "bleurgh");
         EXPECT_EQ(arg.args, 2);
         EXPECT_EQ(arg.action, po2::detail::action_kind::insert);
-        BOOST_MPL_ASSERT((is_same<decltype(arg.value), po2::detail::no_value>));
+        BOOST_MPL_ASSERT((is_same<decltype(arg.default_value), po2::no_value>));
         EXPECT_EQ(arg.choices.size(), 0);
         EXPECT_EQ(arg.arg_display_name, "");
     }
@@ -67,7 +67,7 @@ TEST(options, arguments)
         EXPECT_EQ(arg.help_text, "bleurgh");
         EXPECT_EQ(arg.args, 1);
         EXPECT_EQ(arg.action, po2::detail::action_kind::assign);
-        BOOST_MPL_ASSERT((is_same<decltype(arg.value), po2::detail::no_value>));
+        BOOST_MPL_ASSERT((is_same<decltype(arg.default_value), po2::no_value>));
         EXPECT_EQ(arg.choices, (std::array<int, 3>{{1, 2, 3}}));
         EXPECT_EQ(arg.arg_display_name, "");
     }
@@ -80,7 +80,7 @@ TEST(options, arguments)
         EXPECT_EQ(arg.help_text, "bleurgh");
         EXPECT_EQ(arg.args, 1);
         EXPECT_EQ(arg.action, po2::detail::action_kind::assign);
-        EXPECT_EQ(arg.value, 42);
+        EXPECT_EQ(arg.default_value, 42);
         EXPECT_EQ(arg.choices.size(), 0);
         EXPECT_EQ(arg.arg_display_name, "");
     }
@@ -93,7 +93,7 @@ TEST(options, arguments)
         EXPECT_EQ(arg.help_text, "bleurgh");
         EXPECT_EQ(arg.args, po2::zero_or_one);
         EXPECT_EQ(arg.action, po2::detail::action_kind::assign);
-        EXPECT_EQ(arg.value, 42);
+        EXPECT_EQ(arg.default_value, 42);
         EXPECT_EQ(arg.choices.size(), 0);
         EXPECT_EQ(arg.arg_display_name, "");
     }
@@ -105,7 +105,7 @@ TEST(options, arguments)
         EXPECT_EQ(arg.help_text, "bleurgh");
         EXPECT_EQ(arg.args, 2);
         EXPECT_EQ(arg.action, po2::detail::action_kind::insert);
-        EXPECT_EQ(arg.value, std::vector<int>({42}));
+        EXPECT_EQ(arg.default_value, std::vector<int>({42}));
         EXPECT_EQ(arg.choices.size(), 0);
         EXPECT_EQ(arg.arg_display_name, "");
     }
@@ -116,7 +116,7 @@ TEST(options, arguments)
         EXPECT_EQ(arg.help_text, "bleurgh");
         EXPECT_EQ(arg.args, 2);
         EXPECT_EQ(arg.action, po2::detail::action_kind::insert);
-        EXPECT_EQ(arg.value, 42);
+        EXPECT_EQ(arg.default_value, 42);
         EXPECT_EQ(arg.choices.size(), 0);
         EXPECT_EQ(arg.arg_display_name, "");
     }
@@ -127,7 +127,7 @@ TEST(options, arguments)
         EXPECT_EQ(arg.help_text, "bleurgh");
         EXPECT_EQ(arg.args, 1);
         EXPECT_EQ(arg.action, po2::detail::action_kind::assign);
-        EXPECT_EQ(arg.value, 3);
+        EXPECT_EQ(arg.default_value, 3);
         EXPECT_EQ(arg.choices, (std::array<int, 3>{{1, 2, 3}}));
         EXPECT_EQ(arg.arg_display_name, "");
     }
@@ -140,7 +140,7 @@ TEST(options, arguments)
         EXPECT_EQ(arg.help_text, "bleurgh");
         EXPECT_EQ(arg.args, 1);
         EXPECT_EQ(arg.action, po2::detail::action_kind::assign);
-        BOOST_MPL_ASSERT((is_same<decltype(arg.value), po2::detail::no_value>));
+        BOOST_MPL_ASSERT((is_same<decltype(arg.default_value), po2::no_value>));
         EXPECT_EQ(arg.choices.size(), 0);
         EXPECT_EQ(arg.arg_display_name, "blerg");
     }

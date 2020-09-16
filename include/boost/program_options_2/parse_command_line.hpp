@@ -100,6 +100,10 @@ namespace boost { namespace program_options_2 {
         iterator last_;
     };
 
+    /** TODO */
+    struct no_value
+    {};
+
     namespace detail {
         template<typename BidiIter, typename T>
         BidiIter find_last(BidiIter first, BidiIter last, T const & x)
@@ -132,9 +136,6 @@ namespace boost { namespace program_options_2 {
             return std::basic_string_view<Char>(&*first, last - first);
         }
 
-        struct no_value
-        {};
-
         enum struct option_kind { positional, argument };
 
         enum struct required_t { yes, no };
@@ -161,7 +162,7 @@ namespace boost { namespace program_options_2 {
             std::string_view help_text;
             action_kind action;
             int args;
-            value_type value; // argparse's "const" or "default"
+            value_type default_value;
             std::array<choice_type, Choices> choices;
             std::string_view arg_display_name;
 
@@ -306,7 +307,9 @@ namespace boost { namespace program_options_2 {
                   T,
                   Choice,
                   std::is_assignable_v<T &, Choice> &&
-                      (std::is_assignable_v<T &, Choices> && ...),
+                      std::is_constructible_v<T, Choice> &&
+                      ((std::is_assignable_v<T &, Choices> &&
+                        std::is_constructible_v<T, Choices>) &&...),
                   is_insertable_from<T, Choice>::value &&
                       (is_insertable_from<T, Choices>::value && ...)>
         {};
@@ -957,20 +960,29 @@ namespace boost { namespace program_options_2 {
                 using opt_type = std::remove_cvref_t<decltype(opt)>;
                 constexpr bool required_option =
                     opt_type::positional && opt_type::required;
-                constexpr bool has_value =
+                constexpr bool has_default =
                     !std::is_same_v<typename opt_type::value_type, no_value>;
-                if constexpr (std::is_same_v<typename opt_type::type, bool>) {
-                    if constexpr (has_value) {
-                        return !(bool)opt.value;
+                using T = typename opt_type::type;
+                if constexpr (std::is_same_v<T, void>) {
+                    return no_value{};
+                } else if constexpr (std::is_same_v<T, bool>) {
+                    if constexpr (has_default) {
+                        return (bool)opt.default_value;
                     } else if constexpr (required_option) {
                         return bool{};
                     } else {
                         return std::optional<bool>{};
                     }
                 } else if constexpr (required_option) {
-                    return typename opt_type::type{};
+                    if constexpr (has_default)
+                        return T{opt.default_value};
+                    else
+                        return T{};
                 } else {
-                    return std::optional<typename opt_type::type>{};
+                    if constexpr (has_default)
+                        return std::optional<T>{opt.default_value};
+                    else
+                        return std::optional<T>{};
                 }
             });
         }
@@ -1069,12 +1081,13 @@ namespace boost { namespace program_options_2 {
     template<typename T = std::string_view, typename... Choices>
         // clang-format off
         requires
-            (std::assignable_from<T &, Choices> && ...) ||
-            (detail::insertable_from<T, Choices> && ...)
+           ((std::assignable_from<T &, Choices> &&
+             std::constructible_from<T, Choices>) && ...) ||
+           (detail::insertable_from<T, Choices> && ...)
     detail::option<
         detail::option_kind::argument,
         T,
-        detail::no_value,
+        no_value,
         detail::required_t::no,
         sizeof...(Choices),
         detail::choice_type_t<T, Choices...>>
@@ -1089,7 +1102,8 @@ namespace boost { namespace program_options_2 {
         // Each type in the parameter pack Choices... must be assignable to T,
         // or insertable into T.
         static_assert(
-            (std::is_assignable_v<T &, Choices> && ...) ||
+            ((std::is_assignable_v<T &, Choices> &&
+              std::is_constructible_v<T, Choices>)&&...) ||
             (detail::is_insertable_from<T, Choices>::value && ...));
 #endif
         // There's something wrong with the argument names in "names".  Either
@@ -1123,7 +1137,7 @@ namespace boost { namespace program_options_2 {
     detail::option<
         detail::option_kind::positional,
         T,
-        detail::no_value,
+        no_value,
         detail::required_t::yes>
     positional(std::string_view name, std::string_view help_text)
     {
@@ -1137,12 +1151,13 @@ namespace boost { namespace program_options_2 {
     template<typename T = std::string_view, typename... Choices>
         // clang-format off
         requires
-            (std::assignable_from<T &, Choices> && ...) ||
+            ((std::assignable_from<T &, Choices> &&
+              std::constructible_from<T, Choices>) && ...) ||
             (detail::insertable_from<T, Choices> && ...)
     detail::option<
         detail::option_kind::positional,
         T,
-        detail::no_value,
+        no_value,
         detail::required_t::yes,
         sizeof...(Choices),
         detail::choice_type_t<T, Choices...>>
@@ -1157,7 +1172,8 @@ namespace boost { namespace program_options_2 {
         // Each type in the parameter pack Choices... must be assignable to T,
         // or insertable into T.
         static_assert(
-            (std::is_assignable_v<T &, Choices> && ...) ||
+            ((std::is_assignable_v<T &, Choices> &&
+              std::is_constructible_v<T, Choices>)&&...) ||
             (detail::is_insertable_from<T, Choices>::value && ...));
 #endif
         // Looks like you tried to create a positional argument that starts
@@ -1195,7 +1211,7 @@ namespace boost { namespace program_options_2 {
         // Looks like you tried to create a non-positional argument that does
         // not start with a '-'.  Don't do that.
         BOOST_ASSERT(!detail::positional(names));
-        return {names, help_text, detail::action_kind::assign, 0, true};
+        return {names, help_text, detail::action_kind::assign, 0, false};
     }
 
     /** TODO */
@@ -1205,7 +1221,7 @@ namespace boost { namespace program_options_2 {
         // Looks like you tried to create a non-positional argument that does
         // not start with a '-'.  Don't do that.
         BOOST_ASSERT(!detail::positional(names));
-        return {names, help_text, detail::action_kind::assign, 0, false};
+        return {names, help_text, detail::action_kind::assign, 0, true};
     }
 
     /** TODO */
@@ -1298,13 +1314,13 @@ namespace boost { namespace program_options_2 {
         requires 
             (Choices == 0 ||
              std::equality_comparable_with<DefaultType, ChoiceType>) &&
-            (std::assignable_from<T &, DefaultType> ||
-             detail::insertable_from<T, DefaultType>)
+             ((std::assignable_from<T &, DefaultType>  &&
+               std::constructible_from<T, DefaultType>)||
+              detail::insertable_from<T, DefaultType>)
     detail::option<Kind, T, DefaultType, Required, Choices, ChoiceType>
     with_default(
-        detail::
-            option<Kind, T, detail::no_value, Required, Choices, ChoiceType>
-                opt,
+        detail::option<Kind, T, no_value, Required, Choices, ChoiceType>
+            opt,
         DefaultType default_value)
     // clang-format on
     {
