@@ -440,20 +440,9 @@ namespace boost { namespace program_options_2 {
                 auto const trimmed_dashes = name.size() - trimmed_name.size();
                 if (trimmed_dashes != 1u && trimmed_dashes != 2u)
                     return false;
-                // TODO: Check that the characters in trimmed_name are
-                // "letters".  Use the Unicode word breaking algorithm code
-                // point classes (numbers are ok, too).
             }
             return true;
         }
-
-        // TODO: Another check (must be runtime, and debug-only) to make sure
-        // that the each name of each option is unique.  For instance
-        // option{"-b,--bogus", ...} and option{"-h,-b", ...} is not allowed,
-        // because of the "-b"s.  This should include display names.
-
-        // TODO: Another runtime check: make sure that the choices within an
-        // options are unique.
 
         template<typename... Options>
         void check_options(bool positionals_need_names, Options const &... opts)
@@ -507,12 +496,7 @@ namespace boost { namespace program_options_2 {
                     BOOST_ASSERT(!already_saw_multi_arg_positional);
                     already_saw_multi_arg_positional = true;
                 }
-
-                // TODO: Check that all optional positionals come at the
-                // end.
             });
-
-            // TODO: Other checks?
         }
 
         template<typename... Options>
