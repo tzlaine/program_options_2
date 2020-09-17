@@ -64,7 +64,7 @@ namespace boost { namespace program_options_2 {
 
         std::array<std::string_view, 6> error_strings = {
             {"error: unrecognized argument '{}'",
-             "error: wrong number of arguments passed to '{}'",
+             "error: wrong number of arguments for '{}'",
              "error: cannot parse argument '{}'",
              "error: '{}' is not one of the allowed choices",
              "error: unexpected positional argument '{}'",
@@ -1042,7 +1042,9 @@ namespace boost { namespace program_options_2 {
         template<typename T, typename U>
         void assign_or_insert(T & t, U & u)
         {
-            if constexpr (std::is_assignable_v<T &, U &>) {
+            if constexpr (std::is_same_v<std::remove_cv_t<T>, no_value>) {
+                // no-op
+            } else if constexpr (std::is_assignable_v<T &, U &>) {
                 t = std::move(u);
             } else {
                 t.insert(t.end(), std::move(u));
@@ -1133,20 +1135,29 @@ namespace boost { namespace program_options_2 {
 
             auto next = parse_option_result::no_match_keep_parsing;
             if (!detail::positional(opt)) {
-                auto names = names_view(opt.names);
-                if (std::find_if(
-                        names.begin(), names.end(), [first](auto name) {
-                            return std::ranges::equal(
-                                text::as_utf8(name), text::as_utf8(*first));
-                        }) != names.end()) {
+                auto const names = names_view(opt.names);
+                auto const arg = *first;
+                if (std::find_if(names.begin(), names.end(), [arg](auto name) {
+                        return std::ranges::equal(
+                            text::as_utf8(name), text::as_utf8(arg));
+                    }) == names.end()) {
                     return {};
                 }
                 ++first;
                 next = parse_option_result::match_keep_parsing;
 
-                if (std::is_same_v<typename Option::type, bool> && !opt.args) {
-                    if constexpr (detail::has_default<Option>())
-                        result = !bool{opt.default_value};
+                if constexpr (std::is_same_v<typename Option::type, bool>) {
+                    if (!opt.args) {
+                        if constexpr (detail::has_default<Option>())
+                            result = !bool{opt.default_value};
+                        return {next};
+                    }
+                }
+
+                // Special case: early return when we see a help or version
+                // arg.
+                if (opt.action == action_kind::help ||
+                    opt.action == action_kind::version) {
                     return {next};
                 }
             }
@@ -1275,8 +1286,8 @@ namespace boost { namespace program_options_2 {
             HelpOption const & help_opt,
             Options const &... opts)
         {
-            if constexpr (detail::has_default<HelpOption>()) {
-                help_opt.default_value();
+            if constexpr (std::invocable<typename HelpOption::value_type>) {
+                os << text::as_utf8(help_opt.default_value());
 #ifdef BOOST_PROGRAM_OPTIONS_2_TESTING
                 throw 0;
 #endif
@@ -1285,6 +1296,21 @@ namespace boost { namespace program_options_2 {
                 detail::print_help_and_exit(
                     0, tag, argv0, program_desc, os, no_help, opts...);
             }
+        }
+
+        template<typename Char, typename Option>
+        auto
+        handle_version_option(std::basic_ostream<Char> & os, Option const & opt)
+        {
+            if constexpr (std::is_same_v<
+                              typename Option::value_type,
+                              std::string_view>) {
+                os << text::as_utf8(opt.default_value);
+            }
+#ifdef BOOST_PROGRAM_OPTIONS_2_TESTING
+            throw 0;
+#endif
+            std::exit(0);
         }
 
         template<typename CustomStringsTag, typename Char, typename... Options>
@@ -1352,19 +1378,22 @@ namespace boost { namespace program_options_2 {
                         }
                     }
 
-                    // Special case: if we just found a help option, print its
-                    // custom help, or the default help, and exit.
+                    // Special case: if we just found a help or version
+                    // option, handle this now and exit.
                     if (parse_result.next ==
-                            parse_option_result::match_keep_parsing &&
-                        opt.action == action_kind::help) {
-                        detail::handle_help_option(
-                            tag,
-                            args[0],
-                            program_desc,
-                            os,
-                            no_help,
-                            opt,
-                            opts...);
+                        parse_option_result::match_keep_parsing) {
+                        if (opt.action == action_kind::help) {
+                            detail::handle_help_option(
+                                tag,
+                                args[0],
+                                program_desc,
+                                os,
+                                no_help,
+                                opt,
+                                opts...);
+                        } else if (opt.action == action_kind::version) {
+                            detail::handle_version_option(os, opt);
+                        }
                     }
 
                     return i_plus_1;
@@ -1582,18 +1611,18 @@ namespace boost { namespace program_options_2 {
         // Looks like you tried to create a non-positional argument that does
         // not start with a '-'.  Don't do that.
         BOOST_ASSERT(!detail::positional(names));
-        return {
-            names, help_text, detail::action_kind::version, 0, std::move(f)};
+        return {names, help_text, detail::action_kind::help, 0, std::move(f)};
     }
 
     /** TODO */
-    inline detail::option<detail::option_kind::argument, void>
-    help(std::string_view names, std::string_view help_text)
+    inline detail::option<detail::option_kind::argument, void> help(
+        std::string_view names,
+        std::string_view help_text = "Print this help message and exit")
     {
         // Looks like you tried to create a non-positional argument that does
         // not start with a '-'.  Don't do that.
         BOOST_ASSERT(!detail::positional(names));
-        return {names, help_text, detail::action_kind::version, 0};
+        return {names, help_text, detail::action_kind::help, 0};
     }
 
     // TODO: Form exclusive groups using operator||?
