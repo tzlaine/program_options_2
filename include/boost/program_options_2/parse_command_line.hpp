@@ -911,11 +911,7 @@ namespace boost { namespace program_options_2 {
 
     namespace detail {
         // TODO: Add a custom error handler facility.
-        template<
-            typename CustomStringsTag,
-            typename Char,
-            option_or_group Option,
-            option_or_group... Options>
+        template<typename CustomStringsTag, typename Char, typename... Options>
         auto print_help_and_exit(
             int exit_code,
             CustomStringsTag tag,
@@ -923,7 +919,6 @@ namespace boost { namespace program_options_2 {
             std::basic_string_view<Char> program_desc,
             std::basic_ostream<Char> & os,
             bool no_help,
-            Option opt,
             Options... opts)
         {
             if (no_help) {
@@ -933,11 +928,10 @@ namespace boost { namespace program_options_2 {
                     program_name,
                     program_desc,
                     detail::default_help(tag),
-                    opt,
                     opts...);
             } else {
                 detail::print_help(
-                    tag, os, program_name, program_desc, opt, opts...);
+                    tag, os, program_name, program_desc, opts...);
             }
 #ifdef BOOST_PROGRAM_OPTIONS_2_TESTING
             throw 0;
@@ -1108,9 +1102,15 @@ namespace boost { namespace program_options_2 {
 
         struct parse_option_result
         {
-            explicit operator bool() const { return keep_parsing; }
+            enum next_t {
+                match_keep_parsing,
+                no_match_keep_parsing,
+                stop_parsing
+            };
 
-            bool keep_parsing = true;
+            explicit operator bool() const { return next != stop_parsing; }
+
+            next_t next = no_match_keep_parsing;
             parse_option_error error = parse_option_error::none;
         };
 
@@ -1131,6 +1131,7 @@ namespace boost { namespace program_options_2 {
             if (first == last)
                 return {};
 
+            auto next = parse_option_result::no_match_keep_parsing;
             if (!detail::positional(opt)) {
                 auto names = names_view(opt.names);
                 if (std::find_if(
@@ -1141,11 +1142,12 @@ namespace boost { namespace program_options_2 {
                     return {};
                 }
                 ++first;
+                next = parse_option_result::match_keep_parsing;
 
                 if (std::is_same_v<typename Option::type, bool> && !opt.args) {
                     if constexpr (detail::has_default<Option>())
                         result = !bool{opt.default_value};
-                    return {};
+                    return {next};
                 }
             }
 
@@ -1165,9 +1167,9 @@ namespace boost { namespace program_options_2 {
 
             if (first == last) {
                 return min_reps == 0
-                           ? parse_option_result{}
+                           ? parse_option_result{next}
                            : parse_option_result{
-                                 false,
+                                 parse_option_result::stop_parsing,
                                  parse_option_error::wrong_number_of_args};
             }
 
@@ -1186,14 +1188,18 @@ namespace boost { namespace program_options_2 {
             }
 
             if (min_reps <= reps && reps <= max_reps) {
+                next = parse_option_result::match_keep_parsing;
                 if (detail::positional(opt))
                     ++next_positional;
-                return {};
+                return {next};
             }
-            if (reps <= max_reps && error != parse_option_error::none)
-                return parse_option_result{false, error};
+            if (reps <= max_reps && error != parse_option_error::none) {
+                return parse_option_result{
+                    parse_option_result::stop_parsing, error};
+            }
             return parse_option_result{
-                false, parse_option_error::wrong_number_of_args};
+                parse_option_result::stop_parsing,
+                parse_option_error::wrong_number_of_args};
         }
 
         template<typename OptTuple>
@@ -1258,29 +1264,49 @@ namespace boost { namespace program_options_2 {
         template<
             typename CustomStringsTag,
             typename Char,
-            option_or_group Option,
-            option_or_group... Options>
+            typename HelpOption,
+            typename... Options>
+        auto handle_help_option(
+            CustomStringsTag tag,
+            std::basic_string_view<Char> argv0,
+            std::basic_string_view<Char> program_desc,
+            std::basic_ostream<Char> & os,
+            bool no_help,
+            HelpOption const & help_opt,
+            Options const &... opts)
+        {
+            if constexpr (detail::has_default<HelpOption>()) {
+                help_opt.default_value();
+#ifdef BOOST_PROGRAM_OPTIONS_2_TESTING
+                throw 0;
+#endif
+                std::exit(0);
+            } else {
+                detail::print_help_and_exit(
+                    0, tag, argv0, program_desc, os, no_help, opts...);
+            }
+        }
+
+        template<typename CustomStringsTag, typename Char, typename... Options>
         auto parse_options_into_tuple(
             CustomStringsTag tag,
             arg_view<Char> args,
             std::basic_string_view<Char> program_desc,
             std::basic_ostream<Char> & os,
             bool no_help,
-            Option opt,
             Options... opts)
         {
             auto fail = [&](parse_option_error error, auto cl_arg_or_opt_name) {
                 detail::print_parse_error(tag, os, error, cl_arg_or_opt_name);
                 os << '\n';
                 detail::print_help_and_exit(
-                    1, tag, args[0], program_desc, os, no_help, opt, opts...);
+                    1, tag, args[0], program_desc, os, no_help, opts...);
             };
 
-            auto result = detail::make_result_tuple(opt, opts...);
+            auto result = detail::make_result_tuple(opts...);
 
-            using opt_tuple_type =
-                hana::tuple<Option const &, Options const &...>;
-            opt_tuple_type opt_tuple{opt, opts...};
+            using opt_tuple_type = hana::tuple<Options const &...>;
+            opt_tuple_type opt_tuple{opts...};
 
             int positional_index = -1;
             auto const positional_indices =
@@ -1325,6 +1351,22 @@ namespace boost { namespace program_options_2 {
                             fail(parse_result.error, opt_tuple[i].names);
                         }
                     }
+
+                    // Special case: if we just found a help option, print its
+                    // custom help, or the default help, and exit.
+                    if (parse_result.next ==
+                            parse_option_result::match_keep_parsing &&
+                        opt.action == action_kind::help) {
+                        detail::handle_help_option(
+                            tag,
+                            args[0],
+                            program_desc,
+                            os,
+                            no_help,
+                            opt,
+                            opts...);
+                    }
+
                     return i_plus_1;
                 });
                 if (args_first == initial_args_first)
