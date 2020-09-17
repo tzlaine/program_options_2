@@ -61,6 +61,15 @@ namespace boost { namespace program_options_2 {
         std::string_view optional_section_text = "optional arguments:";
         std::string_view help_names = "-h,--help";
         std::string_view help_description = "Print this help message and exit";
+
+        std::array<std::string_view, 6> error_strings = {
+            {"error: unrecognized argument '{}'",
+             "error: wrong number of arguments passed to '{}'",
+             "error: cannot parse argument '{}'",
+             "error: '{}' is not one of the allowed choices",
+             "error: unexpected positional argument '{}'",
+             "error: one or more missing positional arguments, starting with "
+             "'{}'"}};
     };
 
     /** TODO */
@@ -213,6 +222,11 @@ namespace boost { namespace program_options_2 {
         inline bool long_(std::string_view name)
         {
             return name[0] == '-' && name[1] == '-';
+        }
+
+        inline bool no_leading_dashes(std::string_view str)
+        {
+            return str.empty() || str[0] != '-';
         }
 
         template<
@@ -992,7 +1006,36 @@ namespace boost { namespace program_options_2 {
             });
         }
 
-        template<typename T>
+        template<typename Char>
+        struct string_view_action
+        {
+            template<typename Context>
+            void operator()(Context & ctx) const
+            {
+                auto const first = _begin(ctx);
+                auto const last = _end(ctx);
+                if (first == last) {
+                    _val(ctx) = std::basic_string_view<Char>{};
+                } else {
+                    _val(ctx) = std::basic_string_view<Char>{
+                        &*first, std::size_t(last - first)};
+                }
+            }
+        };
+        parser::rule<struct string_view_parser, std::string_view> const
+            sv_rule = "string_view";
+        auto const sv_rule_def =
+            parser::raw[*parser::char_][string_view_action<char>{}];
+        BOOST_PARSER_DEFINE_RULES(sv_rule);
+#if defined(_MSC_VER)
+        parser::rule<struct wstring_view_parser, std::wstring_view> const
+            wsv_rule = "wstring_view";
+        auto const wsv_rule_def =
+            parser::raw[*parser::char_][string_view_action<wchar_t>{}];
+        BOOST_PARSER_DEFINE_RULES(wsv_rule);
+#endif
+
+        template<typename Char, typename T>
         auto parser_for()
         {
             if constexpr (std::is_unsigned_v<T>) {
@@ -1004,9 +1047,17 @@ namespace boost { namespace program_options_2 {
             } else if constexpr (std::is_same_v<T, bool>) {
                 return parser::bool_parser{};
             } else if constexpr (insertable<T>) {
-                return detail::parser_for<std::ranges::range_value_t<T>>();
+                return detail::
+                    parser_for<Char, std::ranges::range_value_t<T>>();
             } else {
-                return parser::raw[+parser::char_];
+#if defined(_MSC_VER)
+                if constexpr(std::is_same_v<Char, char>)
+                    return sv_rule;
+                else
+                    return wsv_rule;
+#else
+                return sv_rule;
+#endif
             }
         }
 
@@ -1022,10 +1073,54 @@ namespace boost { namespace program_options_2 {
 
         enum struct parse_option_error {
             none,
+            unknown_arg,
             wrong_number_of_args,
             cannot_parse_arg,
+            no_such_choice,
+            extra_positional,
             missing_positional
         };
+
+        template<typename Char, typename Option, typename Result>
+        auto parse_action_for(
+            Option const & opt, Result & result, parse_option_error & error)
+        {
+            if constexpr (detail::has_choices<Option>()) {
+                return [&opt, &result, &error](auto & ctx) {
+                    auto const & attr = _attr(ctx);
+                    // TODO: Might need to be transcoded if the compareds are
+                    // basic_string_view<T>s.
+                    if (std::find(
+                            opt.choices.begin(), opt.choices.end(), attr) ==
+                        opt.choices.end()) {
+                        _pass(ctx) = false;
+                        error = parse_option_error::no_such_choice;
+                    } else {
+                        detail::assign_or_insert(result, attr);
+                    }
+                };
+            } else {
+                // TODO: Grab the validator out of opt here, if support for
+                // that is added.
+                return [&result](auto & ctx) {
+                    auto const & attr = _attr(ctx);
+                    detail::assign_or_insert(result, attr);
+                };
+            }
+        }
+
+        template<typename Char, typename Option, typename Result>
+        auto parser_for(
+            Option const & opt, Result & result, parse_option_error & error)
+        {
+            if constexpr (detail::has_choices<Option>()) {
+                return detail::parser_for<Char, typename Option::choice_type>()
+                    [detail::parse_action_for<Char>(opt, result, error)];
+            } else {
+                return detail::parser_for<Char, typename Option::type>()
+                    [detail::parse_action_for<Char>(opt, result, error)];
+            }
+        }
 
         struct parse_option_result
         {
@@ -1038,6 +1133,7 @@ namespace boost { namespace program_options_2 {
         // TODO: Should this return a more complicated result -- one that
         // conveys whether the parse is failed, etc.?
         template<
+            typename Char,
             typename ArgsIter,
             typename Option,
             typename ResultType,
@@ -1093,46 +1189,29 @@ namespace boost { namespace program_options_2 {
                                  parse_option_error::wrong_number_of_args};
             }
 
-            if constexpr (detail::has_choices<Option>()) {
-                auto check_choice = [&](auto & ctx) {
-                    auto const & attr = _attr(ctx);
-                    // TODO: Might need to be transcoded if the compareds are
-                    // basic_string_view<T>s.
-                    if (std::find(
-                            opt.choices.begin(), opt.choices.end(), attr) ==
-                        opt.choices.end()) {
-                        _pass(ctx) = false;
-                    } else {
-                        detail::assign_or_insert(attr, result);
-                    }
-                };
-                auto const choice = detail::parser_for<
-                    typename Option::choice_type>()[check_choice];
-                auto success = parser::parse(*first, choice);
-                if (success) {
-                    ++first;
-                    int limit = opt.args;
-                    if (limit < 0)
-                        limit = limit == zero_or_one ? 1 : INT_MAX;
-                    for (int i = 1; success && i < limit && first != last;
-                         ++i) {
-                        success = parser::parse(*first, choice);
-                        if (success)
-                            ++first;
-                    }
-                    return {};
-                } else {
-                    return min_reps == 0
-                               ? parse_option_result{}
-                               : parse_option_result{
-                                     false,
-                                     parse_option_error::wrong_number_of_args};
+            int reps = 0;
+            parse_option_error error = parse_option_error::none;
+            auto const parser = detail::parser_for<Char>(opt, result, error);
+            if (parser::parse(*first, parser)) {
+                ++first;
+                ++reps;
+                for (; reps < max_reps && first != last &&
+                       detail::no_leading_dashes(*first);
+                     ++reps, ++first) {
+                    if (!parser::parse(*first, parser))
+                        break;
                 }
-            } else {
-                // TODO
             }
 
-            return {};
+            if (min_reps <= reps && reps <= max_reps) {
+                if (detail::positional(opt))
+                    ++next_positional;
+                return {};
+            }
+            if (reps <= max_reps && error != parse_option_error::none)
+                return parse_option_result{false, error};
+            return parse_option_result{
+                false, parse_option_error::wrong_number_of_args};
         }
 
         template<typename OptTuple>
@@ -1153,15 +1232,45 @@ namespace boost { namespace program_options_2 {
         }
 
         template<typename OptTuple>
-        std::string_view optional_name(OptTuple const & opt_tuple, int i)
+        std::string_view positional_name(OptTuple const & opt_tuple, int i)
         {
-            BOOST_ASSERT(i < (int)hana::size(opt_tuple));
             std::string_view retval;
             hana::for_each(opt_tuple, [&](auto const & opt) {
-                if (!i--)
-                    retval = opt.names;
+                if (detail::positional(opt)) {
+                    if (!i--)
+                        retval = opt.names;
+                }
             });
             return retval;
+        }
+
+        template<typename CustomStringsTag, typename Char>
+        auto print_parse_error(
+            CustomStringsTag tag,
+            std::basic_ostream<Char> & os,
+            parse_option_error error,
+            std::basic_string_view<Char> cl_arg_or_opt_name)
+        {
+            customizable_strings const strings =
+                help_text_customizable_strings(tag);
+            auto const error_str = strings.error_strings[(int)error - 1];
+
+            using namespace parser::literals;
+            auto const kinda_matched_braces =
+                parser::omit[*(parser::char_ - '{')] >>
+                parser::raw
+                    [('{'_l - "{{") >> *(parser::char_ - '}') >>
+                     ('}'_l - "}}")];
+            auto first = error_str.begin();
+            auto const braces =
+                parser::parse(first, error_str.end(), kinda_matched_braces);
+            auto const open_brace = braces ? braces->begin() : error_str.end();
+            auto const close_brace = braces ? braces->end() : error_str.end();
+
+            os << text::as_utf8(error_str.begin(), open_brace);
+            if (braces)
+                os << text::as_utf8(cl_arg_or_opt_name);
+            os << text::as_utf8(close_brace, error_str.end()) << '\n';
         }
 
         template<
@@ -1178,16 +1287,18 @@ namespace boost { namespace program_options_2 {
             Option opt,
             Options... opts)
         {
-            auto fail = [&](parse_option_error error, std::string_view names) {
-                // TODO: Report error, using names.
+            auto fail = [&](parse_option_error error, auto cl_arg_or_opt_name) {
+                detail::print_parse_error(tag, os, error, cl_arg_or_opt_name);
+                os << '\n';
                 detail::print_help_and_exit(
                     1, tag, args[0], program_desc, os, no_help, opt, opts...);
             };
 
             auto result = detail::make_result_tuple(opt, opts...);
 
-            using opt_tuple_type = hana::tuple<Options const &...>;
-            opt_tuple_type opt_tuple{opts...};
+            using opt_tuple_type =
+                hana::tuple<Option const &, Options const &...>;
+            opt_tuple_type opt_tuple{opt, opts...};
 
             int positional_index = -1;
             auto const positional_indices =
@@ -1197,14 +1308,25 @@ namespace boost { namespace program_options_2 {
                     return positional_index;
                 });
 
-            auto args_first = args.begin();
+            auto args_first = args.begin() + 1;
             auto const args_last = args.end();
             int next_positional = 0;
             while (args_first != args_last) {
                 using namespace hana::literals;
-                int opt_index = 0;
+                auto const initial_args_first = args_first;
+                int positional_index = -1;
                 hana::fold(opt_tuple, 0_c, [&](auto i, auto const & opt) {
-                    auto const parse_result = detail::parse_option(
+                    auto const i_plus_1 = hana::llong_c<decltype(i)::value + 1>;
+
+                    // Skip this option if it is a positional we've already
+                    // processed.
+                    if (detail::positional(opt)) {
+                        ++positional_index;
+                        if (positional_index < next_positional)
+                            return i_plus_1;
+                    }
+
+                    auto const parse_result = detail::parse_option<Char>(
                         args_first,
                         args_last,
                         opt,
@@ -1212,19 +1334,25 @@ namespace boost { namespace program_options_2 {
                         next_positional,
                         positional_indices);
                     if (!parse_result) {
-                        fail(
-                            parse_result.error,
-                            detail::optional_name(opt_tuple, opt_index));
+                        if (parse_result.error ==
+                                parse_option_error::no_such_choice ||
+                            parse_result.error ==
+                                parse_option_error::extra_positional) {
+                            fail(parse_result.error, *args_first);
+                        } else {
+                            fail(parse_result.error, opt_tuple[i].names);
+                        }
                     }
-                    ++opt_index;
-                    return hana::llong_c<decltype(i)::value + 1>;
+                    return i_plus_1;
                 });
+                if (args_first == initial_args_first)
+                    fail(parse_option_error::unknown_arg, *args_first);
             }
 
             if (next_positional != detail::count_positionals(opt_tuple)) {
                 fail(
                     parse_option_error::missing_positional,
-                    detail::optional_name(opt_tuple, next_positional));
+                    detail::positional_name(opt_tuple, next_positional));
             }
 
             return result;
