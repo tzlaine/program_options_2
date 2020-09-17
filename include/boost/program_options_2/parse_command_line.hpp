@@ -1114,8 +1114,6 @@ namespace boost { namespace program_options_2 {
             parse_option_error error = parse_option_error::none;
         };
 
-        // TODO: Should this return a more complicated result -- one that
-        // conveys whether the parse is failed, etc.?
         template<
             typename Char,
             typename ArgsIter,
@@ -1399,7 +1397,7 @@ namespace boost { namespace program_options_2 {
         BOOST_ASSERT(args == 1 || args == zero_or_one || detail::insertable<T>);
         // For a argument that takes zero or more args, T must be a
         // std::optional.
-        // TODO BOOST_ASSERT(args != zero_or_one || detail::is_optional<T>::value);
+        BOOST_ASSERT(args != zero_or_one || detail::is_optional<T>::value);
         return {
             names,
             help_text,
@@ -1480,7 +1478,9 @@ namespace boost { namespace program_options_2 {
     }
 
     // TODO: Add built-in handling of "--" on the command line, when
-    // positional args are in play?
+    // positional args are in play?  If not, provide an example that
+    // demonstrates how simple it is to configure to take "--" followed by an
+    // arbitrary number of args.
 
     /** TODO */
     inline detail::option<detail::option_kind::argument, bool, bool>
