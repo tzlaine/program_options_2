@@ -1755,6 +1755,36 @@ namespace boost { namespace program_options_2 {
         detail::required_t Required,
         int Choices,
         typename ChoiceType>
+    auto readable_directory(
+        detail::option<Kind, T, Value, Required, Choices, ChoiceType> opt)
+    {
+        // TODO
+        return {};
+    }
+
+    /** TODO */
+    template<
+        detail::option_kind Kind,
+        typename T,
+        typename Value,
+        detail::required_t Required,
+        int Choices,
+        typename ChoiceType>
+    auto writable_directory(
+        detail::option<Kind, T, Value, Required, Choices, ChoiceType> opt)
+    {
+        // TODO
+        return {};
+    }
+
+    /** TODO */
+    template<
+        detail::option_kind Kind,
+        typename T,
+        typename Value,
+        detail::required_t Required,
+        int Choices,
+        typename ChoiceType>
     auto readable_path(
         detail::option<Kind, T, Value, Required, Choices, ChoiceType> opt)
     {
