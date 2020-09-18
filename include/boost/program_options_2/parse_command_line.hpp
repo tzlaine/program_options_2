@@ -1136,6 +1136,24 @@ namespace boost { namespace program_options_2 {
 
             auto next = parse_option_result::no_match_keep_parsing;
             if (!detail::positional(opt)) {
+                if (opt.action == action_kind::count) {
+                    auto short_flag = detail::first_shortest_name(opt.names);
+                    BOOST_ASSERT(short_flag.size() == 2u);
+                    if (!first->empty()&&first->front() == '-') {
+                        int const count = std::count(
+                            first->begin() + 1, first->end(), short_flag[1]);
+                        if (count + 1 == (int)first->size()) {
+                            if constexpr (std::is_assignable_v<
+                                              ResultType &,
+                                              int>) {
+                                result = count;
+                            }
+                            ++first;
+                            return {parse_option_result::match_keep_parsing};
+                        }
+                    }
+                }
+
                 auto const names = names_view(opt.names);
                 auto const arg = *first;
                 if (std::find_if(names.begin(), names.end(), [arg](auto name) {
@@ -1159,6 +1177,13 @@ namespace boost { namespace program_options_2 {
                 // arg.
                 if (opt.action == action_kind::help ||
                     opt.action == action_kind::version) {
+                    return {next};
+                }
+
+                // Special case: early return when match a long counted flag.
+                if (opt.action == action_kind::count) {
+                    if constexpr (std::is_assignable_v<ResultType &, int>)
+                        result = 1;
                     return {next};
                 }
             }
