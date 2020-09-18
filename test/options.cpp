@@ -149,7 +149,122 @@ TEST(options, arguments)
 
 TEST(options, positionals)
 {
-    // TODO
+    // no defaults
+    {
+        auto const arg = po2::positional<int>("blah", "bleurgh");
+        EXPECT_EQ(arg.names, "blah");
+        EXPECT_EQ(arg.help_text, "bleurgh");
+        EXPECT_EQ(arg.args, 1);
+        EXPECT_EQ(arg.action, po2::detail::action_kind::assign);
+        BOOST_MPL_ASSERT((is_same<decltype(arg.default_value), po2::no_value>));
+        EXPECT_EQ(arg.choices.size(), 0);
+        EXPECT_EQ(arg.arg_display_name, "");
+    }
+    {
+        auto const arg = po2::positional<std::optional<int>>(
+            "blah", "bleurgh", po2::zero_or_one);
+        EXPECT_EQ(arg.names, "blah");
+        EXPECT_EQ(arg.help_text, "bleurgh");
+        EXPECT_EQ(arg.args, po2::zero_or_one);
+        EXPECT_EQ(arg.action, po2::detail::action_kind::assign);
+        BOOST_MPL_ASSERT((is_same<decltype(arg.default_value), po2::no_value>));
+        EXPECT_EQ(arg.choices.size(), 0);
+        EXPECT_EQ(arg.arg_display_name, "");
+    }
+    {
+        auto const arg =
+            po2::positional<std::vector<int>>("blah", "bleurgh", 2);
+        EXPECT_EQ(arg.names, "blah");
+        EXPECT_EQ(arg.help_text, "bleurgh");
+        EXPECT_EQ(arg.args, 2);
+        EXPECT_EQ(arg.action, po2::detail::action_kind::insert);
+        BOOST_MPL_ASSERT((is_same<decltype(arg.default_value), po2::no_value>));
+        EXPECT_EQ(arg.choices.size(), 0);
+        EXPECT_EQ(arg.arg_display_name, "");
+    }
+    {
+        auto const arg = po2::positional<int>("blah", "bleurgh", 1, 1, 2, 3);
+        EXPECT_EQ(arg.names, "blah");
+        EXPECT_EQ(arg.help_text, "bleurgh");
+        EXPECT_EQ(arg.args, 1);
+        EXPECT_EQ(arg.action, po2::detail::action_kind::assign);
+        BOOST_MPL_ASSERT((is_same<decltype(arg.default_value), po2::no_value>));
+        EXPECT_EQ(arg.choices, (std::array<int, 3>{{1, 2, 3}}));
+        EXPECT_EQ(arg.arg_display_name, "");
+    }
+
+    // with defaults
+    {
+        auto const arg =
+            po2::with_default(po2::positional<int>("blah", "bleurgh"), 42);
+        EXPECT_EQ(arg.names, "blah");
+        EXPECT_EQ(arg.help_text, "bleurgh");
+        EXPECT_EQ(arg.args, 1);
+        EXPECT_EQ(arg.action, po2::detail::action_kind::assign);
+        EXPECT_EQ(arg.default_value, 42);
+        EXPECT_EQ(arg.choices.size(), 0);
+        EXPECT_EQ(arg.arg_display_name, "");
+    }
+    {
+        auto const arg = po2::with_default(
+            po2::positional<std::optional<int>>(
+                "blah", "bleurgh", po2::zero_or_one),
+            42);
+        EXPECT_EQ(arg.names, "blah");
+        EXPECT_EQ(arg.help_text, "bleurgh");
+        EXPECT_EQ(arg.args, po2::zero_or_one);
+        EXPECT_EQ(arg.action, po2::detail::action_kind::assign);
+        EXPECT_EQ(arg.default_value, 42);
+        EXPECT_EQ(arg.choices.size(), 0);
+        EXPECT_EQ(arg.arg_display_name, "");
+    }
+    {
+        auto const arg = po2::with_default(
+            po2::positional<std::vector<int>>("blah", "bleurgh", 2),
+            std::vector<int>({42}));
+        EXPECT_EQ(arg.names, "blah");
+        EXPECT_EQ(arg.help_text, "bleurgh");
+        EXPECT_EQ(arg.args, 2);
+        EXPECT_EQ(arg.action, po2::detail::action_kind::insert);
+        EXPECT_EQ(arg.default_value, std::vector<int>({42}));
+        EXPECT_EQ(arg.choices.size(), 0);
+        EXPECT_EQ(arg.arg_display_name, "");
+    }
+    {
+        auto const arg = po2::with_default(
+            po2::positional<std::vector<int>>("blah", "bleurgh", 2), 42);
+        EXPECT_EQ(arg.names, "blah");
+        EXPECT_EQ(arg.help_text, "bleurgh");
+        EXPECT_EQ(arg.args, 2);
+        EXPECT_EQ(arg.action, po2::detail::action_kind::insert);
+        EXPECT_EQ(arg.default_value, 42);
+        EXPECT_EQ(arg.choices.size(), 0);
+        EXPECT_EQ(arg.arg_display_name, "");
+    }
+    {
+        auto const arg = po2::with_default(
+            po2::positional<int>("blah", "bleurgh", 1, 1, 2, 3), 3);
+        EXPECT_EQ(arg.names, "blah");
+        EXPECT_EQ(arg.help_text, "bleurgh");
+        EXPECT_EQ(arg.args, 1);
+        EXPECT_EQ(arg.action, po2::detail::action_kind::assign);
+        EXPECT_EQ(arg.default_value, 3);
+        EXPECT_EQ(arg.choices, (std::array<int, 3>{{1, 2, 3}}));
+        EXPECT_EQ(arg.arg_display_name, "");
+    }
+
+    // add a display name
+    {
+        auto const arg = po2::with_display_name(
+            po2::positional<int>("blah", "bleurgh"), "blerg");
+        EXPECT_EQ(arg.names, "blah");
+        EXPECT_EQ(arg.help_text, "bleurgh");
+        EXPECT_EQ(arg.args, 1);
+        EXPECT_EQ(arg.action, po2::detail::action_kind::assign);
+        BOOST_MPL_ASSERT((is_same<decltype(arg.default_value), po2::no_value>));
+        EXPECT_EQ(arg.choices.size(), 0);
+        EXPECT_EQ(arg.arg_display_name, "blerg");
+    }
 }
 
 TEST(options, help)
@@ -337,5 +452,35 @@ TEST(options, version)
 
 TEST(options, others)
 {
-    // TODO
+    {
+        auto const arg = po2::flag("--summarize", "Summarize the things.");
+        EXPECT_EQ(arg.names, "--summarize");
+        EXPECT_EQ(arg.help_text, "Summarize the things.");
+        EXPECT_EQ(arg.args, 0);
+        EXPECT_EQ(arg.action, po2::detail::action_kind::assign);
+        EXPECT_EQ(arg.default_value, false);
+        EXPECT_EQ(arg.choices.size(), 0);
+        EXPECT_EQ(arg.arg_display_name, "");
+    }
+    {
+        auto const arg = po2::inverted_flag(
+            "--dont-summarize", "Don't summarize the things.");
+        EXPECT_EQ(arg.names, "--dont-summarize");
+        EXPECT_EQ(arg.help_text, "Don't summarize the things.");
+        EXPECT_EQ(arg.args, 0);
+        EXPECT_EQ(arg.action, po2::detail::action_kind::assign);
+        EXPECT_EQ(arg.default_value, true);
+        EXPECT_EQ(arg.choices.size(), 0);
+        EXPECT_EQ(arg.arg_display_name, "");
+    }
+    {
+        auto const arg = po2::counted_flag("--verbose,-v", "Verbose output.");
+        EXPECT_EQ(arg.names, "--verbose,-v");
+        EXPECT_EQ(arg.help_text, "Verbose output.");
+        EXPECT_EQ(arg.args, 0);
+        EXPECT_EQ(arg.action, po2::detail::action_kind::count);
+        BOOST_MPL_ASSERT((is_same<decltype(arg.default_value), po2::no_value>));
+        EXPECT_EQ(arg.choices.size(), 0);
+        EXPECT_EQ(arg.arg_display_name, "");
+    }
 }

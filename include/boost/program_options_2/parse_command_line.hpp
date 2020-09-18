@@ -1585,7 +1585,7 @@ namespace boost { namespace program_options_2 {
         BOOST_ASSERT(
             detail::short_(detail::first_shortest_name(names)) &&
             detail::first_shortest_name(names).size() == 2u);
-        return {names, help_text, detail::action_kind::count};
+        return {names, help_text, detail::action_kind::count, 0};
     }
 
     /** TODO */
@@ -1625,6 +1625,7 @@ namespace boost { namespace program_options_2 {
         return {names, help_text, detail::action_kind::help, 0};
     }
 
+#if 1 // TODO
     // TODO: Form exclusive groups using operator||?
 
     /** TODO */
@@ -1650,6 +1651,7 @@ namespace boost { namespace program_options_2 {
     {
         return {{}, {std::move(opt), std::move(opts)...}};
     }
+#endif
 
     /** TODO */
     template<
