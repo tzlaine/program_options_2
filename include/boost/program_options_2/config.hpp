@@ -17,12 +17,25 @@
     disable the use of concepts, define this macro. */
 #    define BOOST_PROGRAM_OPTIONS_2_DISABLE_CONCEPTS
 
+/** Boost.ProgramOptions2 will use `std::filesystem` by default.  If you want
+    to disable this, define this macro, and `boost::filesystem` will be used
+    instead. */
+#    define BOOST_PROGRAM_OPTIONS_2_DISABLE_STD_FILESYSTEM
+
 #endif
 
-#if defined(__cpp_lib_concepts) && !defined(BOOST_PROGRAM_OPTIONS_2_DISABLE_CONCEPTS)
+#if defined(__cpp_lib_concepts) &&                                             \
+    !defined(BOOST_PROGRAM_OPTIONS_2_DISABLE_CONCEPTS)
 #define BOOST_PROGRAM_OPTIONS_2_USE_CONCEPTS 1
 #else
 #define BOOST_PROGRAM_OPTIONS_2_USE_CONCEPTS 0
+#endif
+
+#if defined(__cpp_lib_filesystem) &&                                           \
+    !defined(BOOST_PROGRAM_OPTIONS_2_DISABLE_STD_FILESYSTEM)
+#define BOOST_PROGRAM_OPTIONS_2_USE_STD_FILESYSTEM 1
+#else
+#define BOOST_PROGRAM_OPTIONS_2_USE_STD_FILESYSTEM 0
 #endif
 
 #endif

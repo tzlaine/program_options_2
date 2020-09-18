@@ -18,6 +18,7 @@
 #pragma GCC diagnostic pop
 #endif
 
+#include <boost/program_options_2/config.hpp>
 #include <boost/parser/parser.hpp>
 #include <boost/stl_interfaces/iterator_interface.hpp>
 #include <boost/stl_interfaces/view_interface.hpp>
@@ -27,10 +28,10 @@
 #include <boost/text/utf.hpp>
 #include <boost/text/transcode_view.hpp>
 
-#if defined(__cpp_lib_filesystem)
+#if BOOST_PROGRAM_OPTIONS_2_USE_STD_FILESYSTEM
 #include <filesystem>
 #else
-#include <boost/filesystem/path.hpp>
+#include <boost/filesystem.hpp>
 #endif
 
 #include <sstream>
@@ -63,7 +64,7 @@ namespace boost { namespace program_options_2 {
         std::string_view help_names = "-h,--help";
         std::string_view help_description = "Print this help message and exit";
 
-        std::array<std::string_view, 6> error_strings = {
+        std::array<std::string_view, 6> parse_error_strings = {
             {"error: unrecognized argument '{}'",
              "error: wrong number of arguments for '{}'",
              "error: cannot parse argument '{}'",
@@ -71,6 +72,21 @@ namespace boost { namespace program_options_2 {
              "error: unexpected positional argument '{}'",
              "error: one or more missing positional arguments, starting with "
              "'{}'"}};
+
+        std::string_view path_not_found = "path '{}' not found";
+        std::string_view file_not_found = "file '{}' not found";
+        std::string_view directory_not_found = "directory '{}' not found";
+        std::string_view found_file_not_directory =
+            "'{}' is a file, but a directory was expected";
+        std::string_view found_directory_not_file =
+            "'{}' is a directory, but a file was expected";
+    };
+
+    /** TODO */
+    struct validation_result
+    {
+        bool valid = true;
+        std::string_view error;
     };
 
     /** TODO */
@@ -86,7 +102,7 @@ namespace boost { namespace program_options_2 {
         std::basic_string_view<Char> operator*() const { return {*it_}; }
 
     private:
-        friend boost::stl_interfaces::access;
+        friend stl_interfaces::access;
         Char const **& base_reference() noexcept { return it_; }
         Char const ** base_reference() const noexcept { return it_; }
         Char const ** it_;
@@ -127,10 +143,12 @@ namespace boost { namespace program_options_2 {
             return last;
         }
 
-#if defined(__cpp_lib_filesystem)
+#if BOOST_PROGRAM_OPTIONS_2_USE_STD_FILESYSTEM
         inline const auto fs_sep = std::filesystem::path::preferred_separator;
+        using error_code = std::error_code;
 #else
-        inline const auto fs_sep = boost::filesystem::path::preferred_separator;
+        inline const auto fs_sep = filesystem::path::preferred_separator;
+        using error_code = system::error_code;
 #endif
 
         template<typename Char>
@@ -159,7 +177,8 @@ namespace boost { namespace program_options_2 {
             typename Value = no_value,
             required_t Required = required_t::no,
             int Choices = 0,
-            typename ChoiceType = T>
+            typename ChoiceType = T,
+            typename Validator = no_value>
         struct option
         {
             using type = T;
@@ -168,18 +187,20 @@ namespace boost { namespace program_options_2 {
                 std::is_same_v<ChoiceType, void>,
                 no_value,
                 ChoiceType>;
+            using validator_type = Validator;
+
+            constexpr static bool positional = Kind == option_kind::positional;
+            constexpr static bool required = Required == required_t::yes;
+            constexpr static int num_choices = Choices;
 
             std::string_view names;
             std::string_view help_text;
             action_kind action;
             int args;
             value_type default_value;
-            std::array<choice_type, Choices> choices;
+            std::array<choice_type, num_choices> choices;
             std::string_view arg_display_name;
-
-            constexpr static bool positional = Kind == option_kind::positional;
-            constexpr static bool required = Required == required_t::yes;
-            constexpr static int num_choices = Choices;
+            validator_type validator;
         };
 
         template<typename T>
@@ -191,8 +212,10 @@ namespace boost { namespace program_options_2 {
             typename Value,
             required_t Required,
             int Choices,
-            typename ChoiceType>
-        struct is_option<option<Kind, T, Value, Required, Choices, ChoiceType>>
+            typename ChoiceType,
+            typename Validator>
+        struct is_option<
+            option<Kind, T, Value, Required, Choices, ChoiceType, Validator>>
             : std::true_type
         {};
 
@@ -236,9 +259,16 @@ namespace boost { namespace program_options_2 {
             typename Value,
             required_t Required,
             int Choices,
-            typename ChoiceType>
-        bool positional(
-            option<Kind, T, Value, Required, Choices, ChoiceType> const & opt)
+            typename ChoiceType,
+            typename Validator>
+        bool positional(option<
+                        Kind,
+                        T,
+                        Value,
+                        Required,
+                        Choices,
+                        ChoiceType,
+                        Validator> const & opt)
         {
             return detail::positional(opt.names);
         }
@@ -249,9 +279,16 @@ namespace boost { namespace program_options_2 {
             typename Value,
             required_t Required,
             int Choices,
-            typename ChoiceType>
-        bool optional_arg(
-            option<Kind, T, Value, Required, Choices, ChoiceType> const & opt)
+            typename ChoiceType,
+            typename Validator>
+        bool optional_arg(option<
+                          Kind,
+                          T,
+                          Value,
+                          Required,
+                          Choices,
+                          ChoiceType,
+                          Validator> const & opt)
         {
             return opt.args == zero_or_one || opt.args == zero_or_more ||
                    opt.args == remainder;
@@ -263,9 +300,16 @@ namespace boost { namespace program_options_2 {
             typename Value,
             required_t Required,
             int Choices,
-            typename ChoiceType>
-        bool multi_arg(
-            option<Kind, T, Value, Required, Choices, ChoiceType> const & opt)
+            typename ChoiceType,
+            typename Validator>
+        bool multi_arg(option<
+                       Kind,
+                       T,
+                       Value,
+                       Required,
+                       Choices,
+                       ChoiceType,
+                       Validator> const & opt)
         {
             return opt.args == zero_or_more || opt.args == one_or_more ||
                    opt.args == remainder;
@@ -326,7 +370,7 @@ namespace boost { namespace program_options_2 {
                   std::is_assignable_v<T &, Choice> &&
                       std::is_constructible_v<T, Choice> &&
                       ((std::is_assignable_v<T &, Choices> &&
-                        std::is_constructible_v<T, Choices>) &&...),
+                        std::is_constructible_v<T, Choices>)&&...),
                   is_insertable_from<T, Choice>::value &&
                       (is_insertable_from<T, Choices>::value && ...)>
         {};
@@ -382,7 +426,7 @@ namespace boost { namespace program_options_2 {
                 return lhs.it_ == rhs.it_;
             }
 
-            using base_type = boost::stl_interfaces::proxy_iterator_interface<
+            using base_type = stl_interfaces::proxy_iterator_interface<
                 names_iter,
                 std::forward_iterator_tag,
                 std::string_view>;
@@ -1030,7 +1074,7 @@ namespace boost { namespace program_options_2 {
                     parser_for<Char, std::ranges::range_value_t<T>>();
             } else {
 #if defined(_MSC_VER)
-                if constexpr(std::is_same_v<Char, char>)
+                if constexpr (std::is_same_v<Char, char>)
                     return sv_rule;
                 else
                     return wsv_rule;
@@ -1081,8 +1125,6 @@ namespace boost { namespace program_options_2 {
                     }
                 };
             } else {
-                // TODO: Grab the validator out of opt here, if support for
-                // that is added.
                 return [&result](auto & ctx) {
                     auto const & attr = _attr(ctx);
                     detail::assign_or_insert(result, attr);
@@ -1278,7 +1320,7 @@ namespace boost { namespace program_options_2 {
         {
             customizable_strings const strings =
                 help_text_customizable_strings(tag);
-            auto const error_str = strings.error_strings[(int)error - 1];
+            auto const error_str = strings.parse_error_strings[(int)error - 1];
 
             using namespace parser::literals;
             auto const kinda_matched_braces =
@@ -1686,6 +1728,7 @@ namespace boost { namespace program_options_2 {
         detail::required_t Required,
         int Choices,
         typename ChoiceType,
+        typename Validator,
         typename DefaultType>
         // clang-format off
         requires 
@@ -1694,10 +1737,16 @@ namespace boost { namespace program_options_2 {
              ((std::assignable_from<T &, DefaultType>  &&
                std::constructible_from<T, DefaultType>)||
               detail::insertable_from<T, DefaultType>)
-    detail::option<Kind, T, DefaultType, Required, Choices, ChoiceType>
+    detail::option<Kind, T, DefaultType, Required, Choices, ChoiceType, Validator>
     with_default(
-        detail::option<Kind, T, no_value, Required, Choices, ChoiceType>
-            opt,
+        detail::option<
+            Kind,
+            T,
+            no_value,
+            Required,
+            Choices,
+            ChoiceType,
+            Validator> opt,
         DefaultType default_value)
     // clang-format on
     {
@@ -1717,7 +1766,8 @@ namespace boost { namespace program_options_2 {
             opt.args,
             std::move(default_value),
             opt.choices,
-            opt.arg_display_name};
+            opt.arg_display_name,
+            std::move(opt.validator)};
     }
 
     /** TODO */
@@ -1727,9 +1777,11 @@ namespace boost { namespace program_options_2 {
         typename Value,
         detail::required_t Required,
         int Choices,
-        typename ChoiceType>
+        typename ChoiceType,
+        typename Validator>
     auto with_display_name(
-        detail::option<Kind, T, Value, Required, Choices, ChoiceType> opt,
+        detail::option<Kind, T, Value, Required, Choices, ChoiceType, Validator>
+            opt,
         std::string_view name)
     {
         // A display name for a flag or other option with no arguments will
@@ -1741,7 +1793,10 @@ namespace boost { namespace program_options_2 {
         return opt;
     }
 
-#if 1 // TODO: Add a validator to option?
+    template<typename V, typename T>
+    concept validator = std::invocable<V, T const &> &&
+        std::same_as<std::invoke_result_t<V, T const &>, validation_result>;
+
     /** TODO */
     template<
         detail::option_kind Kind,
@@ -1749,12 +1804,23 @@ namespace boost { namespace program_options_2 {
         typename Value,
         detail::required_t Required,
         int Choices,
-        typename ChoiceType>
-    auto readable_file(
-        detail::option<Kind, T, Value, Required, Choices, ChoiceType> opt)
+        typename ChoiceType,
+        validator<T> Validator>
+    detail::option<Kind, T, Value, Required, Choices, ChoiceType, Validator>
+    with_validator(
+        detail::option<Kind, T, Value, Required, Choices, ChoiceType, no_value>
+            opt,
+        Validator validator)
     {
-        // TODO
-        return {};
+        return {
+            opt.names,
+            opt.help_text,
+            opt.action,
+            opt.args,
+            std::move(opt.default_value),
+            opt.choices,
+            opt.arg_display_name,
+            std::move(validator)};
     }
 
     /** TODO */
@@ -1765,73 +1831,95 @@ namespace boost { namespace program_options_2 {
         detail::required_t Required,
         int Choices,
         typename ChoiceType>
-    auto writable_file(
-        detail::option<Kind, T, Value, Required, Choices, ChoiceType> opt)
+    auto path(
+        detail::option<Kind, T, Value, Required, Choices, ChoiceType, no_value>
+            opt,
+        customizable_strings const & strings = customizable_strings{})
     {
-        // TODO
-        return {};
-    }
-
-    /** TODO */
-    template<
-        detail::option_kind Kind,
-        typename T,
-        typename Value,
-        detail::required_t Required,
-        int Choices,
-        typename ChoiceType>
-    auto readable_directory(
-        detail::option<Kind, T, Value, Required, Choices, ChoiceType> opt)
-    {
-        // TODO
-        return {};
-    }
-
-    /** TODO */
-    template<
-        detail::option_kind Kind,
-        typename T,
-        typename Value,
-        detail::required_t Required,
-        int Choices,
-        typename ChoiceType>
-    auto writable_directory(
-        detail::option<Kind, T, Value, Required, Choices, ChoiceType> opt)
-    {
-        // TODO
-        return {};
-    }
-
-    /** TODO */
-    template<
-        detail::option_kind Kind,
-        typename T,
-        typename Value,
-        detail::required_t Required,
-        int Choices,
-        typename ChoiceType>
-    auto readable_path(
-        detail::option<Kind, T, Value, Required, Choices, ChoiceType> opt)
-    {
-        // TODO
-        return {};
-    }
-
-    /** TODO */
-    template<
-        detail::option_kind Kind,
-        typename T,
-        typename Value,
-        detail::required_t Required,
-        int Choices,
-        typename ChoiceType>
-    auto writable_path(
-        detail::option<Kind, T, Value, Required, Choices, ChoiceType> opt)
-    {
-        // TODO
-        return {};
-    }
+        // TODO: Figure out whether this is the right thing to do, or the tag
+        // approach; regularize.
+        auto error_str = strings.path_not_found;
+        auto f = [error_str](auto sv) {
+#if BOOST_PROGRAM_OPTIONS_2_USE_STD_FILESYSTEM
+            namespace fs = std::filesystem;
+#else
+            namespace fs = filesystem;
 #endif
+            fs::path p(sv);
+            detail::error_code ec;
+            auto const status = fs::status(p, ec);
+            if (ec || !fs::exists(status) || status.type() != fs::status_error)
+                return validation_result{false, error_str};
+            return validation_result{};
+        };
+        return program_options_2::with_validator(opt, f);
+    }
+
+    /** TODO */
+    template<
+        detail::option_kind Kind,
+        typename T,
+        typename Value,
+        detail::required_t Required,
+        int Choices,
+        typename ChoiceType>
+    auto file(
+        detail::option<Kind, T, Value, Required, Choices, ChoiceType, no_value>
+            opt,
+        customizable_strings const & strings = customizable_strings{})
+    {
+        auto not_found_str = strings.file_not_found;
+        auto not_a_file_str = strings.file_not_found;
+        auto f = [not_found_str, not_a_file_str](auto sv) {
+#if BOOST_PROGRAM_OPTIONS_2_USE_STD_FILESYSTEM
+            namespace fs = std::filesystem;
+#else
+            namespace fs = filesystem;
+#endif
+            fs::path p(sv);
+            detail::error_code ec;
+            auto const status = fs::status(p, ec);
+            if (ec || !fs::exists(status) || status.type() != fs::status_error)
+                return validation_result{false, not_found_str};
+            if (fs::is_directory(status))
+                return validation_result{false, not_a_file_str};
+            return validation_result{};
+        };
+        return program_options_2::with_validator(opt, f);
+    }
+
+    /** TODO */
+    template<
+        detail::option_kind Kind,
+        typename T,
+        typename Value,
+        detail::required_t Required,
+        int Choices,
+        typename ChoiceType>
+    auto directory(
+        detail::option<Kind, T, Value, Required, Choices, ChoiceType, no_value>
+            opt,
+        customizable_strings const & strings = customizable_strings{})
+    {
+        auto not_found_str = strings.file_not_found;
+        auto not_a_dir_str = strings.file_not_found;
+        auto f = [not_found_str, not_a_dir_str](auto sv) {
+#if BOOST_PROGRAM_OPTIONS_2_USE_STD_FILESYSTEM
+            namespace fs = std::filesystem;
+#else
+            namespace fs = filesystem;
+#endif
+            fs::path p(sv);
+            detail::error_code ec;
+            auto const status = fs::status(p, ec);
+            if (ec || !fs::exists(status) || status.type() != fs::status_error)
+                return validation_result{false, not_found_str};
+            if (!fs::is_directory(status))
+                return validation_result{false, not_a_dir_str};
+            return validation_result{};
+        };
+        return program_options_2::with_validator(opt, f);
+    }
 
     /** TODO */
     template<
@@ -1984,7 +2072,6 @@ namespace boost { namespace program_options_2 {
 
         std::basic_string_view<Char> operator*() const { return current_; }
 
-        // Adapted from boost::program_options::split_winmain().
         winmain_arg_iter & operator++()
         {
             current_.clear();
@@ -2036,7 +2123,7 @@ namespace boost { namespace program_options_2 {
             return lhs.ptr_ == rhs;
         }
 
-        using base_type = boost::stl_interfaces::proxy_iterator_interface<
+        using base_type = stl_interfaces::proxy_iterator_interface<
             winmain_arg_iter<Char>,
             std::forward_iterator_tag,
             std::basic_string_view<Char>,
