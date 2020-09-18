@@ -37,6 +37,7 @@
 #include <string_view>
 #include <type_traits>
 
+#include <cctype>
 #include <climits>
 
 
@@ -1892,6 +1893,129 @@ namespace boost { namespace program_options_2 {
     }
 
     // TODO: Overload for char const * from WinMain.
+
+    template<typename Char>
+    struct string_view_arrow_result
+    {
+        using string_view = std::basic_string_view<Char>;
+
+        string_view_arrow_result(std::basic_string<Char> const & str) :
+            value_(str)
+        {}
+
+        string_view const * operator->() const noexcept { return &value_; }
+        string_view * operator->() noexcept { return &value_; }
+
+    private:
+        string_view value_;
+    };
+
+    /** TODO */
+    template<typename Char>
+    struct winmain_arg_iter : stl_interfaces::proxy_iterator_interface<
+                                  winmain_arg_iter<Char>,
+                                  std::forward_iterator_tag,
+                                  std::basic_string_view<Char>,
+                                  std::basic_string_view<Char>,
+                                  string_view_arrow_result<Char>>
+    {
+        winmain_arg_iter() = default;
+
+        winmain_arg_iter(Char const * ptr) : ptr_(ptr)
+        {
+            BOOST_ASSERT(ptr);
+            operator++();
+        }
+
+        std::basic_string_view<Char> operator*() const { return current_; }
+
+        // Adapted from boost::program_options::split_winmain().
+        winmain_arg_iter & operator++()
+        {
+            current_.clear();
+
+            text::null_sentinel last;
+
+            ptr_ = std::ranges::find_if(
+                ptr_, last, [](unsigned char c) { !std::isspace(c); });
+
+            if (ptr_ == last)
+                return *this;
+
+            bool in_quotes = false;
+            int backslashes = 0;
+
+            for (; ptr_ != last; ++ptr_) {
+                if (*ptr_ == '"') {
+                    if (backslashes % 2 == 0) {
+                        current_.append(backslashes / 2, '\\');
+                        in_quotes = !in_quotes;
+                    } else {
+                        current_.append(backslashes / 2, '\\');
+                        current_ += '"';
+                    }
+                    backslashes = 0;
+                } else if (*ptr_ == '\\') {
+                    ++backslashes;
+                } else {
+                    if (backslashes) {
+                        current_.append(backslashes, '\\');
+                        backslashes = 0;
+                    }
+                    if (std::isspace((unsigned char)*ptr_) && !in_quotes)
+                        return *this;
+                    else
+                        current_ += *ptr_;
+                }
+            }
+
+            if (backslashes)
+                current_.append(backslashes, '\\');
+
+            return *this;
+        }
+
+        friend bool
+        operator==(winmain_arg_iter lhs, text::null_sentinel rhs) noexcept
+        {
+            return lhs.ptr_ == rhs;
+        }
+
+        using base_type = boost::stl_interfaces::proxy_iterator_interface<
+            winmain_arg_iter<Char>,
+            std::forward_iterator_tag,
+            std::basic_string_view<Char>,
+            std::basic_string_view<Char>,
+            string_view_arrow_result<Char>>;
+        using base_type::operator++;
+
+    private:
+        Char const * ptr_;
+        std::basc_string<Char> current_;
+    };
+
+    /** TODO */
+    template<typename Char>
+    struct winmain_arg_view
+        : stl_interfaces::view_interface<winmain_arg_view<Char>>
+    {
+        using iterator = winmain_arg_iter<Char>;
+
+        winmain_arg_view() = default;
+        winmain_arg_view(Char const * args) : first_(args) {}
+
+        iterator begin() const { return first_; }
+        text::null_sentinel end() const { return text::null_sentinel{}; }
+
+    private:
+        iterator first_;
+    };
+
+    // TODO: Change all the parse functions to take a range of string_views?
+    // This would mean that at the call site, we'd have:
+    // po2::parse_command_line(po2::arg_view(argc, argv), "Program
+    // desc",std::cout, opts...).  This should at least be an available
+    // pattern of overloads.
 
 #endif
 
