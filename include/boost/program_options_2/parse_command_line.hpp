@@ -552,9 +552,9 @@ namespace boost { namespace program_options_2 {
             return ((opts.action != detail::action_kind::help) && ...);
         }
 
-        template<typename Char>
+        template<typename Args>
         bool argv_contains_default_help_flag(
-            customizable_strings const & strings, arg_view<Char> args)
+            customizable_strings const & strings, Args const & args)
         {
             auto const names = names_view(strings.help_names);
             for (auto arg : args) {
@@ -1453,11 +1453,10 @@ namespace boost { namespace program_options_2 {
             os << text::as_utf8(close_brace, error_str.end()) << '\n';
         }
 
-        // arg_view -> ArgView template param, here and elsewhere.
-        template<typename Char, typename... Options>
+        template<typename Char, typename Args, typename... Options>
         auto parse_options_into_tuple(
             customizable_strings const & strings,
-            arg_view<Char> args,
+            Args const & args,
             std::basic_string_view<Char> program_desc,
             std::basic_ostream<Char> & os,
             bool no_help,
@@ -1980,11 +1979,11 @@ namespace boost { namespace program_options_2 {
 
     /** TODO */
     template<
-        range_of_string_view<char> ArgView,
+        range_of_string_view<char> Args,
         option_or_group Option,
         option_or_group... Options>
     auto parse_command_line(
-        ArgView const & args,
+        Args const & args,
         std::string_view program_desc,
         std::ostream & os,
         customizable_strings const & strings,
@@ -2014,11 +2013,11 @@ namespace boost { namespace program_options_2 {
 
     /** TODO */
     template<
-        range_of_string_view<char> ArgView,
+        range_of_string_view<char> Args,
         option_or_group Option,
         option_or_group... Options>
     auto parse_command_line(
-        ArgView const & args,
+        Args const & args,
         std::string_view program_desc,
         std::ostream & os,
         Option opt,
@@ -2066,11 +2065,11 @@ namespace boost { namespace program_options_2 {
 
     /** TODO */
     template<
-        range_of_string_view<wchar_t> ArgView,
+        range_of_string_view<wchar_t> Args,
         option_or_group Option,
         option_or_group... Options>
     auto parse_command_line(
-        ArgView const & args,
+        Args const & args,
         std::wstring_view program_desc,
         std::wostream & os,
         customizable_strings const & strings,
@@ -2093,11 +2092,11 @@ namespace boost { namespace program_options_2 {
 
     /** TODO */
     template<
-        range_of_string_view<wchar_t> ArgView,
+        range_of_string_view<wchar_t> Args,
         option_or_group Option,
         option_or_group... Options>
     auto parse_command_line(
-        ArgView const & args,
+        Args const & args,
         std::wstring_view program_desc,
         std::wostream & os,
         Option opt,
