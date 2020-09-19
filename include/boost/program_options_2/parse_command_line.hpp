@@ -64,7 +64,7 @@ namespace boost { namespace program_options_2 {
         std::string_view help_names = "-h,--help";
         std::string_view help_description = "Print this help message and exit";
 
-        std::array<std::string_view, 6> parse_error_strings = {
+        std::array<std::string_view, 6> parse_errors = {
             {"error: unrecognized argument '{}'",
              "error: wrong number of arguments for '{}'",
              "error: cannot parse argument '{}'",
@@ -73,13 +73,15 @@ namespace boost { namespace program_options_2 {
              "error: one or more missing positional arguments, starting with "
              "'{}'"}};
 
-        std::string_view path_not_found = "path '{}' not found";
-        std::string_view file_not_found = "file '{}' not found";
-        std::string_view directory_not_found = "directory '{}' not found";
+        // validation errors
+        std::string_view path_not_found = "error: path '{}' not found";
+        std::string_view file_not_found = "error: file '{}' not found";
+        std::string_view directory_not_found =
+            "error: directory '{}' not found";
         std::string_view found_file_not_directory =
-            "'{}' is a file, but a directory was expected";
+            "error: '{}' is a file, but a directory was expected";
         std::string_view found_directory_not_file =
-            "'{}' is a directory, but a file was expected";
+            "error: '{}' is a directory, but a file was expected";
     };
 
     /** TODO */
@@ -200,7 +202,7 @@ namespace boost { namespace program_options_2 {
             value_type default_value;
             std::array<choice_type, num_choices> choices;
             std::string_view arg_display_name;
-            validator_type validator;
+            mutable validator_type validator;
         };
 
         template<typename T>
@@ -963,7 +965,7 @@ namespace boost { namespace program_options_2 {
         auto print_help_and_exit(
             int exit_code,
             customizable_strings const & strings,
-            std::basic_string_view<Char> program_name,
+            std::basic_string_view<Char> argv0,
             std::basic_string_view<Char> program_desc,
             std::basic_ostream<Char> & os,
             bool no_help,
@@ -973,13 +975,12 @@ namespace boost { namespace program_options_2 {
                 detail::print_help(
                     strings,
                     os,
-                    program_name,
+                    argv0,
                     program_desc,
                     detail::default_help(strings),
                     opts...);
             } else {
-                detail::print_help(
-                    strings, os, program_name, program_desc, opts...);
+                detail::print_help(strings, os, argv0, program_desc, opts...);
             }
 #ifdef BOOST_PROGRAM_OPTIONS_2_TESTING
             throw 0;
@@ -1099,6 +1100,21 @@ namespace boost { namespace program_options_2 {
             }
         }
 
+        template<typename Char, typename Option, typename Attr>
+        void validate(
+            Option const & opt,
+            Attr const & attr,
+            std::basic_string_view<Char> & validation_error)
+        {
+            if constexpr (!std::is_same_v<
+                              typename Option::validator_type,
+                              no_value>) {
+                validation_result const validation = opt.validator(attr);
+                if (!validation.valid)
+                    validation_error = validation.error;
+            }
+        }
+
         enum struct parse_option_error {
             none,
             unknown_arg,
@@ -1111,7 +1127,10 @@ namespace boost { namespace program_options_2 {
 
         template<typename Char, typename Option, typename Result>
         auto parse_action_for(
-            Option const & opt, Result & result, parse_option_error & error)
+            Option const & opt,
+            Result & result,
+            parse_option_error & error,
+            std::basic_string_view<Char> & validation_error)
         {
             if constexpr (detail::has_choices<Option>()) {
                 return [&opt, &result, &error](auto & ctx) {
@@ -1128,8 +1147,9 @@ namespace boost { namespace program_options_2 {
                     }
                 };
             } else {
-                return [&result](auto & ctx) {
+                return [&opt, &result, &validation_error](auto & ctx) {
                     auto const & attr = _attr(ctx);
+                    detail::validate(opt, attr, validation_error);
                     detail::assign_or_insert(result, attr);
                 };
             }
@@ -1137,15 +1157,73 @@ namespace boost { namespace program_options_2 {
 
         template<typename Char, typename Option, typename Result>
         auto parser_for(
-            Option const & opt, Result & result, parse_option_error & error)
+            Option const & opt,
+            Result & result,
+            parse_option_error & error,
+            std::basic_string_view<Char> & validation_error)
         {
             if constexpr (detail::has_choices<Option>()) {
                 return detail::parser_for<Char, typename Option::choice_type>()
-                    [detail::parse_action_for<Char>(opt, result, error)];
+                    [detail::parse_action_for<Char>(
+                        opt, result, error, validation_error)];
             } else {
                 return detail::parser_for<Char, typename Option::type>()
-                    [detail::parse_action_for<Char>(opt, result, error)];
+                    [detail::parse_action_for<Char>(
+                        opt, result, error, validation_error)];
             }
+        }
+
+        template<typename Char, typename HelpOption, typename... Options>
+        auto handle_help_option(
+            customizable_strings const & strings,
+            std::basic_string_view<Char> argv0,
+            std::basic_string_view<Char> program_desc,
+            std::basic_ostream<Char> & os,
+            bool no_help,
+            HelpOption const & help_opt,
+            Options const &... opts)
+        {
+            if constexpr (std::invocable<typename HelpOption::value_type>) {
+                os << text::as_utf8(help_opt.default_value());
+#ifdef BOOST_PROGRAM_OPTIONS_2_TESTING
+                throw 0;
+#endif
+                std::exit(0);
+            } else {
+                detail::print_help_and_exit(
+                    0, strings, argv0, program_desc, os, no_help, opts...);
+            }
+        }
+
+        template<typename Char, typename Option>
+        auto
+        handle_version_option(std::basic_ostream<Char> & os, Option const & opt)
+        {
+            if constexpr (std::is_same_v<
+                              typename Option::value_type,
+                              std::string_view>) {
+                os << text::as_utf8(opt.default_value);
+            }
+#ifdef BOOST_PROGRAM_OPTIONS_2_TESTING
+            throw 0;
+#endif
+            std::exit(0);
+        }
+
+        template<typename Char, typename... Options>
+        auto handle_validation_error(
+            customizable_strings const & strings,
+            std::basic_string_view<Char> argv0,
+            std::basic_string_view<Char> program_desc,
+            std::basic_ostream<Char> & os,
+            bool no_help,
+            std::basic_string_view<Char> error,
+            Options const &... opts)
+        {
+            os << text::as_utf8(error);
+            os << '\n';
+            detail::print_help_and_exit(
+                1, strings, argv0, program_desc, os, no_help, opts...);
         }
 
         struct parse_option_result
@@ -1167,14 +1245,19 @@ namespace boost { namespace program_options_2 {
             typename ArgsIter,
             typename Option,
             typename ResultType,
-            typename PositionIndicesTuple>
+            typename... Options>
         parse_option_result parse_option(
+            customizable_strings const & strings,
+            std::basic_string_view<Char> argv0,
+            std::basic_string_view<Char> program_desc,
+            std::basic_ostream<Char> & os,
+            bool no_help,
             ArgsIter & first,
             ArgsIter last,
             Option const & opt,
             ResultType & result,
             int & next_positional,
-            PositionIndicesTuple const & positional_indices)
+            Options const &... opts)
         {
             if (first == last)
                 return {};
@@ -1182,6 +1265,8 @@ namespace boost { namespace program_options_2 {
             auto next = parse_option_result::no_match_keep_parsing;
             if (!detail::positional(opt)) {
                 if (opt.action == action_kind::count) {
+                    // Special case: parse the repetitions of a counted flag
+                    // differently.
                     auto short_flag = detail::first_shortest_name(opt.names);
                     BOOST_ASSERT(short_flag.size() == 2u);
                     if (!first->empty() && first->front() == '-') {
@@ -1218,14 +1303,23 @@ namespace boost { namespace program_options_2 {
                     }
                 }
 
-                // Special case: early return when we see a help or version
-                // arg.
-                if (opt.action == action_kind::help ||
-                    opt.action == action_kind::version) {
-                    return {next};
+                // Special case: if we just found a help or version
+                // option, handle this now and exit.
+                if (opt.action == action_kind::help) {
+                    detail::handle_help_option(
+                        strings,
+                        argv0,
+                        program_desc,
+                        os,
+                        no_help,
+                        opt,
+                        opts...);
+                } else if (opt.action == action_kind::version) {
+                    detail::handle_version_option(os, opt);
                 }
 
-                // Special case: early return when match a long counted flag.
+                // Special case: early return after matching a long counted
+                // flag.
                 if (opt.action == action_kind::count) {
                     if constexpr (std::is_assignable_v<ResultType &, int>)
                         result = 1;
@@ -1255,10 +1349,26 @@ namespace boost { namespace program_options_2 {
                                  parse_option_error::wrong_number_of_args};
             }
 
+            auto handle_validation_error_ =
+                [&](std::basic_string_view<Char> validation_error) {
+                    detail::handle_validation_error(
+                        strings,
+                        argv0,
+                        program_desc,
+                        os,
+                        no_help,
+                        validation_error,
+                        opts...);
+                };
+
             int reps = 0;
             parse_option_error error = parse_option_error::none;
-            auto const parser = detail::parser_for<Char>(opt, result, error);
+            std::basic_string_view<Char> validation_error;
+            auto const parser =
+                detail::parser_for<Char>(opt, result, error, validation_error);
             if (parser::parse(*first, parser)) {
+                if (!validation_error.empty())
+                    handle_validation_error_(validation_error);
                 ++first;
                 ++reps;
                 for (; reps < max_reps && first != last &&
@@ -1266,6 +1376,8 @@ namespace boost { namespace program_options_2 {
                      ++reps, ++first) {
                     if (!parser::parse(*first, parser))
                         break;
+                    if (!validation_error.empty())
+                        handle_validation_error_(validation_error);
                 }
             }
 
@@ -1321,7 +1433,7 @@ namespace boost { namespace program_options_2 {
             parse_option_error error,
             std::basic_string_view<Char> cl_arg_or_opt_name)
         {
-            auto const error_str = strings.parse_error_strings[(int)error - 1];
+            auto const error_str = strings.parse_errors[(int)error - 1];
 
             using namespace parser::literals;
             auto const kinda_matched_braces =
@@ -1341,43 +1453,7 @@ namespace boost { namespace program_options_2 {
             os << text::as_utf8(close_brace, error_str.end()) << '\n';
         }
 
-        template<typename Char, typename HelpOption, typename... Options>
-        auto handle_help_option(
-            customizable_strings const & strings,
-            std::basic_string_view<Char> argv0,
-            std::basic_string_view<Char> program_desc,
-            std::basic_ostream<Char> & os,
-            bool no_help,
-            HelpOption const & help_opt,
-            Options const &... opts)
-        {
-            if constexpr (std::invocable<typename HelpOption::value_type>) {
-                os << text::as_utf8(help_opt.default_value());
-#ifdef BOOST_PROGRAM_OPTIONS_2_TESTING
-                throw 0;
-#endif
-                std::exit(0);
-            } else {
-                detail::print_help_and_exit(
-                    0, strings, argv0, program_desc, os, no_help, opts...);
-            }
-        }
-
-        template<typename Char, typename Option>
-        auto
-        handle_version_option(std::basic_ostream<Char> & os, Option const & opt)
-        {
-            if constexpr (std::is_same_v<
-                              typename Option::value_type,
-                              std::string_view>) {
-                os << text::as_utf8(opt.default_value);
-            }
-#ifdef BOOST_PROGRAM_OPTIONS_2_TESTING
-            throw 0;
-#endif
-            std::exit(0);
-        }
-
+        // arg_view -> ArgView template param, here and elsewhere.
         template<typename Char, typename... Options>
         auto parse_options_into_tuple(
             customizable_strings const & strings,
@@ -1387,12 +1463,13 @@ namespace boost { namespace program_options_2 {
             bool no_help,
             Options... opts)
         {
+            auto const argv0 = *args.begin();
             auto fail = [&](parse_option_error error, auto cl_arg_or_opt_name) {
                 detail::print_parse_error(
                     strings, os, error, cl_arg_or_opt_name);
                 os << '\n';
                 detail::print_help_and_exit(
-                    1, strings, args[0], program_desc, os, no_help, opts...);
+                    1, strings, argv0, program_desc, os, no_help, opts...);
             };
 
             auto result = detail::make_result_tuple(opts...);
@@ -1400,13 +1477,24 @@ namespace boost { namespace program_options_2 {
             using opt_tuple_type = hana::tuple<Options const &...>;
             opt_tuple_type opt_tuple{opts...};
 
-            int positional_index = -1;
-            auto const positional_indices =
-                hana::transform(opt_tuple, [&](auto const & opt) {
-                    if (detail::positional(opt))
-                        ++positional_index;
-                    return positional_index;
-                });
+            auto parse_option_ = [&](auto & first,
+                                     auto last,
+                                     auto const & opt,
+                                     auto & result,
+                                     int & next_positional) {
+                return detail::parse_option<Char>(
+                    strings,
+                    argv0,
+                    program_desc,
+                    os,
+                    no_help,
+                    first,
+                    last,
+                    opt,
+                    result,
+                    next_positional,
+                    opts...);
+            };
 
             auto args_first = args.begin() + 1;
             auto const args_last = args.end();
@@ -1426,13 +1514,8 @@ namespace boost { namespace program_options_2 {
                             return i_plus_1;
                     }
 
-                    auto const parse_result = detail::parse_option<Char>(
-                        args_first,
-                        args_last,
-                        opt,
-                        result[i],
-                        next_positional,
-                        positional_indices);
+                    auto const parse_result = parse_option_(
+                        args_first, args_last, opt, result[i], next_positional);
                     if (!parse_result) {
                         if (parse_result.error ==
                                 parse_option_error::no_such_choice ||
@@ -1441,24 +1524,6 @@ namespace boost { namespace program_options_2 {
                             fail(parse_result.error, *args_first);
                         } else {
                             fail(parse_result.error, opt_tuple[i].names);
-                        }
-                    }
-
-                    // Special case: if we just found a help or version
-                    // option, handle this now and exit.
-                    if (parse_result.next ==
-                        parse_option_result::match_keep_parsing) {
-                        if (opt.action == action_kind::help) {
-                            detail::handle_help_option(
-                                strings,
-                                args[0],
-                                program_desc,
-                                os,
-                                no_help,
-                                opt,
-                                opts...);
-                        } else if (opt.action == action_kind::version) {
-                            detail::handle_version_option(os, opt);
                         }
                     }
 
