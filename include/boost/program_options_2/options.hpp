@@ -6,7 +6,7 @@
 #ifndef BOOST_PROGRAM_OPTIONS_2_OPTIONS_HPP
 #define BOOST_PROGRAM_OPTIONS_2_OPTIONS_HPP
 
-#include <boost/program_options_2/fwd.hpp>
+#include <boost/program_options_2/concepts.hpp>
 #include <boost/program_options_2/detail/utility.hpp>
 
 
@@ -46,17 +46,16 @@ namespace boost { namespace program_options_2 {
         }
 
         template<typename... Options>
-        void check_options(bool positionals_need_names, Options const &... opts)
+        void check_options(Options const &... opts)
         {
             using opt_tuple_type = hana::tuple<Options const &...>;
             opt_tuple_type opt_tuple{opts...};
 
-            bool already_saw_multi_arg_positional = false;
             bool already_saw_remainder = false;
             hana::for_each(opt_tuple, [&](auto const & opt) {
                 // Any option that uses args == remainder must come last.
                 BOOST_ASSERT(!already_saw_remainder);
-                if (opt.args == remainder)
+                if (opt.positional && !opt.required)
                     already_saw_remainder = true;
 
                 // Whitespace characters are not allowed within the names
@@ -66,37 +65,9 @@ namespace boost { namespace program_options_2 {
                     !detail::contains_ws(opt.names) &&
                     !detail::contains_ws(opt.arg_display_name));
 
-                // This assert indicates that you're using an option with
-                // no name, with a parse operation that requires a name
-                // for every option.  It's ok to use unnamed positional
-                // arguments when you're parsing the command line into a
-                // hana::tuple.  Maybe that's what you meant. // TODO:
-                // names of API functions
-                BOOST_ASSERT(!positionals_need_names || !opt.names.empty());
-
-                // Regardless of the parsing operation you're using (see
-                // the assert directly above), you must give *some* name
-                // that can be displayed to the user.  That can be a
-                // proper name, or the argument's display-name.
-                BOOST_ASSERT(
-                    !opt.names.empty() || !opt.arg_display_name.empty());
-
-                // This assert means that you've specified one or more
-                // positional arguments that follow a previous positional
-                // argument that takes more than one argument on the command
-                // line.  This creates an ambiguity.
-                BOOST_ASSERT(
-                    !detail::positional(opt) ||
-                    !already_saw_multi_arg_positional);
-
-                if (detail::multi_arg(opt)) {
-                    // This assert indicates that you've specified more
-                    // than one positional argument that may consist of
-                    // more than one argument on the command line.
-                    // Anything more than one creates an ambiguity.
-                    BOOST_ASSERT(!already_saw_multi_arg_positional);
-                    already_saw_multi_arg_positional = true;
-                }
+                // This assert indicates that you're using an option with no
+                // name.  Fix this.
+                BOOST_ASSERT(!opt.names.empty());
             });
         }
     }
@@ -151,10 +122,10 @@ namespace boost { namespace program_options_2 {
         BOOST_ASSERT(args != 0);
         // args must be one of the named values, like zero_or_one, or must be
         // non-negative.
-        BOOST_ASSERT(remainder <= args);
+        BOOST_ASSERT(one_or_more <= args);
         // If you specify more than one argument with args, T must be a type
         // that can be inserted into.
-        BOOST_ASSERT(args == 1 || args == zero_or_one || detail::insertable<T>);
+        BOOST_ASSERT(args == 1 || args == zero_or_one || insertable<T>);
         // For a argument that takes zero or more args, T must be a
         // std::optional.
         BOOST_ASSERT(args != zero_or_one || detail::is_optional<T>::value);
@@ -215,18 +186,16 @@ namespace boost { namespace program_options_2 {
         // Looks like you tried to create a positional argument that starts
         // with a '-'.  Don't do that.
         BOOST_ASSERT(detail::positional(name));
-        // A value of 0 for args makes no sense for a positional argument.
-        BOOST_ASSERT(args != 0);
+        // 0 occurrences makes no sense for a non-optional positional
+        // argument.
+        BOOST_ASSERT(
+            args != 0 && args != zero_or_one && args != zero_or_more);
         // args must be one of the named values, like zero_or_one, or must be
         // non-negative.
-        BOOST_ASSERT(remainder <= args);
+        BOOST_ASSERT(one_or_more <= args);
         // If you specify more than one argument with args, T must be a type
         // that can be inserted into.
-        BOOST_ASSERT(args == 1 || args == zero_or_one || detail::insertable<T>);
-        BOOST_ASSERT(args == 1 || args == zero_or_one || detail::insertable<T>);
-        // For a positional that takes zero or more args, T must be a
-        // std::optional.
-        BOOST_ASSERT(args != zero_or_one || detail::is_optional<T>::value);
+        BOOST_ASSERT(args == 1 || insertable<T>);
         return {
             name,
             help_text,
@@ -235,6 +204,17 @@ namespace boost { namespace program_options_2 {
             args,
             {},
             {{std::move(choices)...}}};
+    }
+
+    /** TODO */
+    template<insertable T = std::vector<std::string_view>>
+    detail::option<detail::option_kind::positional, T>
+    remainder(std::string_view name, std::string_view help_text)
+    {
+        // Looks like you tried to create a positional argument that starts
+        // with a '-'.  Don't do that.
+        BOOST_ASSERT(detail::positional(name));
+        return {name, help_text, detail::action_kind::insert, zero_or_more};
     }
 
     // TODO: Add built-in handling of "--" on the command line, when

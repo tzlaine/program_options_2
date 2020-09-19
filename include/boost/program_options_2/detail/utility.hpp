@@ -40,10 +40,6 @@ namespace boost { namespace program_options_2 { namespace detail {
 #endif
 
     // clang-format off
-        template<typename T>
-        concept insertable = requires(T t) {
-            t.insert(t.end(), *t.begin());
-        };
         template<typename T, typename U>
         concept insertable_from = requires(T t, U u) {
             t.insert(t.end(), u);

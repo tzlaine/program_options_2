@@ -33,10 +33,6 @@ namespace boost { namespace program_options_2 {
     inline constexpr int zero_or_more = -2;
     /** TODO */
     inline constexpr int one_or_more = -3;
-    /** TODO */
-    inline constexpr int remainder = -4;
-
-    // TODO: Does remainder make sense for arguments?
 
     /** TODO help_text_customizable_strings() returns one of these.... */
     struct customizable_strings
@@ -204,8 +200,7 @@ namespace boost { namespace program_options_2 {
                           ChoiceType,
                           Validator> const & opt)
         {
-            return opt.args == zero_or_one || opt.args == zero_or_more ||
-                   opt.args == remainder;
+            return opt.args == zero_or_one || opt.args == zero_or_more;
         }
 
         template<
@@ -225,8 +220,7 @@ namespace boost { namespace program_options_2 {
                        ChoiceType,
                        Validator> const & opt)
         {
-            return opt.args == zero_or_more || opt.args == one_or_more ||
-                   opt.args == remainder;
+            return opt.args == zero_or_more || opt.args == one_or_more;
         }
     }
 

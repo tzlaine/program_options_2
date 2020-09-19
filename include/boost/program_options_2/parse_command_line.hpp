@@ -30,7 +30,7 @@ namespace boost { namespace program_options_2 {
         Options... opts)
     {
         BOOST_ASSERT(args.begin() != args.end());
-        detail::check_options(false, opt, opts...);
+        detail::check_options(opt, opts...);
 
         bool const no_help = detail::no_help_option(opt, opts...);
 
@@ -116,7 +116,7 @@ namespace boost { namespace program_options_2 {
         Options... opts)
     {
         BOOST_ASSERT(args.begin() != args.end());
-        detail::check_options(false, opt, opts...);
+        detail::check_options(opt, opts...);
 
         bool const no_help = detail::no_help_option(opt, opts...);
 

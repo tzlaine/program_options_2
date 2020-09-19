@@ -102,7 +102,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         Option const & opt,
         bool print_leading_space)
     {
-        bool const args_optional = detail::optional_arg(opt);
+        bool const args_optional = detail::optional_arg(opt) && !opt.positional;
         if (args_optional) {
             if (print_leading_space)
                 os << ' ';

@@ -16,6 +16,8 @@
 
 namespace boost { namespace program_options_2 {
 
+    // clang-format off
+
     template<typename T>
     concept option_ = detail::is_option<T>::value;
     template<typename T>
@@ -31,6 +33,13 @@ namespace boost { namespace program_options_2 {
     concept range_of_string_view = std::ranges::range<T> && std::same_as<
         std::decay_t<std::ranges::range_value_t<T>>,
         std::basic_string_view<Char>>;
+
+    template<typename T>
+    concept insertable = requires(T t) {
+        t.insert(t.end(), *t.begin());
+    };
+
+    // clang-format on
 
 }}
 
