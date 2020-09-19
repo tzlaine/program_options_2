@@ -4,6 +4,8 @@
 // accompanying file LICENSE_1_0.txt or copy at
 // http://www.boost.org/LICENSE_1_0.txt)
 #define BOOST_PROGRAM_OPTIONS_2_TESTING
+#include <boost/program_options_2/options.hpp>
+#include <boost/program_options_2/decorators.hpp>
 #include <boost/program_options_2/parse_command_line.hpp>
 
 #include <boost/mpl/assert.hpp>
