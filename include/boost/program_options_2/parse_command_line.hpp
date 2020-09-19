@@ -550,20 +550,10 @@ namespace boost { namespace program_options_2 {
             return ((opts.action != detail::action_kind::help) && ...);
         }
 
-        struct default_strings_tag
-        {};
-
-        customizable_strings help_text_customizable_strings(default_strings_tag)
-        {
-            return customizable_strings{};
-        }
-
-        template<typename CustomStringsTag, typename Char>
+        template<typename Char>
         bool argv_contains_default_help_flag(
-            CustomStringsTag tag, arg_view<Char> args)
+            customizable_strings const & strings, arg_view<Char> args)
         {
-            customizable_strings const strings =
-                help_text_customizable_strings(tag);
             auto const names = names_view(strings.help_names);
             for (auto arg : args) {
                 for (auto name : names) {
@@ -574,11 +564,9 @@ namespace boost { namespace program_options_2 {
             return false;
         }
 
-        template<typename CustomStringsTag>
-        option<option_kind::argument, void> default_help(CustomStringsTag tag)
+        inline option<option_kind::argument, void>
+        default_help(customizable_strings const & strings)
         {
-            customizable_strings const strings =
-                help_text_customizable_strings(tag);
             return {
                 strings.help_names,
                 strings.help_description,
@@ -759,13 +747,9 @@ namespace boost { namespace program_options_2 {
             return current_width;
         }
 
-        template<
-            typename CustomStringsTag,
-            typename Stream,
-            typename Char,
-            typename... Options>
+        template<typename Stream, typename Char, typename... Options>
         void print_help_synopsis(
-            CustomStringsTag tag,
+            customizable_strings const & strings,
             Stream & os,
             std::basic_string_view<Char> prog,
             std::basic_string_view<Char> prog_desc,
@@ -773,9 +757,6 @@ namespace boost { namespace program_options_2 {
         {
             using opt_tuple_type = hana::tuple<Options const &...>;
             opt_tuple_type opt_tuple{opts...};
-
-            customizable_strings const strings =
-                help_text_customizable_strings(tag);
 
             os << text::as_utf8(strings.usage_text) << ' '
                << text::as_utf8(prog);
@@ -878,12 +859,11 @@ namespace boost { namespace program_options_2 {
             }
         }
 
-        template<
-            typename CustomStringsTag,
-            typename Stream,
-            typename... Options>
+        template<typename Stream, typename... Options>
         void print_help_post_synopsis(
-            CustomStringsTag tag, Stream & os, Options const &... opts)
+            customizable_strings const & strings,
+            Stream & os,
+            Options const &... opts)
         {
             using opt_tuple_type = hana::tuple<Options const &...>;
             opt_tuple_type opt_tuple{opts...};
@@ -909,9 +889,6 @@ namespace boost { namespace program_options_2 {
             int const description_column = (std::min)(
                 max_option_length + min_help_column_gap, max_option_col_width);
 
-            customizable_strings const strings =
-                help_text_customizable_strings(tag);
-
             if (!printed_positionals.empty()) {
                 os << '\n'
                    << text::as_utf8(strings.positional_section_text) << '\n';
@@ -927,9 +904,9 @@ namespace boost { namespace program_options_2 {
             }
         }
 
-        template<typename CustomStringsTag, typename Char, typename... Options>
+        template<typename Char, typename... Options>
         void print_help(
-            CustomStringsTag tag,
+            customizable_strings const & strings,
             std::basic_ostream<Char> & os,
             std::basic_string_view<Char> argv0,
             std::basic_string_view<Char> desc,
@@ -937,8 +914,8 @@ namespace boost { namespace program_options_2 {
         {
             std::basic_ostringstream<Char> oss;
             print_help_synopsis(
-                tag, oss, detail::program_name(argv0), desc, opts...);
-            print_help_post_synopsis(tag, oss, opts...);
+                strings, oss, detail::program_name(argv0), desc, opts...);
+            print_help_post_synopsis(strings, oss, opts...);
             auto const str = std::move(oss).str();
             for (auto const & range :
                  text::bidirectional_subranges(text::as_utf32(str))) {
@@ -982,10 +959,10 @@ namespace boost { namespace program_options_2 {
 
     namespace detail {
         // TODO: Add a custom error handler facility.
-        template<typename CustomStringsTag, typename Char, typename... Options>
+        template<typename Char, typename... Options>
         auto print_help_and_exit(
             int exit_code,
-            CustomStringsTag tag,
+            customizable_strings const & strings,
             std::basic_string_view<Char> program_name,
             std::basic_string_view<Char> program_desc,
             std::basic_ostream<Char> & os,
@@ -994,15 +971,15 @@ namespace boost { namespace program_options_2 {
         {
             if (no_help) {
                 detail::print_help(
-                    tag,
+                    strings,
                     os,
                     program_name,
                     program_desc,
-                    detail::default_help(tag),
+                    detail::default_help(strings),
                     opts...);
             } else {
                 detail::print_help(
-                    tag, os, program_name, program_desc, opts...);
+                    strings, os, program_name, program_desc, opts...);
             }
 #ifdef BOOST_PROGRAM_OPTIONS_2_TESTING
             throw 0;
@@ -1207,7 +1184,7 @@ namespace boost { namespace program_options_2 {
                 if (opt.action == action_kind::count) {
                     auto short_flag = detail::first_shortest_name(opt.names);
                     BOOST_ASSERT(short_flag.size() == 2u);
-                    if (!first->empty()&&first->front() == '-') {
+                    if (!first->empty() && first->front() == '-') {
                         int const count = std::count(
                             first->begin() + 1, first->end(), short_flag[1]);
                         if (count + 1 == (int)first->size()) {
@@ -1337,15 +1314,13 @@ namespace boost { namespace program_options_2 {
             return retval;
         }
 
-        template<typename CustomStringsTag, typename Char>
+        template<typename Char>
         auto print_parse_error(
-            CustomStringsTag tag,
+            customizable_strings const & strings,
             std::basic_ostream<Char> & os,
             parse_option_error error,
             std::basic_string_view<Char> cl_arg_or_opt_name)
         {
-            customizable_strings const strings =
-                help_text_customizable_strings(tag);
             auto const error_str = strings.parse_error_strings[(int)error - 1];
 
             using namespace parser::literals;
@@ -1366,13 +1341,9 @@ namespace boost { namespace program_options_2 {
             os << text::as_utf8(close_brace, error_str.end()) << '\n';
         }
 
-        template<
-            typename CustomStringsTag,
-            typename Char,
-            typename HelpOption,
-            typename... Options>
+        template<typename Char, typename HelpOption, typename... Options>
         auto handle_help_option(
-            CustomStringsTag tag,
+            customizable_strings const & strings,
             std::basic_string_view<Char> argv0,
             std::basic_string_view<Char> program_desc,
             std::basic_ostream<Char> & os,
@@ -1388,7 +1359,7 @@ namespace boost { namespace program_options_2 {
                 std::exit(0);
             } else {
                 detail::print_help_and_exit(
-                    0, tag, argv0, program_desc, os, no_help, opts...);
+                    0, strings, argv0, program_desc, os, no_help, opts...);
             }
         }
 
@@ -1407,9 +1378,9 @@ namespace boost { namespace program_options_2 {
             std::exit(0);
         }
 
-        template<typename CustomStringsTag, typename Char, typename... Options>
+        template<typename Char, typename... Options>
         auto parse_options_into_tuple(
-            CustomStringsTag tag,
+            customizable_strings const & strings,
             arg_view<Char> args,
             std::basic_string_view<Char> program_desc,
             std::basic_ostream<Char> & os,
@@ -1417,10 +1388,11 @@ namespace boost { namespace program_options_2 {
             Options... opts)
         {
             auto fail = [&](parse_option_error error, auto cl_arg_or_opt_name) {
-                detail::print_parse_error(tag, os, error, cl_arg_or_opt_name);
+                detail::print_parse_error(
+                    strings, os, error, cl_arg_or_opt_name);
                 os << '\n';
                 detail::print_help_and_exit(
-                    1, tag, args[0], program_desc, os, no_help, opts...);
+                    1, strings, args[0], program_desc, os, no_help, opts...);
             };
 
             auto result = detail::make_result_tuple(opts...);
@@ -1478,7 +1450,7 @@ namespace boost { namespace program_options_2 {
                         parse_option_result::match_keep_parsing) {
                         if (opt.action == action_kind::help) {
                             detail::handle_help_option(
-                                tag,
+                                strings,
                                 args[0],
                                 program_desc,
                                 os,
@@ -1858,8 +1830,6 @@ namespace boost { namespace program_options_2 {
             opt,
         customizable_strings const & strings = customizable_strings{})
     {
-        // TODO: Figure out whether this is the right thing to do, or the tag
-        // approach; regularize.
         auto error_str = strings.path_not_found;
         auto f = [error_str](auto sv) {
 #if BOOST_PROGRAM_OPTIONS_2_USE_STD_FILESYSTEM
@@ -1945,15 +1915,14 @@ namespace boost { namespace program_options_2 {
 
     /** TODO */
     template<
-        typename CustomStringsTag,
         range_of_string_view<char> ArgView,
         option_or_group Option,
         option_or_group... Options>
     auto parse_command_line(
-        CustomStringsTag tag,
         ArgView const & args,
         std::string_view program_desc,
         std::ostream & os,
+        customizable_strings const & strings,
         Option opt,
         Options... opts)
     {
@@ -1962,13 +1931,20 @@ namespace boost { namespace program_options_2 {
 
         bool const no_help = detail::no_help_option(opt, opts...);
 
-        if (no_help && detail::argv_contains_default_help_flag(tag, args)) {
+        if (no_help && detail::argv_contains_default_help_flag(strings, args)) {
             detail::print_help_and_exit(
-                0, tag, *args.begin(), program_desc, os, true, opt, opts...);
+                0,
+                strings,
+                *args.begin(),
+                program_desc,
+                os,
+                true,
+                opt,
+                opts...);
         }
 
         return detail::parse_options_into_tuple(
-            tag, args, program_desc, os, no_help, opt, opts...);
+            strings, args, program_desc, os, no_help, opt, opts...);
     }
 
     /** TODO */
@@ -1984,30 +1960,22 @@ namespace boost { namespace program_options_2 {
         Options... opts)
     {
         return program_options_2::parse_command_line(
-            detail::default_strings_tag{},
-            args,
-            program_desc,
-            os,
-            opt,
-            opts...);
+            customizable_strings{}, args, program_desc, os, opt, opts...);
     }
 
     /** TODO */
-    template<
-        typename CustomStringsTag,
-        option_or_group Option,
-        option_or_group... Options>
+    template<option_or_group Option, option_or_group... Options>
     auto parse_command_line(
-        CustomStringsTag tag,
         int argc,
         char const ** argv,
         std::string_view program_desc,
         std::ostream & os,
+        customizable_strings const & strings,
         Option opt,
         Options... opts)
     {
         return program_options_2::parse_command_line(
-            tag, arg_view(argc, argv), program_desc, os, opt, opts...);
+            arg_view(argc, argv), program_desc, os, strings, opt, opts...);
     }
 
     /** TODO */
@@ -2021,10 +1989,10 @@ namespace boost { namespace program_options_2 {
         Options... opts)
     {
         return program_options_2::parse_command_line(
-            detail::default_strings_tag{},
             arg_view(argc, argv),
             program_desc,
             os,
+            customizable_strings{},
             opt,
             opts...);
     }
@@ -2033,15 +2001,14 @@ namespace boost { namespace program_options_2 {
 
     /** TODO */
     template<
-        typename CustomStringsTag,
         range_of_string_view<wchar_t> ArgView,
         option_or_group Option,
         option_or_group... Options>
     auto parse_command_line(
-        CustomStringsTag tag,
         ArgView const & args,
         std::wstring_view program_desc,
         std::wostream & os,
+        customizable_strings const & strings,
         Option opt,
         Options... opts)
     {
@@ -2050,13 +2017,13 @@ namespace boost { namespace program_options_2 {
 
         bool const no_help = detail::no_help_option(opt, opts...);
 
-        if (no_help && detail::argv_contains_default_help_flag(tag, args)) {
+        if (no_help && detail::argv_contains_default_help_flag(strings, args)) {
             detail::print_help_and_exit(
-                0, tag, args.front(), program_desc, os, true, opt, opts...);
+                0, strings, args.front(), program_desc, os, true, opt, opts...);
         }
 
         return detail::parse_options_into_tuple(
-            tag, args, program_desc, os, no_help, opt, opts...);
+            strings, args, program_desc, os, no_help, opt, opts...);
     }
 
     /** TODO */
@@ -2072,30 +2039,22 @@ namespace boost { namespace program_options_2 {
         Options... opts)
     {
         return program_options_2::parse_command_line(
-            detail::default_strings_tag{},
-            args,
-            program_desc,
-            os,
-            opt,
-            opts...);
+            customizable_strings{}, args, program_desc, os, opt, opts...);
     }
 
     /** TODO */
-    template<
-        typename CustomStringsTag,
-        option_or_group Option,
-        option_or_group... Options>
+    template<option_or_group Option, option_or_group... Options>
     auto parse_command_line(
-        CustomStringsTag tag,
         int argc,
         wchar_t const ** argv,
         std::wstring_view program_desc,
+        customizable_strings const & strings,
         std::wostream & os,
         Option opt,
         Options... opts)
     {
         return program_options_2::parse_command_line(
-            tag, arg_view(argc, argv), program_desc, os, opt, opts...);
+            arg_view(argc, argv), program_desc, os, strings, opt, opts...);
     }
 
     /** TODO */
@@ -2109,10 +2068,10 @@ namespace boost { namespace program_options_2 {
         Options... opts)
     {
         return program_options_2::parse_command_line(
-            detail::default_strings_tag{},
             arg_view(argc, argv),
             program_desc,
             os,
+            customizable_strings{},
             opt,
             opts...);
     }

@@ -432,7 +432,7 @@ TEST(printing, detail_print_help_synopsis)
     {
         std::ostringstream os;
         po2::detail::print_help_synopsis(
-            po2::detail::default_strings_tag{},
+            po2::customizable_strings{},
             os,
             sv(exe),
             sv("A program that does things."),
@@ -446,7 +446,7 @@ A program that does things.
     {
         std::ostringstream os;
         po2::detail::print_help_synopsis(
-            po2::detail::default_strings_tag{},
+            po2::customizable_strings{},
             os,
             sv(exe),
             sv("A program that does things."),
@@ -463,7 +463,7 @@ A program that does things.
                                      "barrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr";
         std::ostringstream os;
         po2::detail::print_help_synopsis(
-            po2::detail::default_strings_tag{},
+            po2::customizable_strings{},
             os,
             sv(long_exe),
             sv("A program that does things."),
@@ -477,19 +477,15 @@ A program that does things.
     }
 }
 
-namespace user_namespace {
-    struct tag
-    {};
-    po2::customizable_strings help_text_customizable_strings(tag)
-    {
-        po2::customizable_strings retval;
-        retval.usage_text = "USAGE: ";
-        retval.positional_section_text = "POSITIONAL arguments:";
-        retval.optional_section_text = "OPTIONAL arguments:";
-        retval.help_names = "-r,--redacted";
-        retval.help_description = "Nothing to see here.";
-        return retval;
-    }
+po2::customizable_strings user_strings()
+{
+    po2::customizable_strings retval;
+    retval.usage_text = "USAGE: ";
+    retval.positional_section_text = "POSITIONAL arguments:";
+    retval.optional_section_text = "OPTIONAL arguments:";
+    retval.help_names = "-r,--redacted";
+    retval.help_description = "Nothing to see here.";
+    return retval;
 }
 
 TEST(printing, parse_command_line_help)
@@ -595,11 +591,11 @@ optional arguments:
         std::ostringstream os;
         try {
             po2::parse_command_line(
-                user_namespace::tag{},
                 argc,
                 argv,
                 "A test program to see how things work.",
                 os,
+                user_strings(),
                 po2::argument("--non-positional", "A non-positional argument."),
                 po2::positional("positional", "A positional argument."),
                 po2::argument(

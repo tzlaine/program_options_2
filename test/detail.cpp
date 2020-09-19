@@ -52,15 +52,11 @@ TEST(detail, names_view)
     }
 }
 
-namespace user_namespace {
-    struct tag
-    {};
-    po2::customizable_strings help_text_customizable_strings(tag)
-    {
-        po2::customizable_strings retval;
-        retval.help_names = "-r,--redacted";
-        return retval;
-    }
+po2::customizable_strings user_strings()
+{
+    po2::customizable_strings retval;
+    retval.help_names = "-r,--redacted";
+    return retval;
 }
 
 TEST(detail, misc)
@@ -88,32 +84,32 @@ TEST(detail, misc)
     {
         char const * argv[] = {"", "help"};
         EXPECT_FALSE(po2::detail::argv_contains_default_help_flag(
-            po2::detail::default_strings_tag{}, po2::arg_view(2, argv)));
+            po2::customizable_strings{}, po2::arg_view(2, argv)));
     }
     {
         char const * argv[] = {"foo", "-h"};
         EXPECT_TRUE(po2::detail::argv_contains_default_help_flag(
-            po2::detail::default_strings_tag{}, po2::arg_view(2, argv)));
+            po2::customizable_strings{}, po2::arg_view(2, argv)));
     }
     {
         char const * argv[] = {"foo", "--help"};
         EXPECT_TRUE(po2::detail::argv_contains_default_help_flag(
-            po2::detail::default_strings_tag{}, po2::arg_view(2, argv)));
+            po2::customizable_strings{}, po2::arg_view(2, argv)));
     }
     // user-customized strings
     {
         char const * argv[] = {"", "redacted"};
         EXPECT_FALSE(po2::detail::argv_contains_default_help_flag(
-            user_namespace::tag{}, po2::arg_view(2, argv)));
+            user_strings(), po2::arg_view(2, argv)));
     }
     {
         char const * argv[] = {"foo", "-r"};
         EXPECT_TRUE(po2::detail::argv_contains_default_help_flag(
-            user_namespace::tag{}, po2::arg_view(2, argv)));
+            user_strings(), po2::arg_view(2, argv)));
     }
     {
         char const * argv[] = {"foo", "--redacted"};
         EXPECT_TRUE(po2::detail::argv_contains_default_help_flag(
-            user_namespace::tag{}, po2::arg_view(2, argv)));
+            user_strings(), po2::arg_view(2, argv)));
     }
 }
