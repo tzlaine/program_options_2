@@ -18,6 +18,7 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL GNU)
     add_definitions(-g -Wall)
 endif ()
 
+set(boost_components filesystem system)
 include(dependencies)
 
 find_package(PythonInterp)

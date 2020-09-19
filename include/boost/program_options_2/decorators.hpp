@@ -9,6 +9,7 @@
 #include <boost/program_options_2/fwd.hpp>
 #include <boost/program_options_2/options.hpp>
 #include <boost/program_options_2/concepts.hpp>
+#include <boost/program_options_2/detail/printing.hpp>
 
 
 namespace boost { namespace program_options_2 {
@@ -111,6 +112,23 @@ namespace boost { namespace program_options_2 {
             std::move(validator)};
     }
 
+    namespace detail {
+        template<typename Char>
+        validation_result validation_error(
+            std::string_view error_str,
+            std::basic_string_view<Char> sv,
+            std::string & scratch)
+        {
+            std::ostringstream oss;
+            auto const utf8_sv = text::as_utf8(sv);
+            scratch.assign(utf8_sv.begin(), utf8_sv.end());
+            detail::print_placeholder_string(
+                oss, error_str, std::basic_string_view<Char>(scratch));
+            scratch = oss.str();
+            return {false, std::string_view(scratch)};
+        }
+    }
+
     /** TODO */
     template<
         detail::option_kind Kind,
@@ -125,17 +143,18 @@ namespace boost { namespace program_options_2 {
         customizable_strings const & strings = customizable_strings{})
     {
         auto error_str = strings.path_not_found;
-        auto f = [error_str](auto sv) {
+        std::string scratch;
+        auto f = [error_str, scratch](auto sv) mutable {
 #if BOOST_PROGRAM_OPTIONS_2_USE_STD_FILESYSTEM
             namespace fs = std::filesystem;
 #else
             namespace fs = filesystem;
 #endif
-            fs::path p(sv);
+            fs::path p(sv.begin(), sv.end());
             detail::error_code ec;
             auto const status = fs::status(p, ec);
-            if (ec || !fs::exists(status) || status.type() != fs::status_error)
-                return validation_result{false, error_str};
+            if (ec || !fs::exists(status) || status.type() == fs::status_error)
+                return detail::validation_error(error_str, sv, scratch);
             return validation_result{};
         };
         return program_options_2::with_validator(opt, f);
@@ -155,20 +174,21 @@ namespace boost { namespace program_options_2 {
         customizable_strings const & strings = customizable_strings{})
     {
         auto not_found_str = strings.file_not_found;
-        auto not_a_file_str = strings.file_not_found;
-        auto f = [not_found_str, not_a_file_str](auto sv) {
+        auto not_a_file_str = strings.found_directory_not_file;
+        std::string scratch;
+        auto f = [not_found_str, not_a_file_str, scratch](auto sv) mutable {
 #if BOOST_PROGRAM_OPTIONS_2_USE_STD_FILESYSTEM
             namespace fs = std::filesystem;
 #else
             namespace fs = filesystem;
 #endif
-            fs::path p(sv);
+            fs::path p(sv.begin(), sv.end());
             detail::error_code ec;
             auto const status = fs::status(p, ec);
-            if (ec || !fs::exists(status) || status.type() != fs::status_error)
-                return validation_result{false, not_found_str};
+            if (ec || !fs::exists(status) || status.type() == fs::status_error)
+                return detail::validation_error(not_found_str, sv, scratch);
             if (fs::is_directory(status))
-                return validation_result{false, not_a_file_str};
+                return detail::validation_error(not_a_file_str, sv, scratch);
             return validation_result{};
         };
         return program_options_2::with_validator(opt, f);
@@ -187,21 +207,22 @@ namespace boost { namespace program_options_2 {
             opt,
         customizable_strings const & strings = customizable_strings{})
     {
-        auto not_found_str = strings.file_not_found;
-        auto not_a_dir_str = strings.file_not_found;
-        auto f = [not_found_str, not_a_dir_str](auto sv) {
+        auto not_found_str = strings.directory_not_found;
+        auto not_a_dir_str = strings.found_file_not_directory;
+        std::string scratch;
+        auto f = [not_found_str, not_a_dir_str, scratch](auto sv) mutable {
 #if BOOST_PROGRAM_OPTIONS_2_USE_STD_FILESYSTEM
             namespace fs = std::filesystem;
 #else
             namespace fs = filesystem;
 #endif
-            fs::path p(sv);
+            fs::path p(sv.begin(), sv.end());
             detail::error_code ec;
             auto const status = fs::status(p, ec);
-            if (ec || !fs::exists(status) || status.type() != fs::status_error)
-                return validation_result{false, not_found_str};
+            if (ec || !fs::exists(status) || status.type() == fs::status_error)
+                return detail::validation_error(not_found_str, sv, scratch);
             if (!fs::is_directory(status))
-                return validation_result{false, not_a_dir_str};
+                return detail::validation_error(not_a_dir_str, sv, scratch);
             return validation_result{};
         };
         return program_options_2::with_validator(opt, f);

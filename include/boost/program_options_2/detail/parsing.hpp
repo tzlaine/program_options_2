@@ -54,21 +54,13 @@ namespace boost { namespace program_options_2 { namespace detail {
             using opt_type = std::remove_cvref_t<decltype(opt)>;
             constexpr bool required_option =
                 opt_type::positional && opt_type::required;
-            constexpr bool has_default = detail::has_default<opt_type>();
             using T = typename opt_type::type;
-            if constexpr (std::is_same_v<T, void>) {
+            if constexpr (std::is_same_v<T, void>)
                 return no_value{};
-            } else if constexpr (required_option) {
-                if constexpr (has_default)
-                    return T{opt.default_value};
-                else
-                    return T{};
-            } else {
-                if constexpr (has_default)
-                    return std::optional<T>{opt.default_value};
-                else
-                    return std::optional<T>{};
-            }
+            else if constexpr (required_option)
+                return T{};
+            else
+                return std::optional<T>{};
         });
     }
 
@@ -175,29 +167,14 @@ namespace boost { namespace program_options_2 { namespace detail {
     };
 
     template<typename Char>
-    auto print_parse_error(
+    void print_parse_error(
         customizable_strings const & strings,
         std::basic_ostream<Char> & os,
         parse_option_error error,
         std::basic_string_view<Char> cl_arg_or_opt_name)
     {
         auto const error_str = strings.parse_errors[(int)error - 1];
-
-        using namespace parser::literals;
-        auto const kinda_matched_braces =
-            parser::omit[*(parser::char_ - '{')] >>
-            parser::raw
-                [('{'_l - "{{") >> *(parser::char_ - '}') >> ('}'_l - "}}")];
-        auto first = error_str.begin();
-        auto const braces =
-            parser::parse(first, error_str.end(), kinda_matched_braces);
-        auto const open_brace = braces ? braces->begin() : error_str.end();
-        auto const close_brace = braces ? braces->end() : error_str.end();
-
-        os << text::as_utf8(error_str.begin(), open_brace);
-        if (braces)
-            os << text::as_utf8(cl_arg_or_opt_name);
-        os << text::as_utf8(close_brace, error_str.end()) << '\n';
+        detail::print_placeholder_string(os, error_str, cl_arg_or_opt_name);
     }
 
     template<typename Char, typename Option, typename Result>
@@ -371,6 +348,11 @@ namespace boost { namespace program_options_2 { namespace detail {
                 }
             }
 
+            if constexpr (!Option::required && is_optional<ResultType>::value) {
+                if (opt.args == zero_or_one || opt.args == zero_or_more)
+                    result = typename ResultType::value_type{};
+            }
+
             // Special case: if we just found a help or version
             // option, handle this now and exit.
             if (opt.action == action_kind::help) {
@@ -436,11 +418,17 @@ namespace boost { namespace program_options_2 { namespace detail {
             for (; reps < max_reps && first != last &&
                    detail::no_leading_dashes(*first);
                  ++reps, ++first) {
-                if (!parser::parse(*first, parser))
+                if (!parser::parse(*first, parser)) {
+                    if (error == parse_option_error::none)
+                        error = parse_option_error::cannot_parse_arg;
                     break;
+                }
                 if (!validation_error.empty())
                     handle_validation_error_(validation_error);
             }
+        } else {
+            if (error == parse_option_error::none)
+                error = parse_option_error::cannot_parse_arg;
         }
 
         if (min_reps <= reps && reps <= max_reps) {
@@ -463,16 +451,10 @@ namespace boost { namespace program_options_2 { namespace detail {
     {
         int retval = 0;
         hana::for_each(opt_tuple, [&](auto const & opt) {
-            if (detail::positional(opt))
+            if (opt.positional && opt.required)
                 ++retval;
         });
         return retval;
-    }
-
-    template<typename OptTuple>
-    int count_arguments(OptTuple const & opt_tuple)
-    {
-        return (int)hana::size(opt_tuple) - count_positionals(opt_tuple);
     }
 
     template<typename OptTuple>
@@ -498,7 +480,8 @@ namespace boost { namespace program_options_2 { namespace detail {
         Options... opts)
     {
         auto const argv0 = *args.begin();
-        auto fail = [&](parse_option_error error, auto cl_arg_or_opt_name) {
+        auto fail = [&](parse_option_error error,
+                        std::basic_string_view<Char> cl_arg_or_opt_name) {
             detail::print_parse_error(strings, os, error, cl_arg_or_opt_name);
             os << '\n';
             detail::print_help_and_exit(
@@ -529,11 +512,12 @@ namespace boost { namespace program_options_2 { namespace detail {
                 opts...);
         };
 
+        using namespace hana::literals;
+
         auto args_first = args.begin() + 1;
         auto const args_last = args.end();
         int next_positional = 0;
         while (args_first != args_last) {
-            using namespace hana::literals;
             auto const initial_args_first = args_first;
             int positional_index = -1;
             hana::fold(opt_tuple, 0_c, [&](auto i, auto const & opt) {
@@ -551,6 +535,8 @@ namespace boost { namespace program_options_2 { namespace detail {
                     args_first, args_last, opt, result[i], next_positional);
                 if (!parse_result) {
                     if (parse_result.error ==
+                            parse_option_error::cannot_parse_arg ||
+                        parse_result.error ==
                             parse_option_error::no_such_choice ||
                         parse_result.error ==
                             parse_option_error::extra_positional) {
@@ -566,11 +552,28 @@ namespace boost { namespace program_options_2 { namespace detail {
                 fail(parse_option_error::unknown_arg, *args_first);
         }
 
-        if (next_positional != detail::count_positionals(opt_tuple)) {
-            fail(
-                parse_option_error::missing_positional,
-                detail::positional_name(opt_tuple, next_positional));
+        if (next_positional < detail::count_positionals(opt_tuple)) {
+            std::basic_ostringstream<Char> oss;
+            detail::print_uppercase(
+                oss, detail::positional_name(opt_tuple, next_positional));
+            fail(parse_option_error::missing_positional, oss.str());
         }
+
+        hana::fold(result, 0_c, [&](auto i, auto & result_i) {
+            auto const i_plus_1 = hana::llong_c<decltype(i)::value + 1>;
+
+            auto const & opt = opt_tuple[i];
+            using opt_type = std::remove_cvref_t<decltype(opt)>;
+            using result_type = std::remove_cvref_t<decltype(result_i)>;
+            if constexpr (
+                !opt_type::required && detail::has_default<opt_type>() &&
+                !std::is_same_v<result_type, no_value>) {
+                if (!result_i)
+                    detail::assign_or_insert(result_i, opt.default_value);
+            }
+
+            return i_plus_1;
+        });
 
         return result;
     }

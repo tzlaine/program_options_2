@@ -133,13 +133,6 @@ TEST(printing, print_option_arguments)
         po2::detail::print_option(os, arg, 8, 8);
         EXPECT_EQ(os.str(), " [-b B ...]");
     }
-    {
-        auto const arg =
-            po2::argument<std::vector<int>>("-b,--blah", "", po2::zero_or_more);
-        std::ostringstream os;
-        po2::detail::print_option(os, arg, 8, 8);
-        EXPECT_EQ(os.str(), " [-b [B ...]]");
-    }
 
     // unprintable choice type
     {

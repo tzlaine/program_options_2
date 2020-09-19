@@ -9,6 +9,7 @@
 #include <boost/program_options_2/fwd.hpp>
 #include <boost/program_options_2/detail/utility.hpp>
 
+#include <boost/parser/parser.hpp>
 #include <boost/text/bidirectional.hpp>
 #include <boost/text/case_mapping.hpp>
 #include <boost/text/estimated_width.hpp>
@@ -408,6 +409,31 @@ namespace boost { namespace program_options_2 { namespace detail {
         throw 0;
 #endif
         std::exit(exit_code);
+    }
+
+    template<typename Char>
+    void print_placeholder_string(
+        std::basic_ostream<Char> & os,
+        std::basic_string_view<Char> placeholder_str,
+        std::basic_string_view<Char> inserted_str)
+    {
+        using namespace parser::literals;
+        auto const kinda_matched_braces =
+            parser::omit[*(parser::char_ - '{')] >>
+            parser::raw
+                [('{'_l - "{{") >> *(parser::char_ - '}') >> ('}'_l - "}}")];
+        auto first = placeholder_str.begin();
+        auto const braces =
+            parser::parse(first, placeholder_str.end(), kinda_matched_braces);
+        auto const open_brace =
+            braces ? braces->begin() : placeholder_str.end();
+        auto const close_brace = braces ? braces->end() : placeholder_str.end();
+
+        os << text::as_utf8(placeholder_str.begin(), open_brace);
+        if (braces)
+            os << text::as_utf8(inserted_str);
+        os << text::as_utf8(close_brace, placeholder_str.end());
+        os << '\n';
     }
 
 }}}
