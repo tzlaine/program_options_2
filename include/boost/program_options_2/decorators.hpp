@@ -39,7 +39,7 @@ namespace boost { namespace program_options_2 {
             Choices,
             ChoiceType,
             Validator> opt,
-        DefaultType default_value)
+        DefaultType && default_value)
     // clang-format on
     {
         if constexpr (std::equality_comparable_with<DefaultType, ChoiceType>) {
@@ -56,7 +56,7 @@ namespace boost { namespace program_options_2 {
             opt.help_text,
             opt.action,
             opt.args,
-            std::move(default_value),
+            (DefaultType &&) default_value,
             opt.choices,
             opt.arg_display_name,
             std::move(opt.validator)};
