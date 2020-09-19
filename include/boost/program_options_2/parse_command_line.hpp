@@ -945,14 +945,40 @@ namespace boost { namespace program_options_2 {
                 os << text::as_utf32(range);
             }
         }
+
+        template<typename Char>
+        struct string_view_arrow_result
+        {
+            using string_view = std::basic_string_view<Char>;
+
+            string_view_arrow_result(std::basic_string<Char> const & str) :
+                value_(str)
+            {}
+
+            string_view const * operator->() const noexcept { return &value_; }
+            string_view * operator->() noexcept { return &value_; }
+
+        private:
+            string_view value_;
+        };
     }
 
+    // TODO: -> concepts header.
     template<typename T>
     concept option_ = detail::is_option<T>::value;
     template<typename T>
     concept group_ = detail::is_group<T>::value;
     template<typename T>
     concept option_or_group = option_<T> || group_<T>;
+
+    template<typename V, typename T>
+    concept validator = std::invocable<V, T const &> &&
+        std::same_as<std::invoke_result_t<V, T const &>, validation_result>;
+
+    template<typename T, typename Char>
+    concept range_of_string_view = std::ranges::range<T> && std::same_as<
+        std::decay_t<std::ranges::range_value_t<T>>,
+        std::basic_string_view<Char>>;
 
     namespace detail {
         // TODO: Add a custom error handler facility.
@@ -1793,10 +1819,6 @@ namespace boost { namespace program_options_2 {
         return opt;
     }
 
-    template<typename V, typename T>
-    concept validator = std::invocable<V, T const &> &&
-        std::same_as<std::invoke_result_t<V, T const &>, validation_result>;
-
     /** TODO */
     template<
         detail::option_kind Kind,
@@ -1924,6 +1946,55 @@ namespace boost { namespace program_options_2 {
     /** TODO */
     template<
         typename CustomStringsTag,
+        range_of_string_view<char> ArgView,
+        option_or_group Option,
+        option_or_group... Options>
+    auto parse_command_line(
+        CustomStringsTag tag,
+        ArgView const & args,
+        std::string_view program_desc,
+        std::ostream & os,
+        Option opt,
+        Options... opts)
+    {
+        BOOST_ASSERT(args.begin() != args.end());
+        detail::check_options(false, opt, opts...);
+
+        bool const no_help = detail::no_help_option(opt, opts...);
+
+        if (no_help && detail::argv_contains_default_help_flag(tag, args)) {
+            detail::print_help_and_exit(
+                0, tag, *args.begin(), program_desc, os, true, opt, opts...);
+        }
+
+        return detail::parse_options_into_tuple(
+            tag, args, program_desc, os, no_help, opt, opts...);
+    }
+
+    /** TODO */
+    template<
+        range_of_string_view<char> ArgView,
+        option_or_group Option,
+        option_or_group... Options>
+    auto parse_command_line(
+        ArgView const & args,
+        std::string_view program_desc,
+        std::ostream & os,
+        Option opt,
+        Options... opts)
+    {
+        return program_options_2::parse_command_line(
+            detail::default_strings_tag{},
+            args,
+            program_desc,
+            os,
+            opt,
+            opts...);
+    }
+
+    /** TODO */
+    template<
+        typename CustomStringsTag,
         option_or_group Option,
         option_or_group... Options>
     auto parse_command_line(
@@ -1935,26 +2006,8 @@ namespace boost { namespace program_options_2 {
         Option opt,
         Options... opts)
     {
-        detail::check_options(false, opt, opts...);
-
-        arg_view const args(argc, argv);
-
-        bool const no_help = detail::no_help_option(opt, opts...);
-
-        if (no_help && detail::argv_contains_default_help_flag(tag, args)) {
-            detail::print_help_and_exit(
-                0,
-                tag,
-                std::string_view(argv[0]),
-                program_desc,
-                os,
-                true,
-                opt,
-                opts...);
-        }
-
-        return detail::parse_options_into_tuple(
-            tag, args, program_desc, os, no_help, opt, opts...);
+        return program_options_2::parse_command_line(
+            tag, arg_view(argc, argv), program_desc, os, opt, opts...);
     }
 
     /** TODO */
@@ -1969,8 +2022,7 @@ namespace boost { namespace program_options_2 {
     {
         return program_options_2::parse_command_line(
             detail::default_strings_tag{},
-            argc,
-            argv,
+            arg_view(argc, argv),
             program_desc,
             os,
             opt,
@@ -1978,6 +2030,55 @@ namespace boost { namespace program_options_2 {
     }
 
 #if defined(BOOST_PROGRAM_OPTIONS_2_DOXYGEN) || defined(_MSC_VER)
+
+    /** TODO */
+    template<
+        typename CustomStringsTag,
+        range_of_string_view<wchar_t> ArgView,
+        option_or_group Option,
+        option_or_group... Options>
+    auto parse_command_line(
+        CustomStringsTag tag,
+        ArgView const & args,
+        std::wstring_view program_desc,
+        std::wostream & os,
+        Option opt,
+        Options... opts)
+    {
+        BOOST_ASSERT(args.begin() != args.end());
+        detail::check_options(false, opt, opts...);
+
+        bool const no_help = detail::no_help_option(opt, opts...);
+
+        if (no_help && detail::argv_contains_default_help_flag(tag, args)) {
+            detail::print_help_and_exit(
+                0, tag, args.front(), program_desc, os, true, opt, opts...);
+        }
+
+        return detail::parse_options_into_tuple(
+            tag, args, program_desc, os, no_help, opt, opts...);
+    }
+
+    /** TODO */
+    template<
+        range_of_string_view<wchar_t> ArgView,
+        option_or_group Option,
+        option_or_group... Options>
+    auto parse_command_line(
+        ArgView const & args,
+        std::wstring_view program_desc,
+        std::wostream & os,
+        Option opt,
+        Options... opts)
+    {
+        return program_options_2::parse_command_line(
+            detail::default_strings_tag{},
+            args,
+            program_desc,
+            os,
+            opt,
+            opts...);
+    }
 
     /** TODO */
     template<
@@ -1993,26 +2094,8 @@ namespace boost { namespace program_options_2 {
         Option opt,
         Options... opts)
     {
-        detail::check_options(false, opt, opts...);
-
-        arg_view const args(argc, argv);
-
-        bool const no_help = detail::no_help_option(opt, opts...);
-
-        if (no_help && detail::argv_contains_default_help_flag(tag, args)) {
-            detail::print_help_and_exit(
-                0,
-                tag,
-                std::wstring_view(argv[0]),
-                program_desc,
-                os,
-                true,
-                opt,
-                opts...);
-        }
-
-        return detail::parse_options_into_tuple(
-            tag, args, program_desc, os, no_help, opt, opts...);
+        return program_options_2::parse_command_line(
+            tag, arg_view(argc, argv), program_desc, os, opt, opts...);
     }
 
     /** TODO */
@@ -2027,31 +2110,12 @@ namespace boost { namespace program_options_2 {
     {
         return program_options_2::parse_command_line(
             detail::default_strings_tag{},
-            argc,
-            argv,
+            arg_view(argc, argv),
             program_desc,
             os,
             opt,
             opts...);
     }
-
-    // TODO: Overload for char const * from WinMain.
-
-    template<typename Char>
-    struct string_view_arrow_result
-    {
-        using string_view = std::basic_string_view<Char>;
-
-        string_view_arrow_result(std::basic_string<Char> const & str) :
-            value_(str)
-        {}
-
-        string_view const * operator->() const noexcept { return &value_; }
-        string_view * operator->() noexcept { return &value_; }
-
-    private:
-        string_view value_;
-    };
 
     /** TODO */
     template<typename Char>
@@ -2060,11 +2124,11 @@ namespace boost { namespace program_options_2 {
                                   std::forward_iterator_tag,
                                   std::basic_string_view<Char>,
                                   std::basic_string_view<Char>,
-                                  string_view_arrow_result<Char>>
+                                  detail::string_view_arrow_result<Char>>
     {
         winmain_arg_iter() = default;
 
-        winmain_arg_iter(Char const * ptr) : ptr_(ptr)
+        explicit winmain_arg_iter(Char const * ptr) : ptr_(ptr)
         {
             BOOST_ASSERT(ptr);
             operator++();
@@ -2152,12 +2216,6 @@ namespace boost { namespace program_options_2 {
     private:
         iterator first_;
     };
-
-    // TODO: Change all the parse functions to take a range of string_views?
-    // This would mean that at the call site, we'd have:
-    // po2::parse_command_line(po2::arg_view(argc, argv), "Program
-    // desc",std::cout, opts...).  This should at least be an available
-    // pattern of overloads.
 
 #endif
 
