@@ -11,6 +11,7 @@
 #include <boost/program_options_2/options.hpp>
 #include <boost/program_options_2/concepts.hpp>
 #include <boost/program_options_2/detail/parsing.hpp>
+#include <boost/program_options_2/decorators.hpp>
 
 
 namespace boost { namespace program_options_2 {
@@ -62,7 +63,7 @@ namespace boost { namespace program_options_2 {
         Options... opts)
     {
         return program_options_2::parse_command_line(
-            customizable_strings{}, args, program_desc, os, opt, opts...);
+            args, program_desc, os, customizable_strings{}, opt, opts...);
     }
 
     /** TODO */
@@ -141,7 +142,7 @@ namespace boost { namespace program_options_2 {
         Options... opts)
     {
         return program_options_2::parse_command_line(
-            customizable_strings{}, args, program_desc, os, opt, opts...);
+            args, program_desc, os, customizable_strings{}, opt, opts...);
     }
 
     /** TODO */

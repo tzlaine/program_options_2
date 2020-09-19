@@ -104,22 +104,23 @@ namespace boost { namespace program_options_2 { namespace detail {
     template<typename Char, typename T>
     auto parser_for()
     {
-        if constexpr (std::is_unsigned_v<T>) {
-            return parser::uint_parser<T>{};
-        } else if constexpr (std::is_signed_v<T>) {
-            return parser::int_parser<T>{};
-        } else if constexpr (std::is_floating_point_v<T>) {
-            return parser::float_parser<T>{};
-        } else if constexpr (std::is_same_v<T, bool>) {
-            return parser::bool_parser{};
+        if constexpr (is_optional<T>::value) {
+            return detail::parser_for<Char, typename T::value_type>();
         } else if constexpr (insertable<T>) {
             return detail::parser_for<Char, std::ranges::range_value_t<T>>();
+        } else if constexpr (std::is_unsigned_v<T>) {
+            return parser::parser_interface<parser::uint_parser<T>>{};
+        } else if constexpr (std::is_signed_v<T>) {
+            return parser::parser_interface<parser::int_parser<T>>{};
+        } else if constexpr (std::is_floating_point_v<T>) {
+            return parser::parser_interface<parser::float_parser<T>>{};
+        } else if constexpr (std::is_same_v<T, bool>) {
+            return parser::parser_interface<parser::bool_parser>{};
         } else {
 #if defined(_MSC_VER)
-            if constexpr (std::is_same_v<Char, char>)
-                return sv_rule;
-            else
+            if constexpr (std::is_same_v<Char, wchar_t>)
                 return wsv_rule;
+            else
 #else
             return sv_rule;
 #endif
@@ -131,10 +132,20 @@ namespace boost { namespace program_options_2 { namespace detail {
     {
         if constexpr (std::is_same_v<std::remove_cv_t<T>, no_value>) {
             // no-op
-        } else if constexpr (std::is_assignable_v<T &, U &>) {
-            t = std::move(u);
+        } else if constexpr (is_optional<std::remove_cv_t<T>>::value) {
+            using value_type = typename T::value_type;
+            if (!t)
+                t = value_type{};
+            auto & t_value = *t;
+            if constexpr (std::is_assignable_v<value_type &, U &>)
+                t_value = std::move(u);
+            else
+                t_value.insert(t_value.end(), std::move(u));
         } else {
-            t.insert(t.end(), std::move(u));
+            if constexpr (std::is_assignable_v<T &, U &>)
+                t = std::move(u);
+            else
+                t.insert(t.end(), std::move(u));
         }
     }
 
