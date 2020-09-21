@@ -184,53 +184,6 @@ TEST(options, positionals)
         EXPECT_EQ(arg.arg_display_name, "");
     }
 
-    // with defaults
-    {
-        auto const arg =
-            po2::with_default(po2::positional<int>("blah", "bleurgh"), 42);
-        EXPECT_EQ(arg.names, "blah");
-        EXPECT_EQ(arg.help_text, "bleurgh");
-        EXPECT_EQ(arg.args, 1);
-        EXPECT_EQ(arg.action, po2::detail::action_kind::assign);
-        EXPECT_EQ(arg.default_value, 42);
-        EXPECT_EQ(arg.choices.size(), 0);
-        EXPECT_EQ(arg.arg_display_name, "");
-    }
-    {
-        auto const arg = po2::with_default(
-            po2::positional<std::vector<int>>("blah", "bleurgh", 2),
-            std::vector<int>({42}));
-        EXPECT_EQ(arg.names, "blah");
-        EXPECT_EQ(arg.help_text, "bleurgh");
-        EXPECT_EQ(arg.args, 2);
-        EXPECT_EQ(arg.action, po2::detail::action_kind::insert);
-        EXPECT_EQ(arg.default_value, std::vector<int>({42}));
-        EXPECT_EQ(arg.choices.size(), 0);
-        EXPECT_EQ(arg.arg_display_name, "");
-    }
-    {
-        auto const arg = po2::with_default(
-            po2::positional<std::vector<int>>("blah", "bleurgh", 2), 42);
-        EXPECT_EQ(arg.names, "blah");
-        EXPECT_EQ(arg.help_text, "bleurgh");
-        EXPECT_EQ(arg.args, 2);
-        EXPECT_EQ(arg.action, po2::detail::action_kind::insert);
-        EXPECT_EQ(arg.default_value, 42);
-        EXPECT_EQ(arg.choices.size(), 0);
-        EXPECT_EQ(arg.arg_display_name, "");
-    }
-    {
-        auto const arg = po2::with_default(
-            po2::positional<int>("blah", "bleurgh", 1, 1, 2, 3), 3);
-        EXPECT_EQ(arg.names, "blah");
-        EXPECT_EQ(arg.help_text, "bleurgh");
-        EXPECT_EQ(arg.args, 1);
-        EXPECT_EQ(arg.action, po2::detail::action_kind::assign);
-        EXPECT_EQ(arg.default_value, 3);
-        EXPECT_EQ(arg.choices, (std::array<int, 3>{{1, 2, 3}}));
-        EXPECT_EQ(arg.arg_display_name, "");
-    }
-
     // add a display name
     {
         auto const arg = po2::with_display_name(

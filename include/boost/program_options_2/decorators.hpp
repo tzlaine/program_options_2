@@ -52,6 +52,9 @@ namespace boost { namespace program_options_2 {
                     opt.choices.begin(), opt.choices.end(), default_value) !=
                     opt.choices.end());
         }
+        // It looks like you're trying to give a positional a default value,
+        // but that makes no sense.
+        BOOST_ASSERT(!detail::positional(opt));
         return {
             opt.names,
             opt.help_text,

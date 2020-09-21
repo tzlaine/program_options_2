@@ -294,37 +294,6 @@ TEST(printing, print_option_positionals)
         EXPECT_EQ(os.str(), " {1,2,3} ...");
     }
 
-    // with defaults
-    {
-        auto const arg =
-            po2::with_default(po2::positional<int>("blah", ""), 42);
-        std::ostringstream os;
-        po2::detail::print_option(os, arg, 8, 8);
-        EXPECT_EQ(os.str(), " BLAH");
-    }
-    {
-        auto const arg = po2::with_default(
-            po2::positional<std::vector<int>>("blah", "", 2),
-            std::vector<int>({42}));
-        std::ostringstream os;
-        po2::detail::print_option(os, arg, 8, 8);
-        EXPECT_EQ(os.str(), " BLAH BLAH");
-    }
-    {
-        auto const arg = po2::with_default(
-            po2::positional<std::vector<int>>("blah", "", 2), 42);
-        std::ostringstream os;
-        po2::detail::print_option(os, arg, 8, 8);
-        EXPECT_EQ(os.str(), " BLAH BLAH");
-    }
-    {
-        auto const arg =
-            po2::with_default(po2::positional<int>("blah", "", 1, 1, 2, 3), 3);
-        std::ostringstream os;
-        po2::detail::print_option(os, arg, 8, 8);
-        EXPECT_EQ(os.str(), " {1,2,3}");
-    }
-
     // add a display name
     {
         auto const arg =
