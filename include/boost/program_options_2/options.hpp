@@ -37,7 +37,7 @@ namespace boost { namespace program_options_2 {
             if (detail::contains_ws(names))
                 return false;
             for (auto name : detail::names_view(names)) {
-                auto const trimmed_name = trim_leading_dashes(name);
+                auto const trimmed_name = detail::trim_leading_dashes(name);
                 auto const trimmed_dashes = name.size() - trimmed_name.size();
                 if (trimmed_dashes != 1u && trimmed_dashes != 2u)
                     return false;
@@ -223,7 +223,11 @@ namespace boost { namespace program_options_2 {
     // arbitrary number of args.
 
     /** TODO */
-    inline detail::option<detail::option_kind::argument, bool, bool>
+    inline detail::option<
+        detail::option_kind::argument,
+        bool,
+        bool,
+        detail::required_t::yes>
     flag(std::string_view names, std::string_view help_text)
     {
         // Looks like you tried to create a non-positional argument that does
@@ -233,7 +237,11 @@ namespace boost { namespace program_options_2 {
     }
 
     /** TODO */
-    inline detail::option<detail::option_kind::argument, bool, bool>
+    inline detail::option<
+        detail::option_kind::argument,
+        bool,
+        bool,
+        detail::required_t::yes>
     inverted_flag(std::string_view names, std::string_view help_text)
     {
         // Looks like you tried to create a non-positional argument that does

@@ -158,9 +158,9 @@ namespace boost { namespace program_options_2 {
             return name[0] == '-' && name[1] == '-';
         }
 
-        inline bool no_leading_dashes(std::string_view str)
+        inline bool leading_dash(std::string_view str)
         {
-            return str.empty() || str[0] != '-';
+            return !str.empty() && str[0] == '-';
         }
 
         template<
@@ -181,6 +181,14 @@ namespace boost { namespace program_options_2 {
                         Validator> const & opt)
         {
             return detail::positional(opt.names);
+        }
+
+        template<typename Option>
+        constexpr bool flag()
+        {
+            return std::is_same_v<
+                Option,
+                option<option_kind::argument, bool, bool, required_t::yes>>;
         }
 
         template<

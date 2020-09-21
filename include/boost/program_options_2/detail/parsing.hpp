@@ -52,14 +52,19 @@ namespace boost { namespace program_options_2 { namespace detail {
         opt_tuple_type opt_tuple{opts...};
         return hana::transform(opt_tuple, [](auto const & opt) {
             using opt_type = std::remove_cvref_t<decltype(opt)>;
-            constexpr bool required_option = opt_type::positional;
+            constexpr bool required_option =
+                opt_type::positional || opt_type::required;
             using T = typename opt_type::type;
-            if constexpr (std::is_same_v<T, void>)
+            if constexpr (std::is_same_v<T, void>) {
                 return no_value{};
-            else if constexpr (required_option)
-                return T{};
-            else
+            } else if constexpr (required_option) {
+                if constexpr (detail::flag<opt_type>())
+                    return opt.default_value;
+                else
+                    return T{};
+            } else {
                 return std::optional<T>{};
+            }
         });
     }
 
@@ -99,14 +104,14 @@ namespace boost { namespace program_options_2 { namespace detail {
             return detail::parser_for<Char, typename T::value_type>();
         } else if constexpr (insertable<T>) {
             return detail::parser_for<Char, std::ranges::range_value_t<T>>();
+        } else if constexpr (std::is_same_v<T, bool>) {
+            return parser::parser_interface<parser::bool_parser>{};
         } else if constexpr (std::is_floating_point_v<T>) {
             return parser::parser_interface<parser::float_parser<T>>{};
         } else if constexpr (std::is_unsigned_v<T>) {
             return parser::parser_interface<parser::uint_parser<T>>{};
         } else if constexpr (std::is_signed_v<T>) {
             return parser::parser_interface<parser::int_parser<T>>{};
-        } else if constexpr (std::is_same_v<T, bool>) {
-            return parser::parser_interface<parser::bool_parser>{};
         } else {
 #if defined(_MSC_VER)
             if constexpr (std::is_same_v<Char, wchar_t>)
@@ -295,6 +300,29 @@ namespace boost { namespace program_options_2 { namespace detail {
         parse_option_error error = parse_option_error::none;
     };
 
+    template<typename Char, typename Option>
+    bool matches_dashed_argument(
+        std::basic_string_view<Char> arg, Option const & opt)
+    {
+        auto const names = names_view(opt.names);
+        if (std::find_if(names.begin(), names.end(), [arg](auto name) {
+                return std::ranges::equal(
+                    text::as_utf8(name), text::as_utf8(arg));
+            }) != names.end()) {
+            return true;
+        }
+        return false;
+    }
+
+    template<typename Char, typename... Options>
+    bool known_dashed_argument(
+        std::basic_string_view<Char> str, Options const &... opts)
+    {
+        if (!detail::leading_dash(str))
+            return false;
+        return (detail::matches_dashed_argument(str, opts) || ...);
+    }
+
     template<
         typename Char,
         typename ArgsIter,
@@ -337,23 +365,17 @@ namespace boost { namespace program_options_2 { namespace detail {
                 }
             }
 
-            auto const names = names_view(opt.names);
-            auto const arg = *first;
-            if (std::find_if(names.begin(), names.end(), [arg](auto name) {
-                    return std::ranges::equal(
-                        text::as_utf8(name), text::as_utf8(arg));
-                }) == names.end()) {
+            if (!detail::matches_dashed_argument(*first, opt))
                 return {};
-            }
+
             ++first;
             next = parse_option_result::match_keep_parsing;
 
-            if constexpr (std::is_same_v<typename Option::type, bool>) {
-                if (!opt.args) {
-                    if constexpr (detail::has_default<Option>())
-                        result = !bool{opt.default_value};
-                    return {next};
-                }
+            // Special case: if we just found a flag option, assign the right
+            // value and return.
+            if constexpr (detail::flag<Option>()) {
+                result = !opt.default_value;
+                return {next};
             }
 
             if constexpr (!Option::required && is_optional<ResultType>::value) {
@@ -418,16 +440,14 @@ namespace boost { namespace program_options_2 { namespace detail {
         std::basic_string_view<Char> validation_error;
         auto const parser =
             detail::parser_for<Char>(opt, result, error, validation_error);
-        if (parser::parse(*first, parser)) {
+        if (!detail::known_dashed_argument(*first, opts...) &&
+            parser::parse(*first, parser)) {
             if (!validation_error.empty())
                 handle_validation_error_(validation_error);
             ++first;
             ++reps;
             for (; reps < max_reps && first != last &&
-                   // TODO: This termination when no_leading_dashes() returns
-                   // false is too simplistic.  What happens when we see a -2
-                   // while parsing ints?
-                   detail::no_leading_dashes(*first);
+                   !detail::known_dashed_argument(*first, opts...);
                  ++reps, ++first) {
                 if (!parser::parse(*first, parser)) {
                     if (error == parse_option_error::none)

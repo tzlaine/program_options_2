@@ -1227,4 +1227,130 @@ TEST(parse_command_line, mixed)
 
 #undef MIXED
 
-// TODO: Others (don't forget counted args!).
+TEST(parse_command_line, flags)
+{
+    {
+        std::ostringstream os;
+        std::vector<std::string_view> args{"prog"};
+        auto result = po2::parse_command_line(
+            args,
+            "A program.",
+            os,
+            po2::flag("-f", "F."),
+            po2::inverted_flag("-g", "G."));
+        BOOST_MPL_ASSERT((is_same<decltype(result), tuple<bool, bool>>));
+        EXPECT_EQ(result[0_c], false);
+        EXPECT_EQ(result[1_c], true);
+    }
+    {
+        std::ostringstream os;
+        std::vector<std::string_view> args{"prog", "-f", "-g"};
+        auto result = po2::parse_command_line(
+            args,
+            "A program.",
+            os,
+            po2::flag("-f", "F."),
+            po2::inverted_flag("-g", "G."));
+        BOOST_MPL_ASSERT((is_same<decltype(result), tuple<bool, bool>>));
+        EXPECT_EQ(result[0_c], true);
+        EXPECT_EQ(result[1_c], false);
+    }
+}
+
+TEST(parse_command_line, counted_flags)
+{
+    {
+        std::ostringstream os;
+        std::vector<std::string_view> args{"prog"};
+        auto result = po2::parse_command_line(
+            args,
+            "A program.",
+            os,
+            po2::counted_flag("-v,--verbose", "Verbosity level."));
+        BOOST_MPL_ASSERT((is_same<decltype(result), tuple<opt<int>>>));
+        EXPECT_FALSE(result[0_c]);
+    }
+    {
+        std::ostringstream os;
+        std::vector<std::string_view> args{"prog", "-v"};
+        auto result = po2::parse_command_line(
+            args,
+            "A program.",
+            os,
+            po2::counted_flag("-v,--verbose", "Verbosity level."));
+        BOOST_MPL_ASSERT((is_same<decltype(result), tuple<opt<int>>>));
+        EXPECT_TRUE(result[0_c]);
+        EXPECT_EQ(*result[0_c], 1);
+    }
+    {
+        std::ostringstream os;
+        std::vector<std::string_view> args{"prog", "--verbose"};
+        auto result = po2::parse_command_line(
+            args,
+            "A program.",
+            os,
+            po2::counted_flag("-v,--verbose", "Verbosity level."));
+        BOOST_MPL_ASSERT((is_same<decltype(result), tuple<opt<int>>>));
+        EXPECT_TRUE(result[0_c]);
+        EXPECT_EQ(*result[0_c], 1);
+    }
+    {
+        std::ostringstream os;
+        std::vector<std::string_view> args{"prog", "-vvvv"};
+        auto result = po2::parse_command_line(
+            args,
+            "A program.",
+            os,
+            po2::counted_flag("-v,--verbose", "Verbosity level."));
+        BOOST_MPL_ASSERT((is_same<decltype(result), tuple<opt<int>>>));
+        EXPECT_TRUE(result[0_c]);
+        EXPECT_EQ(*result[0_c], 4);
+    }
+}
+
+TEST(parse_command_line, numeric_named_argument)
+{
+    {
+        std::ostringstream os;
+        std::vector<std::string_view> args{"prog", "-a", "-1", "-2"};
+        auto result = po2::parse_command_line(
+            args,
+            "A program.",
+            os,
+            po2::argument<std::vector<int>>("-a", "A.", po2::one_or_more));
+        BOOST_MPL_ASSERT(
+            (is_same<decltype(result), tuple<opt<std::vector<int>>>>));
+        EXPECT_TRUE(result[0_c]);
+        EXPECT_EQ(*result[0_c], std::vector<int>({-1, -2}));
+    }
+    {
+        std::ostringstream os;
+        std::vector<std::string_view> args{"prog", "-a", "-1", "-2"};
+        auto result = po2::parse_command_line(
+            args,
+            "A program.",
+            os,
+            po2::argument<std::vector<int>>("-a", "A.", po2::one_or_more),
+            po2::flag("-2", "Two."));
+        BOOST_MPL_ASSERT(
+            (is_same<decltype(result), tuple<opt<std::vector<int>>, bool>>));
+        EXPECT_TRUE(result[0_c]);
+        EXPECT_EQ(*result[0_c], std::vector<int>({-1}));
+        EXPECT_TRUE(result[1_c]);
+    }
+    {
+        std::ostringstream os;
+        std::vector<std::string_view> args{"prog", "-a", "-2"};
+        auto result = po2::parse_command_line(
+            args,
+            "A program.",
+            os,
+            po2::argument<std::vector<int>>("-a", "A.", po2::zero_or_more),
+            po2::flag("-2", "Two."));
+        BOOST_MPL_ASSERT(
+            (is_same<decltype(result), tuple<opt<std::vector<int>>, bool>>));
+        EXPECT_TRUE(result[0_c]);
+        EXPECT_EQ(*result[0_c], std::vector<int>({}));
+        EXPECT_TRUE(result[1_c]);
+    }
+}

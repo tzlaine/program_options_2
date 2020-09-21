@@ -162,7 +162,7 @@ namespace boost { namespace program_options_2 { namespace detail {
 
         oss << ' ';
 
-        if (!opt.required && !brief)
+        if ((!opt.required || detail::flag<Option>()) && !brief)
             oss << '[';
 
         if (brief) {
@@ -192,7 +192,7 @@ namespace boost { namespace program_options_2 { namespace detail {
                 oss, detail::trim_leading_dashes(shortest_name), opt, true);
         }
 
-        if (!opt.required && !brief)
+        if ((!opt.required || detail::flag<Option>()) && !brief)
             oss << ']';
 
         std::string const str(std::move(oss).str());
