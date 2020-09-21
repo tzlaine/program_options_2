@@ -915,6 +915,29 @@ TEST(parse_command_line, arguments)
     }
     {
         std::ostringstream os;
+        std::vector<std::string_view> args{"prog", "-b", "-z"};
+        auto result = po2::parse_command_line(
+            args, "A program.", os, ARGUMENTS(double, 4, 5, 6));
+        BOOST_MPL_ASSERT((is_same<
+                          decltype(result),
+                          tuple<
+                              opt<double>,
+                              opt<opt<double>>,
+                              opt<std::vector<double>>,
+                              opt<double>,
+                              opt<std::vector<double>>,
+                              opt<std::set<double>>>>));
+        EXPECT_FALSE(result[0_c]);
+        EXPECT_TRUE(result[1_c]);
+        EXPECT_EQ(*result[1_c], std::nullopt);
+        EXPECT_FALSE(result[2_c]);
+        EXPECT_FALSE(result[3_c]);
+        EXPECT_TRUE(result[4_c]);
+        EXPECT_EQ(*result[4_c], std::vector<double>({}));
+        EXPECT_FALSE(result[5_c]);
+    }
+    {
+        std::ostringstream os;
         std::vector<std::string_view> args{"prog"};
         auto result = po2::parse_command_line(
             args, "A program.", os, ARGUMENTS_WITH_DEFAULTS(int, 4, 5, 6, 42));
@@ -961,11 +984,85 @@ TEST(parse_command_line, arguments)
 #undef ARGUMENTS
 #undef ARGUMENTS_WITH_DEFAULT
 
-// TODO: Test value of std::optional<int>.
+#define POSITIONALS(T, choice0, choice1, choice2)                              \
+    po2::positional<T>("abacus", "The abacus."),                               \
+        po2::positional<std::optional<T>>("bobcat", "The bobcat."),            \
+        po2::positional<std::vector<T>>("cataphract", "The cataphract", 2),    \
+        po2::positional<T>(                                                    \
+            "dolemite", "*The* Dolemite.", 1, choice0, choice1, choice2),      \
+        po2::positional<std::set<T>>(                                          \
+            "one-plus", "One is fine; so is more.", po2::one_or_more)
+
 TEST(parse_command_line, positionals)
 {
-    // TODO
+    {
+        std::ostringstream os;
+        std::vector<std::string_view> args{
+            "prog", "55", "66", "77", "88", "5", "2"};
+        auto result = po2::parse_command_line(
+            args, "A program.", os, POSITIONALS(int, 4, 5, 6));
+        BOOST_MPL_ASSERT(
+            (is_same<
+                decltype(result),
+                tuple<int, opt<int>, std::vector<int>, int, std::set<int>>>));
+        EXPECT_EQ(result[0_c], 55);
+        EXPECT_TRUE(result[1_c]);
+        EXPECT_EQ(*result[1_c], 66);
+        EXPECT_EQ(result[2_c], std::vector<int>({77, 88}));
+        EXPECT_EQ(result[3_c], 5);
+        EXPECT_EQ(result[4_c], std::set<int>({2}));
+    }
+    {
+        std::ostringstream os;
+        std::vector<std::string_view> args{
+            "prog", "55", "66", "77", "88", "5", "2"};
+        auto result = po2::parse_command_line(
+            args, "A program.", os, POSITIONALS(double, 4, 5, 6));
+        BOOST_MPL_ASSERT((is_same<
+                          decltype(result),
+                          tuple<
+                              double,
+                              opt<double>,
+                              std::vector<double>,
+                              double,
+                              std::set<double>>>));
+        EXPECT_EQ(result[0_c], 55);
+        EXPECT_TRUE(result[1_c]);
+        EXPECT_EQ(*result[1_c], 66);
+        EXPECT_EQ(result[2_c], std::vector<double>({77, 88}));
+        EXPECT_EQ(result[3_c], 5);
+        EXPECT_EQ(result[4_c], std::set<double>({2}));
+    }
+    {
+        std::ostringstream os;
+        std::vector<std::string_view> args{
+            "prog", "55", "66", "77", "88", "5", "2"};
+        auto result = po2::parse_command_line(
+            args,
+            "A program.",
+            os,
+            po2::remainder("args", "other args at the end"));
+        BOOST_MPL_ASSERT(
+            (is_same<decltype(result), tuple<std::vector<std::string_view>>>));
+        EXPECT_EQ(
+            result[0_c],
+            std::vector<std::string_view>({"55", "66", "77", "88", "5", "2"}));
+    }
+    {
+        std::ostringstream os;
+        std::vector<std::string_view> args{
+            "prog", "55", "66", "77", "88", "5", "2"};
+        auto result = po2::parse_command_line(
+            args,
+            "A program.",
+            os,
+            po2::remainder<std::vector<int>>("args", "other args at the end"));
+        BOOST_MPL_ASSERT((is_same<decltype(result), tuple<std::vector<int>>>));
+        EXPECT_EQ(result[0_c], std::vector<int>({55, 66, 77, 88, 5, 2}));
+    }
 }
+
+#undef POSITIONALS
 
 TEST(parse_command_line, mixed)
 {

@@ -52,8 +52,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         opt_tuple_type opt_tuple{opts...};
         return hana::transform(opt_tuple, [](auto const & opt) {
             using opt_type = std::remove_cvref_t<decltype(opt)>;
-            constexpr bool required_option =
-                opt_type::positional && opt_type::required;
+            constexpr bool required_option = opt_type::positional;
             using T = typename opt_type::type;
             if constexpr (std::is_same_v<T, void>)
                 return no_value{};
