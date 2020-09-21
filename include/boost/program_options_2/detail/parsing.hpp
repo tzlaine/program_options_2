@@ -99,12 +99,12 @@ namespace boost { namespace program_options_2 { namespace detail {
             return detail::parser_for<Char, typename T::value_type>();
         } else if constexpr (insertable<T>) {
             return detail::parser_for<Char, std::ranges::range_value_t<T>>();
+        } else if constexpr (std::is_floating_point_v<T>) {
+            return parser::parser_interface<parser::float_parser<T>>{};
         } else if constexpr (std::is_unsigned_v<T>) {
             return parser::parser_interface<parser::uint_parser<T>>{};
         } else if constexpr (std::is_signed_v<T>) {
             return parser::parser_interface<parser::int_parser<T>>{};
-        } else if constexpr (std::is_floating_point_v<T>) {
-            return parser::parser_interface<parser::float_parser<T>>{};
         } else if constexpr (std::is_same_v<T, bool>) {
             return parser::parser_interface<parser::bool_parser>{};
         } else {
@@ -186,9 +186,13 @@ namespace boost { namespace program_options_2 { namespace detail {
         if constexpr (detail::has_choices<Option>()) {
             return [&opt, &result, &error](auto & ctx) {
                 auto const & attr = _attr(ctx);
+                bool const consumed_all = _where(ctx).end() == _end(ctx);
                 // TODO: Might need to be transcoded if the compareds are
                 // basic_string_view<T>s.
-                if (std::find(opt.choices.begin(), opt.choices.end(), attr) ==
+                if (!consumed_all) {
+                    _pass(ctx) = false;
+                } else if (
+                    std::find(opt.choices.begin(), opt.choices.end(), attr) ==
                     opt.choices.end()) {
                     _pass(ctx) = false;
                     error = parse_option_error::no_such_choice;
@@ -199,8 +203,13 @@ namespace boost { namespace program_options_2 { namespace detail {
         } else {
             return [&opt, &result, &validation_error](auto & ctx) {
                 auto const & attr = _attr(ctx);
-                detail::validate(opt, attr, validation_error);
-                detail::assign_or_insert(result, attr);
+                bool const consumed_all = _where(ctx).end() == _end(ctx);
+                if (!consumed_all) {
+                    _pass(ctx) = false;
+                } else {
+                    detail::validate(opt, attr, validation_error);
+                    detail::assign_or_insert(result, attr);
+                }
             };
         }
     }
@@ -415,6 +424,9 @@ namespace boost { namespace program_options_2 { namespace detail {
             ++first;
             ++reps;
             for (; reps < max_reps && first != last &&
+                   // TODO: This termination when no_leading_dashes() returns
+                   // false is too simplistic.  What happens when we see a -2
+                   // while parsing ints?
                    detail::no_leading_dashes(*first);
                  ++reps, ++first) {
                 if (!parser::parse(*first, parser)) {

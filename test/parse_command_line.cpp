@@ -979,6 +979,64 @@ TEST(parse_command_line, arguments)
         EXPECT_TRUE(result[3_c]);
         EXPECT_EQ(*result[3_c], 5);
     }
+
+    {
+        std::ostringstream os;
+        std::vector<std::string_view> args{"prog", "-z", "3"};
+        auto result = po2::parse_command_line(
+            args,
+            "A program.",
+            os,
+            po2::argument<std::vector<int>>(
+                "-z,--zero-plus",
+                "None is fine; so is more.",
+                po2::zero_or_more));
+        BOOST_MPL_ASSERT(
+            (is_same<decltype(result), tuple<opt<std::vector<int>>>>));
+        EXPECT_TRUE(result[0_c]);
+        EXPECT_EQ(*result[0_c], std::vector<int>({3}));
+    }
+    {
+        std::ostringstream os;
+        std::vector<std::string_view> args{"prog", "-z", "3.0"};
+        auto result = po2::parse_command_line(
+            args,
+            "A program.",
+            os,
+            po2::argument<std::vector<double>>(
+                "-z,--zero-plus",
+                "None is fine; so is more.",
+                po2::zero_or_more));
+        BOOST_MPL_ASSERT(
+            (is_same<decltype(result), tuple<opt<std::vector<double>>>>));
+        EXPECT_TRUE(result[0_c]);
+        EXPECT_EQ(*result[0_c], std::vector<double>({3.0}));
+    }
+
+    {
+        std::ostringstream os;
+        std::vector<std::string_view> args{"prog", "-c", "77", "88.8"};
+        try {
+            po2::parse_command_line(
+                args, "A program.", os, ARGUMENTS(int, 4, 5, 6));
+        } catch (int) {
+        }
+        EXPECT_EQ(os.str(), R"(error: cannot parse argument '88.8'
+
+usage:  prog [-h] [-a A] [-b [B]] [-c C C] [-d {4,5,6}] [-z [Z ...]] [-o O ...]
+
+A program.
+
+optional arguments:
+  -h, --help        Print this help message and exit
+  -a, --abacus      The abacus.
+  -b, --bobcat      The bobcat.
+  -c, --cataphract  The cataphract
+  -d, --dolemite    *The* Dolemite.
+  -z, --zero-plus   None is fine; so is more.
+  -o, --one-plus    One is fine; so is more.
+)");
+    }
 }
 
 #undef ARGUMENTS
@@ -1064,7 +1122,109 @@ TEST(parse_command_line, positionals)
 
 #undef POSITIONALS
 
+#define MIXED(T, choice0, choice1, choice2, default_)                          \
+    po2::argument<T>("-a,--abacus", "The abacus."),                            \
+        po2::with_default(                                                     \
+            po2::argument<std::optional<T>>(                                   \
+                "-b,--bobcat", "The bobcat.", po2::zero_or_one),               \
+            default_),                                                         \
+        po2::positional<std::vector<T>>("cataphract", "The cataphract", 2),    \
+        po2::argument<T>(                                                      \
+            "-d,--dolemite", "*The* Dolemite.", 1, choice0, choice1, choice2), \
+        po2::argument<std::vector<T>>(                                         \
+            "-z,--zero-plus", "None is fine; so is more.", po2::zero_or_more), \
+        po2::remainder("args", "other args at the end")
+
 TEST(parse_command_line, mixed)
 {
-    // TODO
+    {
+        std::ostringstream os;
+        std::vector<std::string_view> args{
+            "prog", "-a", "55", "-b", "66", "77", "88", "-d", "5", "2"};
+        auto result = po2::parse_command_line(
+            args, "A program.", os, MIXED(int, 4, 5, 6, 42));
+        BOOST_MPL_ASSERT((is_same<
+                          decltype(result),
+                          tuple<
+                              opt<int>,
+                              opt<opt<int>>,
+                              std::vector<int>,
+                              opt<int>,
+                              opt<std::vector<int>>,
+                              std::vector<std::string_view>>>));
+        EXPECT_TRUE(result[0_c]);
+        EXPECT_EQ(*result[0_c], 55);
+        EXPECT_TRUE(result[1_c]);
+        EXPECT_EQ(*result[1_c], std::optional<int>{66});
+        EXPECT_EQ(result[2_c], std::vector<int>({77, 88}));
+        EXPECT_TRUE(result[3_c]);
+        EXPECT_EQ(*result[3_c], 5);
+        EXPECT_FALSE(result[4_c]);
+        EXPECT_EQ(result[5_c], std::vector<std::string_view>({"2"}));
+    }
+    {
+        std::ostringstream os;
+        std::vector<std::string_view> args{
+            "prog", "-a", "55", "-b", "66", "77", "88", "-d", "5", "-z", "2"};
+        auto result = po2::parse_command_line(
+            args, "A program.", os, MIXED(int, 4, 5, 6, 42));
+        BOOST_MPL_ASSERT((is_same<
+                          decltype(result),
+                          tuple<
+                              opt<int>,
+                              opt<opt<int>>,
+                              std::vector<int>,
+                              opt<int>,
+                              opt<std::vector<int>>,
+                              std::vector<std::string_view>>>));
+        EXPECT_TRUE(result[0_c]);
+        EXPECT_EQ(*result[0_c], 55);
+        EXPECT_TRUE(result[1_c]);
+        EXPECT_EQ(*result[1_c], std::optional<int>{66});
+        EXPECT_EQ(result[2_c], std::vector<int>({77, 88}));
+        EXPECT_TRUE(result[3_c]);
+        EXPECT_EQ(*result[3_c], 5);
+        EXPECT_TRUE(result[4_c]);
+        EXPECT_EQ(*result[4_c], std::vector<int>({2}));
+        EXPECT_EQ(result[5_c], std::vector<std::string_view>({}));
+    }
+
+    {
+        std::ostringstream os;
+        std::vector<std::string_view> args{"prog", "-3.0"};
+        auto result = po2::parse_command_line(
+            args,
+            "A program.",
+            os,
+            po2::remainder<std::vector<double>>(
+                "args", "other args at the end"));
+        BOOST_MPL_ASSERT((is_same<
+                          decltype(result),
+                          tuple<std::vector<double>>>));
+        EXPECT_EQ(result[0_c], std::vector<double>({-3.0}));
+    }
+    {
+        std::ostringstream os;
+        std::vector<std::string_view> args{"prog", "-z", "2", "3.0"};
+        auto result = po2::parse_command_line(
+            args,
+            "A program.",
+            os,
+            po2::argument<std::vector<int>>(
+                "-z,--zero-plus",
+                "None is fine; so is more.",
+                po2::zero_or_more),
+            po2::remainder<std::vector<double>>(
+                "args", "other args at the end"));
+        BOOST_MPL_ASSERT((is_same<
+                          decltype(result),
+                          tuple<opt<std::vector<int>>, std::vector<double>>>));
+        EXPECT_TRUE(result[0_c]);
+        EXPECT_EQ(*result[0_c], std::vector<int>({2}));
+        EXPECT_EQ(result[1_c], std::vector<double>({3.0}));
+    }
 }
+
+#undef MIXED
+
+// TODO: Others (don't forget counted args!).
