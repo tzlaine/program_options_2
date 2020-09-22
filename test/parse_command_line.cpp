@@ -1355,12 +1355,15 @@ TEST(parse_command_line, numeric_named_argument)
     }
 }
 
-
 TEST(parse_command_line, response_files)
 {
     {
         std::ofstream ofs("simple_response_file");
         ofs << " -a\n-1 \n";
+    }
+    {
+        std::ofstream ofs("other_simple_response_file");
+        ofs << "@simple_response_file";
     }
 
     {
@@ -1376,5 +1379,54 @@ TEST(parse_command_line, response_files)
             (is_same<decltype(result), tuple<opt<std::vector<int>>>>));
         EXPECT_TRUE(result[0_c]);
         EXPECT_EQ(*result[0_c], std::vector<int>({-1, -2, -1}));
+    }
+
+    {
+        std::ostringstream os;
+        std::vector<std::string_view> args{
+            "prog", "@simple_response_file", "-a", "-1", "-2"};
+        auto result = po2::parse_command_line(
+            args,
+            "A program.",
+            os,
+            po2::argument<std::vector<int>>("-a", "A.", po2::one_or_more));
+        BOOST_MPL_ASSERT(
+            (is_same<decltype(result), tuple<opt<std::vector<int>>>>));
+        EXPECT_TRUE(result[0_c]);
+        EXPECT_EQ(*result[0_c], std::vector<int>({-1, -1, -2}));
+    }
+
+    {
+        std::ostringstream os;
+        std::vector<std::string_view> args{
+            "prog", "--config", "simple_response_file", "-a", "-1", "-2"};
+        auto result = po2::parse_command_line(
+            args,
+            "A program.",
+            os,
+            po2::argument<std::vector<int>>("-a", "A.", po2::one_or_more),
+            po2::response_file("--config"));
+        BOOST_MPL_ASSERT((is_same<
+                          decltype(result),
+                          tuple<opt<std::vector<int>>, po2::no_value>>));
+        EXPECT_TRUE(result[0_c]);
+        EXPECT_EQ(*result[0_c], std::vector<int>({-1, -1, -2}));
+    }
+
+    {
+        std::ostringstream os;
+        std::vector<std::string_view> args{
+            "prog", "--config", "other_simple_response_file", "-a", "-1", "-2"};
+        auto result = po2::parse_command_line(
+            args,
+            "A program.",
+            os,
+            po2::argument<std::vector<int>>("-a", "A.", po2::one_or_more),
+            po2::response_file("--config"));
+        BOOST_MPL_ASSERT((is_same<
+                          decltype(result),
+                          tuple<opt<std::vector<int>>, po2::no_value>>));
+        EXPECT_TRUE(result[0_c]);
+        EXPECT_EQ(*result[0_c], std::vector<int>({-1, -1, -2}));
     }
 }

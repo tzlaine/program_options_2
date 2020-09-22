@@ -13,12 +13,9 @@ add_custom_target(run_examples COMMAND ${CMAKE_CTEST_COMMAND} -VV -C ${CMAKE_CFG
 
 macro(add_sample name)
     add_executable(${name} ${name}.cpp)
-    target_link_libraries(${name} program_options_2)
+    target_link_libraries(${name} program_options_2 ${Boost_LIBRARIES})
     set_property(TARGET ${name} PROPERTY CXX_STANDARD ${CXX_STD})
     add_test(${name} ${CMAKE_CURRENT_BINARY_DIR}/${name})
-    if (clang_on_linux)
-        target_link_libraries(${name} c++)
-    endif ()
 endmacro()
 
 add_sample(hello)

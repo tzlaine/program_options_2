@@ -292,7 +292,15 @@ namespace boost { namespace program_options_2 { namespace detail {
 
     struct parse_option_result
     {
-        enum next_t { match_keep_parsing, no_match_keep_parsing, stop_parsing };
+        enum next_t {
+            match_keep_parsing,
+            no_match_keep_parsing,
+            stop_parsing,
+
+            // In this one case, the current arg is the response file.  That
+            // is, it is not consumed within parse_option().
+            response_file
+        };
 
         explicit operator bool() const { return next != stop_parsing; }
 
@@ -435,6 +443,20 @@ namespace boost { namespace program_options_2 { namespace detail {
                     opts...);
             };
 
+        // Special case: If we just parsed the dashed arg that orecedes a
+        // response file, return immediately, so that the caller can process
+        // the file.
+        if (opt.action == action_kind::response_file && !first->empty()) {
+            if constexpr (!std::is_same_v<
+                              typename Option::validator_type,
+                              no_value>) {
+                validation_result const validation = opt.validator(*first);
+                if (!validation.valid)
+                    handle_validation_error_(validation.error);
+            }
+            return {parse_option_result::response_file};
+        }
+
         int reps = 0;
         parse_option_error error = parse_option_error::none;
         std::basic_string_view<Char> validation_error;
@@ -501,10 +523,16 @@ namespace boost { namespace program_options_2 { namespace detail {
         return retval;
     }
 
-    template<typename Char, typename Args, typename... Options>
-    auto parse_options_into_tuple(
+    template<
+        typename ResultTuple,
+        typename Char,
+        typename Args,
+        typename... Options>
+    void parse_options_into_tuple_impl(
+        ResultTuple & result,
         customizable_strings const & strings,
         Args const & args,
+        bool skip_first,
         std::basic_string_view<Char> program_desc,
         std::basic_ostream<Char> & os,
         bool no_help,
@@ -518,8 +546,6 @@ namespace boost { namespace program_options_2 { namespace detail {
             detail::print_help_and_exit(
                 1, strings, argv0, program_desc, os, no_help, opts...);
         };
-
-        auto result = detail::make_result_tuple(opts...);
 
         using opt_tuple_type = hana::tuple<Options const &...>;
         opt_tuple_type opt_tuple{opts...};
@@ -543,12 +569,54 @@ namespace boost { namespace program_options_2 { namespace detail {
                 opts...);
         };
 
+        auto process_response_file =
+            [&](auto & sv_it) {
+                auto const arg_utf8 = text::as_utf8(*sv_it);
+                std::string arg(arg_utf8.begin(), arg_utf8.end());
+                if (arg.front() == '@')
+                    arg.erase(arg.begin());
+                std::ifstream ifs(arg.c_str());
+                ifs.unsetf(ifs.skipws);
+                detail::parse_options_into_tuple_impl(
+                    result,
+                    strings,
+                    detail::response_file_arg_view(ifs),
+                    false,
+                    program_desc,
+                    os,
+                    no_help,
+                    opts...);
+                ++sv_it;
+            };
+
         using namespace hana::literals;
 
-        auto args_first = args.begin() + 1;
+        auto args_first = args.begin();
+        if (skip_first)
+            ++args_first;
         auto const args_last = args.end();
         int next_positional = 0;
         while (args_first != args_last) {
+            // Special case: an arg starting with @ names a response file.
+            if (!args_first->empty() && args_first->front() == '@') {
+                auto const response_file_opt =
+                    program_options_2::response_file("-d", "Dummy.", strings);
+                validation_result const validation =
+                    response_file_opt.validator(args_first->substr(1));
+                if (!validation.valid) {
+                    detail::handle_validation_error(
+                        strings,
+                        argv0,
+                        program_desc,
+                        os,
+                        no_help,
+                        validation.error,
+                        opts...);
+                }
+                process_response_file(args_first);
+                continue;
+            }
+
             auto const initial_args_first = args_first;
             int positional_index = -1;
             hana::fold(opt_tuple, 0_c, [&](auto i, auto const & opt) {
@@ -564,6 +632,14 @@ namespace boost { namespace program_options_2 { namespace detail {
 
                 auto const parse_result = parse_option_(
                     args_first, args_last, opt, result[i], next_positional);
+
+                // Special case: if we just parsed a response_file opt
+                // successfully, process the file.
+                if (parse_result.next == parse_option_result::response_file) {
+                    process_response_file(args_first);
+                    return i_plus_1;
+                }
+
                 if (!parse_result) {
                     if (parse_result.error ==
                             parse_option_error::cannot_parse_arg ||
@@ -605,7 +681,20 @@ namespace boost { namespace program_options_2 { namespace detail {
 
             return i_plus_1;
         });
+    }
 
+    template<typename Char, typename Args, typename... Options>
+    auto parse_options_into_tuple(
+        customizable_strings const & strings,
+        Args const & args,
+        std::basic_string_view<Char> program_desc,
+        std::basic_ostream<Char> & os,
+        bool no_help,
+        Options... opts)
+    {
+        auto result = detail::make_result_tuple(opts...);
+        detail::parse_options_into_tuple_impl(
+            result, strings, args, true, program_desc, os, no_help, opts...);
         return result;
     }
 

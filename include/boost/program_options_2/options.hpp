@@ -8,6 +8,7 @@
 
 #include <boost/program_options_2/concepts.hpp>
 #include <boost/program_options_2/detail/utility.hpp>
+#include <boost/program_options_2/detail/validation.hpp>
 
 
 namespace boost { namespace program_options_2 {
@@ -300,6 +301,46 @@ namespace boost { namespace program_options_2 {
         // not start with a '-'.  Don't do that.
         BOOST_ASSERT(!detail::positional(names));
         return {names, help_text, detail::action_kind::help, 0};
+    }
+
+    /** TODO */
+    inline auto response_file(
+        std::string_view names,
+        std::string_view help_text =
+            "Load the given response file, and parse the options it contains",
+        customizable_strings const & strings = customizable_strings{})
+    {
+        // Looks like you tried to create a non-positional argument that does
+        // not start with a '-'.  Don't do that.
+        BOOST_ASSERT(!detail::positional(names));
+        auto opt = detail::option<detail::option_kind::argument, void>{
+            names, help_text, detail::action_kind::response_file, 1};
+
+        auto not_found_str = strings.file_not_found;
+        auto not_a_file_str = strings.found_directory_not_file;
+        auto cannot_read_str = strings.cannot_read;
+        std::string scratch;
+        auto f = [not_found_str, not_a_file_str, cannot_read_str, scratch](
+                     auto sv) mutable {
+#if BOOST_PROGRAM_OPTIONS_2_USE_STD_FILESYSTEM
+            namespace fs = std::filesystem;
+#else
+            namespace fs = filesystem;
+#endif
+            fs::path p(sv.begin(), sv.end());
+            detail::error_code ec;
+            auto const status = fs::status(p, ec);
+            if (ec || !fs::exists(status) || status.type() == fs::status_error)
+                return detail::validation_error(not_found_str, sv, scratch);
+            if (fs::is_directory(status))
+                return detail::validation_error(not_a_file_str, sv, scratch);
+            std::ifstream ifs(p.c_str());
+            if (!ifs)
+                return detail::validation_error(cannot_read_str, sv, scratch);
+            return validation_result{};
+        };
+
+        return detail::with_validator(opt, f);
     }
 
 }}

@@ -61,6 +61,7 @@ namespace boost { namespace program_options_2 {
             "error: '{}' is a file, but a directory was expected";
         std::string_view found_directory_not_file =
             "error: '{}' is a directory, but a file was expected";
+        std::string_view cannot_read = "error: cannot open '{}' for reading";
     };
 
     /** TODO */
@@ -79,7 +80,14 @@ namespace boost { namespace program_options_2 {
 
         enum struct required_t { yes, no };
 
-        enum struct action_kind { assign, count, insert, help, version };
+        enum struct action_kind {
+            assign,
+            count,
+            insert,
+            help,
+            version,
+            response_file
+        };
 
         template<
             option_kind Kind,

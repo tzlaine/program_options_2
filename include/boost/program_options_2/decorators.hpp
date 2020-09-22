@@ -9,7 +9,7 @@
 #include <boost/program_options_2/fwd.hpp>
 #include <boost/program_options_2/options.hpp>
 #include <boost/program_options_2/concepts.hpp>
-#include <boost/program_options_2/detail/printing.hpp>
+#include <boost/program_options_2/detail/validation.hpp>
 
 
 namespace boost { namespace program_options_2 {
@@ -104,32 +104,7 @@ namespace boost { namespace program_options_2 {
             opt,
         Validator validator)
     {
-        return {
-            opt.names,
-            opt.help_text,
-            opt.action,
-            opt.args,
-            std::move(opt.default_value),
-            opt.choices,
-            opt.arg_display_name,
-            std::move(validator)};
-    }
-
-    namespace detail {
-        template<typename Char>
-        validation_result validation_error(
-            std::string_view error_str,
-            std::basic_string_view<Char> sv,
-            std::string & scratch)
-        {
-            std::ostringstream oss;
-            auto const utf8_sv = text::as_utf8(sv);
-            scratch.assign(utf8_sv.begin(), utf8_sv.end());
-            detail::print_placeholder_string(
-                oss, error_str, std::basic_string_view<Char>(scratch));
-            scratch = oss.str();
-            return {false, std::string_view(scratch)};
-        }
+        return detail::with_validator(std::move(opt), std::move(validator));
     }
 
     /** TODO */
