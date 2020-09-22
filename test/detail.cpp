@@ -113,3 +113,75 @@ TEST(detail, misc)
             user_strings(), po2::arg_view(2, argv)));
     }
 }
+
+TEST(detail, response_file_arg_view_)
+{
+    {
+        auto const filename = "response_file_for_view_test_0";
+        std::ofstream ofs(filename);
+        ofs << "-a";
+        ofs.close();
+
+        std::ifstream ifs(filename);
+        ifs.unsetf(ifs.skipws);
+        po2::detail::response_file_arg_view view(ifs);
+        std::vector<std::string> result(view.begin(), view.end());
+        EXPECT_EQ(result.size(), 1u);
+        EXPECT_EQ(result[0], "-a");
+    }
+
+    {
+        auto const filename = "response_file_for_view_test_0";
+        std::ofstream ofs(filename);
+        ofs << "-a -1  foo\nbar\tbaz";
+        ofs.close();
+
+        std::ifstream ifs(filename);
+        ifs.unsetf(ifs.skipws);
+        po2::detail::response_file_arg_view view(ifs);
+        std::vector<std::string> result(view.begin(), view.end());
+        EXPECT_EQ(result.size(), 5u);
+        EXPECT_EQ(result[0], "-a");
+        EXPECT_EQ(result[1], "-1");
+        EXPECT_EQ(result[2], "foo");
+        EXPECT_EQ(result[3], "bar");
+        EXPECT_EQ(result[4], "baz");
+    }
+
+    {
+        auto const filename = "response_file_for_view_test_0";
+        std::ofstream ofs(filename);
+        ofs << "  -a -1  foo\nbar\tbaz  \n";
+        ofs.close();
+
+        std::ifstream ifs(filename);
+        ifs.unsetf(ifs.skipws);
+        po2::detail::response_file_arg_view view(ifs);
+        std::vector<std::string> result(view.begin(), view.end());
+        EXPECT_EQ(result.size(), 5u);
+        EXPECT_EQ(result[0], "-a");
+        EXPECT_EQ(result[1], "-1");
+        EXPECT_EQ(result[2], "foo");
+        EXPECT_EQ(result[3], "bar");
+        EXPECT_EQ(result[4], "baz");
+    }
+
+    {
+        auto const filename = "response_file_for_view_test_0";
+        std::ofstream ofs(filename);
+        ofs << "  -a -1\\  " << std::quoted("\"foo\"") << " \n   "
+            << std::quoted("\"bar\\\"") << " \t\"baz \"  \n";
+        ofs.close();
+
+        std::ifstream ifs(filename);
+        ifs.unsetf(ifs.skipws);
+        po2::detail::response_file_arg_view view(ifs);
+        std::vector<std::string> result(view.begin(), view.end());
+        EXPECT_EQ(result.size(), 5u);
+        EXPECT_EQ(result[0], "-a");
+        EXPECT_EQ(result[1], "-1\\");
+        EXPECT_EQ(result[2], "\"foo\"");
+        EXPECT_EQ(result[3], "\"bar\\\"");
+        EXPECT_EQ(result[4], "baz ");
+    }
+}

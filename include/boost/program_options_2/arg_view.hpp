@@ -12,6 +12,7 @@
 #include <boost/stl_interfaces/iterator_interface.hpp>
 #include <boost/stl_interfaces/view_interface.hpp>
 
+#include <algorithm>
 #include <iterator>
 
 #if defined(_MSC_VER)
@@ -59,8 +60,6 @@ namespace boost { namespace program_options_2 {
         iterator last_;
     };
 
-#if defined(BOOST_PROGRAM_OPTIONS_2_DOXYGEN) || defined(_MSC_VER)
-
     namespace detail {
         template<typename Char>
         struct string_view_arrow_result
@@ -78,6 +77,8 @@ namespace boost { namespace program_options_2 {
             string_view value_;
         };
     }
+
+#if defined(BOOST_PROGRAM_OPTIONS_2_DOXYGEN) || defined(_MSC_VER)
 
     /** TODO */
     template<typename Char>
@@ -105,7 +106,7 @@ namespace boost { namespace program_options_2 {
             text::null_sentinel last;
 
             ptr_ = std::ranges::find_if(
-                ptr_, last, [](unsigned char c) { !std::isspace(c); });
+                ptr_, last, [](unsigned char c) { return !std::isspace(c); });
 
             if (ptr_ == last)
                 return *this;
@@ -180,6 +181,124 @@ namespace boost { namespace program_options_2 {
     };
 
 #endif
+
+    namespace detail {
+        template<typename IStreamIter>
+        struct response_file_arg_iter
+            : stl_interfaces::proxy_iterator_interface<
+                  response_file_arg_iter<IStreamIter>,
+                  std::input_iterator_tag,
+                  std::string_view,
+                  std::string_view,
+                  detail::string_view_arrow_result<char>>
+        {
+            response_file_arg_iter() = default;
+
+            explicit response_file_arg_iter(IStreamIter it) : it_(it)
+            {
+                operator++();
+            }
+
+            std::string_view operator*() const { return current_; }
+
+            response_file_arg_iter & operator++()
+            {
+                current_.clear();
+
+                IStreamIter last;
+                auto skip_ws = [&] {
+                    it_ = std::ranges::find_if(it_, last, [&](unsigned char c) {
+                        return !std::isspace(c);
+                    });
+                };
+                auto final_business = [&] {
+                    skip_ws();
+                    if (2u <= current_.size() && current_.front() == '"' &&
+                        current_.back() == '"') {
+                        current_ = std::string_view(
+                            current_.data() + 1, current_.size() - 2);
+                    }
+                    if (it_ == last)
+                        just_before_end_ = true;
+                };
+
+                skip_ws();
+                if (it_ == last) {
+                    just_before_end_ = false;
+                    return *this;
+                }
+
+                bool in_quotes = false;
+
+                while (it_ != last) {
+                    char const c = *it_++;
+                    if (c == '"') { // unescaped quote
+                        current_ += c;
+                        in_quotes = !in_quotes;
+                        if (!in_quotes) {
+                            final_business();
+                            return *this;
+                        }
+                    } else if (in_quotes && c == '\\') {
+                        if (it_ == last) {
+                            current_ += c;
+                        } else {
+                            char const next_c = *it_++;
+                            if (next_c != '\\' && next_c != '"')
+                                current_ += c;
+                            current_ += next_c;
+                        }
+                    } else if (std::isspace((unsigned char)c) && !in_quotes) {
+                        final_business();
+                        return *this;
+                    } else {
+                        current_ += c;
+                    }
+                }
+
+                final_business();
+                return *this;
+            }
+
+            friend bool operator==(
+                response_file_arg_iter lhs, response_file_arg_iter rhs) noexcept
+            {
+                return !lhs.just_before_end_ && !rhs.just_before_end_ &&
+                       lhs.it_ == rhs.it_;
+            }
+
+            using base_type = stl_interfaces::proxy_iterator_interface<
+                response_file_arg_iter<IStreamIter>,
+                std::input_iterator_tag,
+                std::string_view,
+                std::string_view,
+                string_view_arrow_result<char>>;
+            using base_type::operator++;
+
+        private:
+            IStreamIter it_;
+            std::string current_;
+            bool just_before_end_ = false;
+        };
+
+        struct response_file_arg_view
+            : stl_interfaces::view_interface<response_file_arg_view>
+        {
+            using iterator =
+                response_file_arg_iter<std::istream_iterator<char>>;
+
+            response_file_arg_view() = default;
+            response_file_arg_view(std::istream & is) :
+                first_(std::istream_iterator<char>(is))
+            {}
+
+            iterator begin() const { return first_; }
+            iterator end() const { return {}; }
+
+        private:
+            iterator first_;
+        };
+    }
 
 }}
 

@@ -1354,3 +1354,27 @@ TEST(parse_command_line, numeric_named_argument)
         EXPECT_TRUE(result[1_c]);
     }
 }
+
+
+TEST(parse_command_line, response_files)
+{
+    {
+        std::ofstream ofs("simple_response_file");
+        ofs << " -a\n-1 \n";
+    }
+
+    {
+        std::ostringstream os;
+        std::vector<std::string_view> args{
+            "prog", "-a", "-1", "-2", "@simple_response_file"};
+        auto result = po2::parse_command_line(
+            args,
+            "A program.",
+            os,
+            po2::argument<std::vector<int>>("-a", "A.", po2::one_or_more));
+        BOOST_MPL_ASSERT(
+            (is_same<decltype(result), tuple<opt<std::vector<int>>>>));
+        EXPECT_TRUE(result[0_c]);
+        EXPECT_EQ(*result[0_c], std::vector<int>({-1, -2, -1}));
+    }
+}
