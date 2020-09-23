@@ -598,7 +598,8 @@ namespace boost { namespace program_options_2 { namespace detail {
         int next_positional = 0;
         while (args_first != args_last) {
             // Special case: an arg starting with @ names a response file.
-            if (!args_first->empty() && args_first->front() == '@') {
+            if (!strings.response_file_description.empty() &&
+                !args_first->empty() && args_first->front() == '@') {
                 auto const response_file_opt =
                     program_options_2::response_file("-d", "Dummy.", strings);
                 validation_result const validation =

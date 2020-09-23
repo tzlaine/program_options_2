@@ -288,6 +288,9 @@ optional arguments:
   -f, --foo         Print this foo message and exit
   --non-positional  A non-positional argument.
   --non-pos-2       A second non-positional argument.
+
+response files:
+  Write '@file' to load a file containing command line arguments.
 )");
     }
 

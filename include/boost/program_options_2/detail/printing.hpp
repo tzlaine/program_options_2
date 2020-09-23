@@ -22,6 +22,12 @@
 
 namespace boost { namespace program_options_2 { namespace detail {
 
+    template<typename... Options>
+    bool no_response_file_option(Options const &... opts)
+    {
+        return ((opts.action != detail::action_kind::response_file) && ...);
+    }
+
     template<typename Char>
     std::basic_string_view<Char>
     program_name(std::basic_string_view<Char> argv0)
@@ -362,6 +368,11 @@ namespace boost { namespace program_options_2 { namespace detail {
         if (!printed_arguments.empty()) {
             os << '\n' << text::as_utf8(strings.optional_section_text) << '\n';
             print_options_and_descs(os, printed_arguments, description_column);
+        }
+
+        if (!strings.response_file_description.empty() &&
+            detail::no_response_file_option(opts...)) {
+            os << '\n' << text::as_utf8(strings.response_file_description) << '\n';
         }
     }
 

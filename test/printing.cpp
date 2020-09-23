@@ -452,6 +452,9 @@ optional arguments:
   -h, --help            Print this help message and exit
   --non-positional      A non-positional argument.
   --non-pos-2           A second non-positional argument.
+
+response files:
+  Write '@file' to load a file containing command line arguments.
 )");
     }
 
@@ -495,6 +498,9 @@ optional arguments:
   --non-pos-2           A second non-positional argument.  This one has a 
                         particularly long description, just so we can see what 
                         the column-wrapping looks like.
+
+response files:
+  Write '@file' to load a file containing command line arguments.
 )");
     }
 
@@ -548,6 +554,101 @@ OPTIONAL arguments:
   --non-pos-2           A second non-positional argument.  This one has a 
                         particularly long description, just so we can see what 
                         the column-wrapping looks like.
+
+response files:
+  Write '@file' to load a file containing command line arguments.
+)");
+    }
+}
+
+TEST(printing, response_file)
+{
+    {
+        std::ostringstream os;
+        try {
+            std::vector<std::string_view> args = {"prog"};
+            po2::parse_command_line(
+                args,
+                "A program.",
+                os,
+                po2::response_file("--config"),
+                po2::positional("positional", "A positional argument."));
+        } catch (int) {
+        }
+        EXPECT_EQ(
+            os.str(),
+            R"(error: one or more missing positional arguments, starting with 'POSITIONAL'
+
+usage:  prog [-h] [--config CONFIG] POSITIONAL
+
+A program.
+
+positional arguments:
+  positional  A positional argument.
+
+optional arguments:
+  -h, --help  Print this help message and exit
+  --config    Load the given response file, and parse the options it contains; 
+              '@file' works as well
+)");
+    }
+    {
+        std::ostringstream os;
+        try {
+            std::vector<std::string_view> args = {"prog"};
+            po2::parse_command_line(
+                args,
+                "A program.",
+                os,
+                po2::positional("positional", "A positional argument."));
+        } catch (int) {
+        }
+        EXPECT_EQ(
+            os.str(),
+            R"(error: one or more missing positional arguments, starting with 'POSITIONAL'
+
+usage:  prog [-h] POSITIONAL
+
+A program.
+
+positional arguments:
+  positional  A positional argument.
+
+optional arguments:
+  -h, --help  Print this help message and exit
+
+response files:
+  Write '@file' to load a file containing command line arguments.
+)");
+    }
+    {
+        po2::customizable_strings strings;
+        strings.response_file_description = "";
+
+        std::ostringstream os;
+        try {
+            std::vector<std::string_view> args = {"prog"};
+            po2::parse_command_line(
+                args,
+                "A program.",
+                os,
+                strings,
+                po2::positional("positional", "A positional argument."));
+        } catch (int) {
+        }
+        EXPECT_EQ(
+            os.str(),
+            R"(error: one or more missing positional arguments, starting with 'POSITIONAL'
+
+usage:  prog [-h] POSITIONAL
+
+A program.
+
+positional arguments:
+  positional  A positional argument.
+
+optional arguments:
+  -h, --help  Print this help message and exit
 )");
     }
 }

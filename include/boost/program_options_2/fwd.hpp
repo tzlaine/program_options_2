@@ -34,7 +34,7 @@ namespace boost { namespace program_options_2 {
     /** TODO */
     inline constexpr int one_or_more = -3;
 
-    /** TODO help_text_customizable_strings() returns one of these.... */
+    /** TODO */
     struct customizable_strings
     {
         std::string_view usage_text = "usage: ";
@@ -42,6 +42,9 @@ namespace boost { namespace program_options_2 {
         std::string_view optional_section_text = "optional arguments:";
         std::string_view help_names = "-h,--help";
         std::string_view help_description = "Print this help message and exit";
+        std::string_view response_file_description =
+            "response files:\n  Write '@file' to load a file containing "
+            "command line arguments.";
 
         std::array<std::string_view, 6> parse_errors = {
             {"error: unrecognized argument '{}'",

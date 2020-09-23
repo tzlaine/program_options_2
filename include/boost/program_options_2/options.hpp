@@ -307,7 +307,8 @@ namespace boost { namespace program_options_2 {
     inline auto response_file(
         std::string_view names,
         std::string_view help_text =
-            "Load the given response file, and parse the options it contains",
+            "Load the given response file, and parse the options it contains; "
+            "'@file' works as well",
         customizable_strings const & strings = customizable_strings{})
     {
         // Looks like you tried to create a non-positional argument that does

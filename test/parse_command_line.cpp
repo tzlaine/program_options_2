@@ -209,6 +209,9 @@ A program.
 optional arguments:
   -h, --help  Print this help message and exit
   -a          Arg.
+
+response files:
+  Write '@file' to load a file containing command line arguments.
 )");
     }
 
@@ -233,6 +236,9 @@ A program.
 optional arguments:
   -h, --help  Print this help message and exit
   -a          Arg.
+
+response files:
+  Write '@file' to load a file containing command line arguments.
 )");
     }
 
@@ -257,6 +263,9 @@ A program.
 optional arguments:
   -h, --help  Print this help message and exit
   -a          Arg.
+
+response files:
+  Write '@file' to load a file containing command line arguments.
 )");
     }
 
@@ -281,6 +290,9 @@ A program.
 optional arguments:
   -h, --help  Print this help message and exit
   -a          Arg.
+
+response files:
+  Write '@file' to load a file containing command line arguments.
 )");
     }
 
@@ -305,6 +317,9 @@ A program.
 optional arguments:
   -h, --help  Print this help message and exit
   -a          Arg.
+
+response files:
+  Write '@file' to load a file containing command line arguments.
 )");
     }
 
@@ -331,6 +346,9 @@ positional arguments:
 
 optional arguments:
   -h, --help  Print this help message and exit
+
+response files:
+  Write '@file' to load a file containing command line arguments.
 )");
     }
 }
@@ -650,6 +668,9 @@ A program.
 optional arguments:
   -h, --help  Print this help message and exit
   -a          Arg.
+
+response files:
+  Write '@file' to load a file containing command line arguments.
 )");
     }
 
@@ -675,6 +696,9 @@ A program.
 optional arguments:
   -h, --help  Print this help message and exit
   -a          Arg.
+
+response files:
+  Write '@file' to load a file containing command line arguments.
 )");
     }
 
@@ -697,6 +721,9 @@ A program.
 optional arguments:
   -h, --help  Print this help message and exit
   -a          Arg.
+
+response files:
+  Write '@file' to load a file containing command line arguments.
 )");
     }
 
@@ -721,6 +748,9 @@ A program.
 optional arguments:
   -h, --help  Print this help message and exit
   -a          Arg.
+
+response files:
+  Write '@file' to load a file containing command line arguments.
 )");
     }
 #if defined(UNIX_BUILD)
@@ -744,6 +774,9 @@ A program.
 optional arguments:
   -h, --help  Print this help message and exit
   -a          Arg.
+
+response files:
+  Write '@file' to load a file containing command line arguments.
 )");
     }
     {
@@ -766,6 +799,9 @@ A program.
 optional arguments:
   -h, --help  Print this help message and exit
   -a          Arg.
+
+response files:
+  Write '@file' to load a file containing command line arguments.
 )");
     }
     {
@@ -788,6 +824,9 @@ A program.
 optional arguments:
   -h, --help  Print this help message and exit
   -a          Arg.
+
+response files:
+  Write '@file' to load a file containing command line arguments.
 )");
     }
 #endif
@@ -810,6 +849,9 @@ A program.
 optional arguments:
   -h, --help  Print this help message and exit
   -a          Arg.
+
+response files:
+  Write '@file' to load a file containing command line arguments.
 )");
     }
 }
@@ -1035,6 +1077,9 @@ optional arguments:
   -d, --dolemite    *The* Dolemite.
   -z, --zero-plus   None is fine; so is more.
   -o, --one-plus    One is fine; so is more.
+
+response files:
+  Write '@file' to load a file containing command line arguments.
 )");
     }
 }
@@ -1428,5 +1473,35 @@ TEST(parse_command_line, response_files)
                           tuple<opt<std::vector<int>>, po2::no_value>>));
         EXPECT_TRUE(result[0_c]);
         EXPECT_EQ(*result[0_c], std::vector<int>({-1, -1, -2}));
+    }
+
+    {
+        po2::customizable_strings strings;
+        strings.response_file_description = "";
+
+        std::ostringstream os;
+        try {
+            std::vector<std::string_view> args{
+                "prog", "@simple_response_file", "-a", "-1", "-2"};
+            auto result = po2::parse_command_line(
+                args,
+                "A program.",
+                os,
+                strings,
+                po2::argument<std::vector<int>>("-a", "A.", po2::one_or_more));
+            BOOST_MPL_ASSERT(
+                (is_same<decltype(result), tuple<opt<std::vector<int>>>>));
+        } catch (int) {
+        }
+        EXPECT_EQ(os.str(), R"(error: unrecognized argument '@simple_response_file'
+
+usage:  prog [-h] [-a A ...]
+
+A program.
+
+optional arguments:
+  -h, --help  Print this help message and exit
+  -a          A.
+)");
     }
 }
