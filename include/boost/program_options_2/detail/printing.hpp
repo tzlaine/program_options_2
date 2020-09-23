@@ -185,14 +185,14 @@ namespace boost { namespace program_options_2 { namespace detail {
         } else if (detail::positional(opt)) {
             detail::print_args(oss, opt.names, opt, false);
         } else if (opt.action == action_kind::count) {
-            auto const shortest_name = detail::first_shortest_name(opt.names);
+            auto const shortest_name = detail::first_short_name(opt.names);
             auto const trimmed_name =
                 detail::trim_leading_dashes(shortest_name);
             char const * close = "...]";
             oss << text::as_utf8(shortest_name) << '['
                 << text::as_utf8(trimmed_name) << text::as_utf8(close);
         } else {
-            auto const shortest_name = detail::first_shortest_name(opt.names);
+            auto const shortest_name = detail::first_short_name(opt.names);
             oss << text::as_utf8(shortest_name);
             detail::print_args(
                 oss, detail::trim_leading_dashes(shortest_name), opt, true);
@@ -226,8 +226,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         std::basic_string_view<Char> prog_desc,
         Options const &... opts)
     {
-        using opt_tuple_type = hana::tuple<Options const &...>;
-        opt_tuple_type opt_tuple{opts...};
+        auto const opt_tuple = detail::make_opt_tuple(opts...);
 
         os << text::as_utf8(strings.usage_text) << ' ' << text::as_utf8(prog);
 
@@ -334,8 +333,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         Stream & os,
         Options const &... opts)
     {
-        using opt_tuple_type = hana::tuple<Options const &...>;
-        opt_tuple_type opt_tuple{opts...};
+        auto const opt_tuple = detail::make_opt_tuple(opts...);
 
         int max_option_length = 0;
         std::vector<printed_names_and_desc> printed_positionals;

@@ -49,8 +49,7 @@ namespace boost { namespace program_options_2 {
         template<typename... Options>
         void check_options(Options const &... opts)
         {
-            using opt_tuple_type = hana::tuple<Options const &...>;
-            opt_tuple_type opt_tuple{opts...};
+            auto const opt_tuple = detail::make_opt_tuple(opts...);
 
             bool already_saw_remainder = false;
             hana::for_each(opt_tuple, [&](auto const & opt) {
@@ -261,8 +260,8 @@ namespace boost { namespace program_options_2 {
         // For a counted flag, the first short name in names must be of the
         // form "-<name>", where "<name>" is a single character.
         BOOST_ASSERT(
-            detail::short_(detail::first_shortest_name(names)) &&
-            detail::first_shortest_name(names).size() == 2u);
+            detail::short_(detail::first_short_name(names)) &&
+            detail::first_short_name(names).size() == 2u);
         return {names, help_text, detail::action_kind::count, 0};
     }
 

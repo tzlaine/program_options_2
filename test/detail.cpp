@@ -61,12 +61,12 @@ po2::customizable_strings user_strings()
 
 TEST(detail, misc)
 {
-    // first_shortest_name
+    // first_short_name
     {
-        EXPECT_EQ(po2::detail::first_shortest_name(",foo,bar, baz,"), " baz");
+        EXPECT_EQ(po2::detail::first_short_name(",foo,bar, baz,"), "foo");
     }
     {
-        EXPECT_EQ(po2::detail::first_shortest_name("--bar,-f,-b"), "-f");
+        EXPECT_EQ(po2::detail::first_short_name("--bar,-f,-b"), "-f");
     }
 
     // valid_nonpositional_names

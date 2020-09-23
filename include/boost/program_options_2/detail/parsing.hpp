@@ -48,8 +48,7 @@ namespace boost { namespace program_options_2 { namespace detail {
     template<typename... Options>
     auto make_result_tuple(Options const &... opts)
     {
-        using opt_tuple_type = hana::tuple<Options const &...>;
-        opt_tuple_type opt_tuple{opts...};
+        auto const opt_tuple = detail::make_opt_tuple(opts...);
         return hana::transform(opt_tuple, [](auto const & opt) {
             using opt_type = std::remove_cvref_t<decltype(opt)>;
             constexpr bool required_option =
@@ -358,7 +357,7 @@ namespace boost { namespace program_options_2 { namespace detail {
             if (opt.action == action_kind::count) {
                 // Special case: parse the repetitions of a counted flag
                 // differently.
-                auto short_flag = detail::first_shortest_name(opt.names);
+                auto short_flag = detail::first_short_name(opt.names);
                 BOOST_ASSERT(short_flag.size() == 2u);
                 if (!first->empty() && first->front() == '-') {
                     int const count = std::count(
@@ -547,8 +546,7 @@ namespace boost { namespace program_options_2 { namespace detail {
                 1, strings, argv0, program_desc, os, no_help, opts...);
         };
 
-        using opt_tuple_type = hana::tuple<Options const &...>;
-        opt_tuple_type opt_tuple{opts...};
+        auto const opt_tuple = detail::make_opt_tuple(opts...);
 
         auto parse_option_ = [&](auto & first,
                                  auto last,

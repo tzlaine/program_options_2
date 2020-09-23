@@ -6,7 +6,7 @@
 #ifndef BOOST_PROGRAM_OPTIONS_2_DETAIL_UTILITY_HPP
 #define BOOST_PROGRAM_OPTIONS_2_DETAIL_UTILITY_HPP
 
-#include <boost/program_options_2/config.hpp>
+#include <boost/program_options_2/fwd.hpp>
 
 #include <boost/stl_interfaces/iterator_interface.hpp>
 #include <boost/stl_interfaces/view_interface.hpp>
@@ -153,15 +153,29 @@ namespace boost { namespace program_options_2 { namespace detail {
         iterator last_;
     };
 
-    inline std::string_view first_shortest_name(std::string_view name)
+    template<typename Pred>
+    std::string_view first_name_prefer(std::string_view names, Pred pred)
     {
         std::string_view prev_name;
-        for (auto sv : names_view(name)) {
-            if (detail::short_(sv))
+        for (auto sv : names_view(names)) {
+            if (pred(sv))
                 return sv;
-            prev_name = sv;
+            if (prev_name.empty())
+                prev_name = sv;
         }
         return prev_name;
+    }
+
+    inline std::string_view first_short_name(std::string_view names)
+    {
+        return detail::first_name_prefer(
+            names, [](std::string_view sv) { return detail::short_(sv); });
+    }
+
+    inline std::string_view first_long_name(std::string_view names)
+    {
+        return detail::first_name_prefer(
+            names, [](std::string_view sv) { return detail::long_(sv); });
     }
 
     inline std::string_view trim_leading_dashes(std::string_view name)
@@ -172,6 +186,13 @@ namespace boost { namespace program_options_2 { namespace detail {
             ++first;
         }
         return {first, std::size_t(last - first)};
+    }
+
+    template<typename... Options>
+    auto make_opt_tuple(Options const &... opts)
+    {
+        using opt_tuple_type = hana::tuple<Options const &...>;
+        return opt_tuple_type{opts...};
     }
 
 }}}
