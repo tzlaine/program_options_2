@@ -394,7 +394,7 @@ namespace boost { namespace program_options_2 { namespace detail {
     }
 
     template<typename Char, typename... Options>
-    auto print_help_and_exit(
+    void print_help_and_exit(
         int exit_code,
         customizable_strings const & strings,
         std::basic_string_view<Char> argv0,
