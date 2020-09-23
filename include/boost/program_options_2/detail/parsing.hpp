@@ -53,6 +53,10 @@ namespace boost { namespace program_options_2 { namespace detail {
         return !std::is_same_v<typename Option::value_type, no_value>;
     }
 
+    template<typename Option, typename T = typename Option::type>
+    using result_map_element_t =
+        std::conditional_t<std::is_same_v<T, void>, no_value, T>;
+
     template<typename Option>
     auto make_result_tuple_element()
     {
@@ -150,12 +154,13 @@ namespace boost { namespace program_options_2 { namespace detail {
         }
     }
 
-    template<typename T, typename U>
+    template<bool UnwrapOptionals = true, typename T, typename U>
     void assign_or_insert_impl(T & t, U & u)
     {
         if constexpr (std::is_same_v<std::remove_cv_t<T>, no_value>) {
             // no-op
-        } else if constexpr (is_optional<std::remove_cv_t<T>>::value) {
+        } else if constexpr (
+            UnwrapOptionals && is_optional<std::remove_cv_t<T>>::value) {
             using value_type = typename T::value_type;
             if (!t)
                 t = value_type{};
@@ -172,21 +177,39 @@ namespace boost { namespace program_options_2 { namespace detail {
         }
     }
 
+    template<typename T>
+    struct is_erased_type
+        : std::integral_constant<
+              bool,
+              is_detected<type_eraser, std::remove_cv_t<T>>::value>
+    {};
     template<typename Option, typename T>
     struct inserting_into_any
         : std::integral_constant<
               bool,
-              is_detected<type_eraser, std::remove_cv_t<T>>::value &&
+              is_erased_type<T>::value &&
                   !std::is_same_v<typename Option::type, std::remove_cv_t<T>>>
     {};
 
     template<typename Option, typename T, typename U>
     void assign_or_insert(T & t, U && u)
     {
+        // The calls below to assign_or_insert_impl<false>() use false because
+        // assign_or_insert() should only unwrap the top-level optionality,
+        // whether that comes in the form of a std::optional<> or an erased
+        // type.
         if constexpr (inserting_into_any<Option, T>::value) {
-            auto temp = detail::make_result_tuple_element<Option>();
-            detail::assign_or_insert_impl(temp, u);
-            t = temp;
+            using stored_type = result_map_element_t<Option>;
+            if (t.empty()) {
+                stored_type temp;
+                detail::assign_or_insert_impl<false>(temp, u);
+                t = temp;
+            } else {
+                // TODO: This cast is not generic!  Maybe we need CPOs for
+                // empty and cast, implemented via tag_invoke().
+                detail::assign_or_insert_impl<false>(
+                    boost::any_cast<stored_type &>(t), u);
+            }
         } else {
             detail::assign_or_insert_impl(t, u);
         }
@@ -769,6 +792,15 @@ namespace boost { namespace program_options_2 { namespace detail {
             fail(parse_option_error::missing_positional, oss.str());
         }
 
+        auto empty = [](auto const & result_i) {
+            using type = std::remove_cvref_t<decltype(result_i)>;
+            if constexpr (is_erased_type<type>::value) {
+                return result_i.empty();
+            } else {
+                return !result_i;
+            }
+        };
+
         hana::fold(opt_tuple, 0_c, [&](auto i, auto const & opt) {
             auto const i_plus_1 = hana::llong_c<decltype(i)::value + 1>;
             using opt_type = std::remove_cvref_t<decltype(opt)>;
@@ -777,7 +809,7 @@ namespace boost { namespace program_options_2 { namespace detail {
             if constexpr (
                 !opt_type::required && detail::has_default<opt_type>() &&
                 !std::is_same_v<result_type, no_value>) {
-                if (!result_i) {
+                if (empty(result_i)) {
                     detail::assign_or_insert<opt_type>(
                         result_i, opt.default_value);
                 }
@@ -829,9 +861,9 @@ namespace boost { namespace program_options_2 { namespace detail {
         bool no_help,
         Options const &... opts)
     {
-        return detail::parse_options_into(
+        auto const retval = detail::parse_options_into(
             [&](auto const & opt, auto i) -> decltype(auto) {
-                return result[program_options_2::storage_name(opt.names)];
+                return result[program_options_2::storage_name(opt)];
             },
             strings,
             deserializing,
@@ -841,6 +873,19 @@ namespace boost { namespace program_options_2 { namespace detail {
             os,
             no_help,
             opts...);
+        auto it = result.begin();
+        auto prev_it = it;
+        auto const last = result.end();
+        while (it != last) {
+            if (it->second.empty()) {
+                prev_it = it;
+                ++it;
+                result.erase(prev_it);
+            } else {
+                ++it;
+            }
+        }
+        return retval;
     }
 
     template<

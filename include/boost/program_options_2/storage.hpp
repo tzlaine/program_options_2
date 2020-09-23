@@ -130,7 +130,7 @@ namespace boost { namespace program_options_2 {
 
             auto const name = program_options_2::storage_name(opt);
             auto it = m.find(name);
-            if (it == m.end())
+            if (it == m.end() || it->second.empty())
                 return;
 
             type const * value_ptr =

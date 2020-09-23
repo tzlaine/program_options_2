@@ -73,6 +73,17 @@ TEST(parse_command_line, api)
         BOOST_MPL_ASSERT((is_same<decltype(result), tuple<std::string_view>>));
         EXPECT_EQ(result[0_c], "jj");
     }
+    { // TODO: Other map overloads
+        std::ostringstream os;
+        po2::options_map result; // TODO: Test with custom map types.
+        po2::parse_command_line(
+            po2::arg_view(argc, argv),
+            result,
+            "A program.",
+            os,
+            po2::positional("pos", "Positional."));
+        EXPECT_EQ(boost::any_cast<std::string_view>(result["pos"]), "jj");
+    }
     {
         std::ostringstream os;
         auto const arg_view = po2::arg_view(argc, argv);
@@ -93,6 +104,17 @@ TEST(parse_command_line, api)
         BOOST_MPL_ASSERT((is_same<decltype(result), tuple<std::wstring_view>>));
         EXPECT_EQ(result[0_c], L"jj");
     }
+    {
+        std::wostringstream os;
+        po2::options_map result; // TODO: Test with custom map types.
+        po2::parse_command_line(
+            po2::arg_view(wargc, wargv),
+            result,
+            "A program.",
+            os,
+            po2::positional("pos", "Positional."));
+        EXPECT_EQ(boost::any_cast<std::wstring_view>(result["pos"]), "jj");
+    }
 #endif
 
     // arg-view, with user strings
@@ -106,6 +128,18 @@ TEST(parse_command_line, api)
             po2::positional("pos", "Positional."));
         BOOST_MPL_ASSERT((is_same<decltype(result), tuple<std::string_view>>));
         EXPECT_EQ(result[0_c], "jj");
+    }
+    {
+        std::ostringstream os;
+        po2::options_map result;
+        po2::parse_command_line(
+            po2::arg_view(argc, argv),
+            result,
+            "A program.",
+            os,
+            user_strings(),
+            po2::positional("pos", "Positional."));
+        EXPECT_EQ(boost::any_cast<std::string_view>(result["pos"]), "jj");
     }
     {
         std::ostringstream os;
@@ -132,6 +166,18 @@ TEST(parse_command_line, api)
         BOOST_MPL_ASSERT((is_same<decltype(result), tuple<std::wstring_view>>));
         EXPECT_EQ(result[0_c], L"jj");
     }
+    {
+        std::wostringstream os;
+        po2::options_map result;
+        po2::parse_command_line(
+            po2::arg_view(wargc, wargv),
+            result,
+            "A program.",
+            os,
+            user_strings(),
+            po2::positional("pos", "Positional."));
+        EXPECT_EQ(boost::any_cast<std::wstring_view>(result["pos"]), "jj");
+    }
 #endif
 
     // argc/argv, no user strings
@@ -146,6 +192,18 @@ TEST(parse_command_line, api)
         BOOST_MPL_ASSERT((is_same<decltype(result), tuple<std::string_view>>));
         EXPECT_EQ(result[0_c], "jj");
     }
+    {
+        std::ostringstream os;
+        po2::options_map result;
+        po2::parse_command_line(
+            argc,
+            argv,
+            result,
+            "A program.",
+            os,
+            po2::positional("pos", "Positional."));
+        EXPECT_EQ(boost::any_cast<std::string_view>(result["pos"]), "jj");
+    }
 #if defined(_MSC_VER)
     {
         std::wostringstream os;
@@ -157,6 +215,18 @@ TEST(parse_command_line, api)
             po2::positional("pos", "Positional."));
         BOOST_MPL_ASSERT((is_same<decltype(result), tuple<std::wstring_view>>));
         EXPECT_EQ(result[0_c], L"jj");
+    }
+    {
+        std::wostringstream os;
+        po2::options_map result;
+        po2::parse_command_line(
+            wargc,
+            wargv,
+            result,
+            "A program.",
+            os,
+            po2::positional("pos", "Positional."));
+        EXPECT_EQ(boost::any_cast<std::wstring_view>(result["pos"]), "jj");
     }
 #endif
 
@@ -173,6 +243,19 @@ TEST(parse_command_line, api)
         BOOST_MPL_ASSERT((is_same<decltype(result), tuple<std::string_view>>));
         EXPECT_EQ(result[0_c], "jj");
     }
+    {
+        std::ostringstream os;
+        po2::options_map result;
+        po2::parse_command_line(
+            argc,
+            argv,
+            result,
+            "A program.",
+            os,
+            user_strings(),
+            po2::positional("pos", "Positional."));
+        EXPECT_EQ(boost::any_cast<std::string_view>(result["pos"]), "jj");
+    }
 #if defined(_MSC_VER)
     {
         std::wostringstream os;
@@ -185,6 +268,19 @@ TEST(parse_command_line, api)
             po2::positional("pos", "Positional."));
         BOOST_MPL_ASSERT((is_same<decltype(result), tuple<std::wstring_view>>));
         EXPECT_EQ(result[0_c], L"jj");
+    }
+    {
+        std::wostringstream os;
+        po2::options_map result;
+        po2::parse_command_line(
+            wargc,
+            wargv,
+            result,
+            "A program.",
+            os,
+            user_strings(),
+            po2::positional("pos", "Positional."));
+        EXPECT_EQ(boost::any_cast<std::wstring_view>(result["pos"]), "jj");
     }
 #endif
 }
@@ -889,7 +985,7 @@ response files:
                 choice2),                                                      \
             choice2)
 
-TEST(parse_command_line, arguments)
+TEST(parse_command_line, arguments_tuple)
 {
     {
         std::ostringstream os;
@@ -1084,6 +1180,174 @@ response files:
     }
 }
 
+TEST(parse_command_line, arguments_map)
+{
+    {
+        std::ostringstream os;
+        std::vector<std::string_view> args{
+            "prog",
+            "-a",
+            "55",
+            "--bobcat",
+            "66",
+            "-o",
+            "2",
+            "-z",
+            "2",
+            "-c",
+            "77",
+            "88",
+            "--dolemite",
+            "5"};
+        po2::options_map result;
+        po2::parse_command_line(
+            args, result, "A program.", os, ARGUMENTS(int, 4, 5, 6));
+        EXPECT_EQ(result.size(), 6u);
+        EXPECT_EQ(boost::any_cast<int>(result["abacus"]), 55);
+        EXPECT_EQ(*boost::any_cast<std::optional<int>>(result["bobcat"]), 66);
+        EXPECT_EQ(
+            boost::any_cast<std::vector<int>>(result["cataphract"]),
+            std::vector<int>({77, 88}));
+        EXPECT_EQ(boost::any_cast<int>(result["dolemite"]), 5);
+        EXPECT_EQ(
+            boost::any_cast<std::vector<int>>(result["zero-plus"]),
+            std::vector<int>{2});
+        EXPECT_EQ(
+            boost::any_cast<std::set<int>>(result["one-plus"]),
+            std::set<int>{2});
+    }
+    {
+        std::ostringstream os;
+        std::vector<std::string_view> args{"prog", "-b", "-z"};
+        po2::options_map result;
+        po2::parse_command_line(
+            args, result, "A program.", os, ARGUMENTS(int, 4, 5, 6));
+        EXPECT_EQ(result.size(), 2u);
+        EXPECT_EQ(
+            boost::any_cast<std::optional<int>>(result["bobcat"]),
+            std::nullopt);
+        EXPECT_EQ(
+            boost::any_cast<std::vector<int>>(result["zero-plus"]),
+            std::vector<int>{});
+    }
+    {
+        std::ostringstream os;
+        std::vector<std::string_view> args{"prog", "-b", "-z"};
+        po2::options_map result;
+        po2::parse_command_line(
+            args, result, "A program.", os, ARGUMENTS(double, 4, 5, 6));
+        EXPECT_EQ(result.size(), 2u);
+        EXPECT_EQ(
+            boost::any_cast<std::optional<double>>(result["bobcat"]),
+            std::nullopt);
+        EXPECT_EQ(
+            boost::any_cast<std::vector<double>>(result["zero-plus"]),
+            std::vector<double>{});
+    }
+    {
+        std::ostringstream os;
+        std::vector<std::string_view> args{"prog"};
+        po2::options_map result;
+        po2::parse_command_line(
+            args,
+            result,
+            "A program.",
+            os,
+            ARGUMENTS_WITH_DEFAULTS(int, 4, 5, 6, 42));
+        EXPECT_EQ(result.size(), 4u);
+        EXPECT_EQ(boost::any_cast<int>(result["abacus"]), 42);
+        EXPECT_EQ(*boost::any_cast<std::optional<int>>(result["bobcat"]), 42);
+        EXPECT_EQ(
+            boost::any_cast<std::vector<int>>(result["cataphract"]),
+            std::vector<int>({42}));
+        EXPECT_EQ(boost::any_cast<int>(result["dolemite"]), 6);
+    }
+    {
+        std::ostringstream os;
+        std::vector<std::string_view> args{
+            "prog", "--dolemite", "5", "--bobcat", "66", "-c", "77", "88"};
+        po2::options_map result;
+        po2::parse_command_line(
+            args,
+            result,
+            "A program.",
+            os,
+            ARGUMENTS_WITH_DEFAULTS(int, 4, 5, 6, 42));
+        EXPECT_EQ(result.size(), 4u);
+        EXPECT_EQ(boost::any_cast<int>(result["abacus"]), 42);
+        EXPECT_EQ(*boost::any_cast<std::optional<int>>(result["bobcat"]), 66);
+        EXPECT_EQ(
+            boost::any_cast<std::vector<int>>(result["cataphract"]),
+            std::vector<int>({77, 88}));
+        EXPECT_EQ(boost::any_cast<int>(result["dolemite"]), 5);
+    }
+
+    {
+        std::ostringstream os;
+        std::vector<std::string_view> args{"prog", "-z", "3"};
+        po2::options_map result;
+        po2::parse_command_line(
+            args,
+            result,
+            "A program.",
+            os,
+            po2::argument<std::vector<int>>(
+                "-z,--zero-plus",
+                "None is fine; so is more.",
+                po2::zero_or_more));
+        EXPECT_EQ(result.size(), 1u);
+        EXPECT_EQ(
+            boost::any_cast<std::vector<int>>(result["zero-plus"]),
+            std::vector<int>({3}));
+    }
+    {
+        std::ostringstream os;
+        std::vector<std::string_view> args{"prog", "-z", "3.0"};
+        po2::options_map result;
+        po2::parse_command_line(
+            args,
+            result,
+            "A program.",
+            os,
+            po2::argument<std::vector<double>>(
+                "-z,--zero-plus",
+                "None is fine; so is more.",
+                po2::zero_or_more));
+        EXPECT_EQ(result.size(), 1u);
+        EXPECT_EQ(
+            boost::any_cast<std::vector<double>>(result["zero-plus"]),
+            std::vector<double>({3.0}));
+    }
+
+    {
+        std::ostringstream os;
+        std::vector<std::string_view> args{"prog", "-c", "77", "88.8"};
+        try {
+            po2::parse_command_line(
+                args, "A program.", os, ARGUMENTS(int, 4, 5, 6));
+        } catch (int) {
+        }
+        EXPECT_EQ(os.str(), R"(error: cannot parse argument '88.8'
+
+usage:  prog [-h] [-a A] [-b [B]] [-c C C] [-d {4,5,6}] [-z [Z ...]] [-o O ...]
+
+A program.
+
+optional arguments:
+  -h, --help        Print this help message and exit
+  -a, --abacus      The abacus.
+  -b, --bobcat      The bobcat.
+  -c, --cataphract  The cataphract
+  -d, --dolemite    *The* Dolemite.
+  -z, --zero-plus   None is fine; so is more.
+  -o, --one-plus    One is fine; so is more.
+
+response files:
+  Write '@file' to load a file containing command line arguments.
+)");
+    }
+}
+
 #undef ARGUMENTS
 #undef ARGUMENTS_WITH_DEFAULT
 
@@ -1096,7 +1360,7 @@ response files:
         po2::positional<std::set<T>>(                                          \
             "one-plus", "One is fine; so is more.", po2::one_or_more)
 
-TEST(parse_command_line, positionals)
+TEST(parse_command_line, positionals_tuple)
 {
     {
         std::ostringstream os;
@@ -1165,6 +1429,81 @@ TEST(parse_command_line, positionals)
     }
 }
 
+TEST(parse_command_line, positionals_map)
+{
+    {
+        std::ostringstream os;
+        std::vector<std::string_view> args{
+            "prog", "55", "66", "77", "88", "5", "2"};
+        po2::options_map result;
+        po2::parse_command_line(
+            args, result, "A program.", os, POSITIONALS(int, 4, 5, 6));
+        EXPECT_EQ(result.size(), 5u);
+        EXPECT_EQ(boost::any_cast<int>(result["abacus"]), 55);
+        EXPECT_TRUE(boost::any_cast<std::optional<int>>(result["bobcat"]));
+        EXPECT_EQ(*boost::any_cast<std::optional<int>>(result["bobcat"]), 66);
+        EXPECT_EQ(
+            boost::any_cast<std::vector<int>>(result["cataphract"]),
+            std::vector<int>({77, 88}));
+        EXPECT_EQ(boost::any_cast<int>(result["dolemite"]), 5);
+        EXPECT_EQ(
+            boost::any_cast<std::set<int>>(result["one-plus"]),
+            std::set<int>({2}));
+    }
+    {
+        std::ostringstream os;
+        std::vector<std::string_view> args{
+            "prog", "55", "66", "77", "88", "5", "2"};
+        po2::options_map result;
+        po2::parse_command_line(
+            args, result, "A program.", os, POSITIONALS(double, 4, 5, 6));
+        EXPECT_EQ(result.size(), 5u);
+        EXPECT_EQ(boost::any_cast<double>(result["abacus"]), 55.0);
+        EXPECT_TRUE(boost::any_cast<std::optional<double>>(result["bobcat"]));
+        EXPECT_EQ(
+            *boost::any_cast<std::optional<double>>(result["bobcat"]), 66.0);
+        EXPECT_EQ(
+            boost::any_cast<std::vector<double>>(result["cataphract"]),
+            std::vector<double>({77.0, 88.0}));
+        EXPECT_EQ(boost::any_cast<double>(result["dolemite"]), 5.0);
+        EXPECT_EQ(
+            boost::any_cast<std::set<double>>(result["one-plus"]),
+            std::set<double>({2.0}));
+    }
+    {
+        std::ostringstream os;
+        std::vector<std::string_view> args{
+            "prog", "55", "66", "77", "88", "5", "2"};
+        po2::options_map result;
+        po2::parse_command_line(
+            args,
+            result,
+            "A program.",
+            os,
+            po2::remainder("args", "other args at the end"));
+        EXPECT_EQ(result.size(), 1u);
+        EXPECT_EQ(
+            boost::any_cast<std::vector<std::string_view>>(result["args"]),
+            std::vector<std::string_view>({"55", "66", "77", "88", "5", "2"}));
+    }
+    {
+        std::ostringstream os;
+        std::vector<std::string_view> args{
+            "prog", "55", "66", "77", "88", "5", "2"};
+        po2::options_map result;
+        po2::parse_command_line(
+            args,
+            result,
+            "A program.",
+            os,
+            po2::remainder<std::vector<int>>("args", "other args at the end"));
+        EXPECT_EQ(result.size(), 1u);
+        EXPECT_EQ(
+            boost::any_cast<std::vector<int>>(result["args"]),
+            std::vector<int>({55, 66, 77, 88, 5, 2}));
+    }
+}
+
 #undef POSITIONALS
 
 #define MIXED(T, choice0, choice1, choice2, default_)                          \
@@ -1180,7 +1519,7 @@ TEST(parse_command_line, positionals)
             "-z,--zero-plus", "None is fine; so is more.", po2::zero_or_more), \
         po2::remainder("args", "other args at the end")
 
-TEST(parse_command_line, mixed)
+TEST(parse_command_line, mixed_tuple)
 {
     {
         std::ostringstream os;
@@ -1272,7 +1611,7 @@ TEST(parse_command_line, mixed)
 
 #undef MIXED
 
-TEST(parse_command_line, flags)
+TEST(parse_command_line, flags_tuple)
 {
     {
         std::ostringstream os;
@@ -1302,7 +1641,7 @@ TEST(parse_command_line, flags)
     }
 }
 
-TEST(parse_command_line, counted_flags)
+TEST(parse_command_line, counted_flags_tuple)
 {
     {
         std::ostringstream os;
@@ -1350,6 +1689,64 @@ TEST(parse_command_line, counted_flags)
         BOOST_MPL_ASSERT((is_same<decltype(result), tuple<opt<int>>>));
         EXPECT_TRUE(result[0_c]);
         EXPECT_EQ(*result[0_c], 4);
+    }
+}
+
+TEST(parse_command_line, counted_flags_map)
+{
+    {
+        std::ostringstream os;
+        std::vector<std::string_view> args{"prog"};
+        po2::options_map result;
+        po2::parse_command_line(
+            args,
+            result,
+            "A program.",
+            os,
+            po2::counted_flag("-v,--verbose", "Verbosity level."));
+        EXPECT_EQ(result.size(), 0u);
+    }
+    {
+        std::ostringstream os;
+        std::vector<std::string_view> args{"prog", "-v"};
+        po2::options_map result;
+        po2::parse_command_line(
+            args,
+            result,
+            "A program.",
+            os,
+            po2::counted_flag("-v,--verbose", "Verbosity level."));
+        EXPECT_EQ(result.size(), 1u);
+        EXPECT_NE(result.find("verbose"), result.end());
+        EXPECT_EQ(boost::any_cast<int>(result["verbose"]), 1);
+    }
+    {
+        std::ostringstream os;
+        std::vector<std::string_view> args{"prog", "--verbose"};
+        po2::options_map result;
+        po2::parse_command_line(
+            args,
+            result,
+            "A program.",
+            os,
+            po2::counted_flag("-v,--verbose", "Verbosity level."));
+        EXPECT_EQ(result.size(), 1u);
+        EXPECT_NE(result.find("verbose"), result.end());
+        EXPECT_EQ(boost::any_cast<int>(result["verbose"]), 1);
+    }
+    {
+        std::ostringstream os;
+        std::vector<std::string_view> args{"prog", "-vvvv"};
+        po2::options_map result;
+        po2::parse_command_line(
+            args,
+            result,
+            "A program.",
+            os,
+            po2::counted_flag("-v,--verbose", "Verbosity level."));
+        EXPECT_EQ(result.size(), 1u);
+        EXPECT_NE(result.find("verbose"), result.end());
+        EXPECT_EQ(boost::any_cast<int>(result["verbose"]), 4);
     }
 }
 

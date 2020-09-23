@@ -8,13 +8,16 @@
 
 #include <boost/program_options_2/fwd.hpp>
 #include <boost/program_options_2/arg_view.hpp>
-#include <boost/program_options_2/options.hpp>
 #include <boost/program_options_2/concepts.hpp>
+#include <boost/program_options_2/options.hpp>
+#include <boost/program_options_2/storage.hpp>
 #include <boost/program_options_2/detail/parsing.hpp>
 #include <boost/program_options_2/decorators.hpp>
 
 
 namespace boost { namespace program_options_2 {
+
+    // tuple overloads
 
     /** TODO */
     template<
@@ -100,7 +103,104 @@ namespace boost { namespace program_options_2 {
             opts...);
     }
 
+
+
+    // map overloads
+
+    /** TODO */
+    template<
+        range_of_string_view<char> Args,
+        option_or_group Option,
+        option_or_group... Options>
+    void parse_command_line(
+        Args const & args,
+        options_map & map,
+        std::string_view program_desc,
+        std::ostream & os,
+        customizable_strings const & strings,
+        Option opt,
+        Options... opts)
+    {
+        BOOST_ASSERT(args.begin() != args.end());
+        detail::check_options(opt, opts...);
+
+        bool const no_help = detail::no_help_option(opt, opts...);
+
+        if (no_help && detail::argv_contains_default_help_flag(strings, args)) {
+            detail::print_help_and_exit(
+                0,
+                strings,
+                *args.begin(),
+                program_desc,
+                os,
+                true,
+                opt,
+                opts...);
+        }
+
+        detail::parse_options_into_map(
+            map, strings, false, args, program_desc, os, no_help, opt, opts...);
+    }
+
+    /** TODO */
+    template<
+        range_of_string_view<char> Args,
+        option_or_group Option,
+        option_or_group... Options>
+    void parse_command_line(
+        Args const & args,
+        options_map & map,
+        std::string_view program_desc,
+        std::ostream & os,
+        Option opt,
+        Options... opts)
+    {
+        return program_options_2::parse_command_line(
+            args, map, program_desc, os, customizable_strings{}, opt, opts...);
+    }
+
+    /** TODO */
+    template<option_or_group Option, option_or_group... Options>
+    void parse_command_line(
+        int argc,
+        char const ** argv,
+        options_map & map,
+        std::string_view program_desc,
+        std::ostream & os,
+        customizable_strings const & strings,
+        Option opt,
+        Options... opts)
+    {
+        return program_options_2::parse_command_line(
+            arg_view(argc, argv), map, program_desc, os, strings, opt, opts...);
+    }
+
+    /** TODO */
+    template<option_or_group Option, option_or_group... Options>
+    void parse_command_line(
+        int argc,
+        char const ** argv,
+        options_map & map,
+        std::string_view program_desc,
+        std::ostream & os,
+        Option opt,
+        Options... opts)
+    {
+        return program_options_2::parse_command_line(
+            arg_view(argc, argv),
+            map,
+            program_desc,
+            os,
+            customizable_strings{},
+            opt,
+            opts...);
+    }
+
+
+
 #if defined(BOOST_PROGRAM_OPTIONS_2_DOXYGEN) || defined(_MSC_VER)
+
+    // tuple overloads
 
     /** TODO */
     template<
@@ -178,6 +278,10 @@ namespace boost { namespace program_options_2 {
             opt,
             opts...);
     }
+
+
+
+    // TODO: map overloads.
 
 #endif
 

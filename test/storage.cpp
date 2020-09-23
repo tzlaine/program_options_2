@@ -22,4 +22,10 @@ using namespace boost::hana::literals;
 
 TEST(storage, save_response_file)
 {
+    // TODO
+}
+
+TEST(storage, load_response_file)
+{
+    // TODO
 }
