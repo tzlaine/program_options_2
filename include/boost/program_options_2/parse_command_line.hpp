@@ -46,7 +46,7 @@ namespace boost { namespace program_options_2 {
                 opts...);
         }
 
-        return detail::parse_options_into_tuple(
+        return detail::parse_options_as_tuple(
             strings, args, program_desc, os, no_help, opt, opts...);
     }
 
@@ -125,7 +125,7 @@ namespace boost { namespace program_options_2 {
                 0, strings, args.front(), program_desc, os, true, opt, opts...);
         }
 
-        return detail::parse_options_into_tuple(
+        return detail::parse_options_as_tuple(
             strings, args, program_desc, os, no_help, opt, opts...);
     }
 

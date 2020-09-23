@@ -8,6 +8,8 @@
 
 #include <boost/program_options_2/config.hpp>
 
+#include <boost/any.hpp>
+
 // Silence very verbose warnings about std::is_pod being deprecated.  TODO:
 // Remove this if/when Hana accepts releases the fix for this (already on
 // develop).
@@ -21,6 +23,7 @@
 #endif
 
 #include <array>
+#include <map>
 #include <string_view>
 #include <type_traits>
 
@@ -77,6 +80,9 @@ namespace boost { namespace program_options_2 {
     /** TODO */
     struct no_value
     {};
+
+    /** TODO */
+    using options_map = std::map<std::string_view, boost::any>;
 
     namespace detail {
         enum struct option_kind { positional, argument };
@@ -242,6 +248,24 @@ namespace boost { namespace program_options_2 {
             return opt.args == zero_or_more || opt.args == one_or_more;
         }
     }
+
+    /** TODO */
+    template<
+        detail::option_kind Kind,
+        typename T,
+        typename Value,
+        detail::required_t Required,
+        int Choices,
+        typename ChoiceType,
+        typename Validator>
+    std::string_view storage_name(detail::option<
+                                  Kind,
+                                  T,
+                                  Value,
+                                  Required,
+                                  Choices,
+                                  ChoiceType,
+                                  Validator> const & opt);
 
 }}
 

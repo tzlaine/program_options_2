@@ -6,13 +6,21 @@
 #ifndef BOOST_PROGRAM_OPTIONS_2_PARSING_HPP
 #define BOOST_PROGRAM_OPTIONS_2_PARSING_HPP
 
-#include <boost/program_options_2/fwd.hpp>
+#include <boost/program_options_2/concepts.hpp>
+#include <boost/program_options_2/arg_view.hpp>
+#include <boost/program_options_2/options.hpp>
+#include <boost/program_options_2/detail/detection.hpp>
 #include <boost/program_options_2/detail/printing.hpp>
 
 #include <boost/parser/parser.hpp>
 
 
 namespace boost { namespace program_options_2 { namespace detail {
+
+    template<typename T>
+    using type_eraser = decltype(
+        std::declval<T &>() = std::declval<int *>(),
+        std::declval<T &>() = std::declval<std::pair<int, int *>>());
 
     template<typename... Options>
     bool no_help_option(Options const &... opts)
@@ -45,6 +53,20 @@ namespace boost { namespace program_options_2 { namespace detail {
         return !std::is_same_v<typename Option::value_type, no_value>;
     }
 
+    template<typename Option>
+    auto make_result_tuple_element()
+    {
+        constexpr bool required_option = Option::positional || Option::required;
+        using T = typename Option::type;
+        if constexpr (std::is_same_v<T, void>) {
+            return no_value{};
+        } else if constexpr (required_option) {
+            return T{};
+        } else {
+            return std::optional<T>{};
+        }
+    };
+
     template<typename... Options>
     auto make_result_tuple(Options const &... opts)
     {
@@ -53,16 +75,22 @@ namespace boost { namespace program_options_2 { namespace detail {
             using opt_type = std::remove_cvref_t<decltype(opt)>;
             constexpr bool required_option =
                 opt_type::positional || opt_type::required;
-            using T = typename opt_type::type;
-            if constexpr (std::is_same_v<T, void>) {
-                return no_value{};
-            } else if constexpr (required_option) {
-                if constexpr (detail::flag<opt_type>())
-                    return opt.default_value;
-                else
-                    return T{};
-            } else {
-                return std::optional<T>{};
+            auto retval = detail::make_result_tuple_element<opt_type>();
+            if constexpr (required_option && detail::flag<opt_type>())
+                retval = opt.default_value;
+            return retval;
+        });
+    }
+
+    template<typename OptionsMap, typename... Options>
+    void init_options_map(OptionsMap & m, Options const &... opts)
+    {
+        auto const opt_tuple = detail::make_opt_tuple(opts...);
+        return hana::for_each(opt_tuple, [&](auto const & opt) {
+            using opt_type = std::remove_cvref_t<decltype(opt)>;
+            if constexpr (detail::flag<opt_type>()) {
+                m[program_options_2::storage_name(opt.names)] =
+                    opt.default_value;
             }
         });
     }
@@ -123,7 +151,7 @@ namespace boost { namespace program_options_2 { namespace detail {
     }
 
     template<typename T, typename U>
-    void assign_or_insert(T & t, U & u)
+    void assign_or_insert_impl(T & t, U & u)
     {
         if constexpr (std::is_same_v<std::remove_cv_t<T>, no_value>) {
             // no-op
@@ -141,6 +169,26 @@ namespace boost { namespace program_options_2 { namespace detail {
                 t = std::move(u);
             else
                 t.insert(t.end(), std::move(u));
+        }
+    }
+
+    template<typename Option, typename T>
+    struct inserting_into_any
+        : std::integral_constant<
+              bool,
+              is_detected<type_eraser, std::remove_cv_t<T>>::value &&
+                  !std::is_same_v<typename Option::type, std::remove_cv_t<T>>>
+    {};
+
+    template<typename Option, typename T, typename U>
+    void assign_or_insert(T & t, U && u)
+    {
+        if constexpr (inserting_into_any<Option, T>::value) {
+            auto temp = detail::make_result_tuple_element<Option>();
+            detail::assign_or_insert_impl(temp, u);
+            t = temp;
+        } else {
+            detail::assign_or_insert_impl(t, u);
         }
     }
 
@@ -202,7 +250,7 @@ namespace boost { namespace program_options_2 { namespace detail {
                     _pass(ctx) = false;
                     error = parse_option_error::no_such_choice;
                 } else {
-                    detail::assign_or_insert(result, attr);
+                    detail::assign_or_insert<Option>(result, attr);
                 }
             };
         } else {
@@ -213,7 +261,7 @@ namespace boost { namespace program_options_2 { namespace detail {
                     _pass(ctx) = false;
                 } else {
                     detail::validate(opt, attr, validation_error);
-                    detail::assign_or_insert(result, attr);
+                    detail::assign_or_insert<Option>(result, attr);
                 }
             };
         }
@@ -395,9 +443,14 @@ namespace boost { namespace program_options_2 { namespace detail {
                 return {next};
             }
 
-            if constexpr (!Option::required && is_optional<ResultType>::value) {
-                if (opt.args == zero_or_one || opt.args == zero_or_more)
-                    result = typename ResultType::value_type{};
+            using option_result_type =
+                decltype(detail::make_result_tuple_element<Option>());
+            if constexpr (
+                !Option::required && is_optional<option_result_type>::value) {
+                if (opt.args == zero_or_one || opt.args == zero_or_more) {
+                    detail::assign_or_insert<Option>(
+                        result, typename Option::type{});
+                }
             }
 
             // Special case: if we just found a help or version
@@ -460,7 +513,7 @@ namespace boost { namespace program_options_2 { namespace detail {
                     opts...);
             };
 
-        // Special case: If we just parsed the dashed arg that orecedes a
+        // Special case: If we just parsed the dashed arg that precedes a
         // response file, return immediately, so that the caller can process
         // the file.
         if (opt.action == action_kind::response_file && !first->empty()) {
@@ -483,7 +536,9 @@ namespace boost { namespace program_options_2 { namespace detail {
             parser::parse(*first, parser)) {
             if (!validation_error.empty()) {
                 handle_validation_error_(validation_error);
-                return {}; // TODO
+                return {
+                    parse_option_result::stop_parsing,
+                    parse_option_error::validation_error};
             }
             ++first;
             ++reps;
@@ -497,9 +552,11 @@ namespace boost { namespace program_options_2 { namespace detail {
                 }
                 if (!validation_error.empty()) {
                     handle_validation_error_(validation_error);
-                    return {}; // TODO
+                    return {
+                        parse_option_result::stop_parsing,
+                        parse_option_error::validation_error};
                 }
-           }
+            }
         } else {
             if (error == parse_option_error::none)
                 error = parse_option_error::cannot_parse_arg;
@@ -545,12 +602,12 @@ namespace boost { namespace program_options_2 { namespace detail {
     }
 
     template<
-        typename ResultTuple,
+        typename Accessor,
         typename Char,
         typename Args,
         typename... Options>
-    parse_option_result parse_options_into_tuple_impl(
-        ResultTuple & result,
+    parse_option_result parse_options_into(
+        Accessor accessor,
         customizable_strings const & strings,
         bool deserializing,
         Args const & args,
@@ -558,7 +615,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         std::basic_string_view<Char> program_desc,
         std::basic_ostream<Char> & os,
         bool no_help,
-        Options... opts)
+        Options const &... opts)
     {
         auto const argv0 = *args.begin();
         auto fail = [&](parse_option_error error,
@@ -593,26 +650,25 @@ namespace boost { namespace program_options_2 { namespace detail {
                 opts...);
         };
 
-        auto process_response_file =
-            [&](auto & sv_it) {
-                auto const arg_utf8 = text::as_utf8(*sv_it);
-                std::string arg(arg_utf8.begin(), arg_utf8.end());
-                if (arg.front() == '@')
-                    arg.erase(arg.begin());
-                std::ifstream ifs(arg.c_str());
-                ifs.unsetf(ifs.skipws);
-                detail::parse_options_into_tuple_impl(
-                    result,
-                    strings,
-                    deserializing,
-                    detail::response_file_arg_view(ifs),
-                    false,
-                    program_desc,
-                    os,
-                    no_help,
-                    opts...);
-                ++sv_it;
-            };
+        auto process_response_file = [&](auto & sv_it) {
+            auto const arg_utf8 = text::as_utf8(*sv_it);
+            std::string arg(arg_utf8.begin(), arg_utf8.end());
+            if (arg.front() == '@')
+                arg.erase(arg.begin());
+            std::ifstream ifs(arg.c_str());
+            ifs.unsetf(ifs.skipws);
+            detail::parse_options_into(
+                accessor,
+                strings,
+                deserializing,
+                detail::response_file_arg_view(ifs),
+                false,
+                program_desc,
+                os,
+                no_help,
+                opts...);
+            ++sv_it;
+        };
 
         using namespace hana::literals;
 
@@ -665,7 +721,11 @@ namespace boost { namespace program_options_2 { namespace detail {
                 }
 
                 parse_result = parse_option_(
-                    args_first, args_last, opt, result[i], next_positional);
+                    args_first,
+                    args_last,
+                    opt,
+                    accessor(opt, i),
+                    next_positional);
 
                 // Special case: if we just parsed a response_file opt
                 // successfully, process the file.
@@ -709,19 +769,19 @@ namespace boost { namespace program_options_2 { namespace detail {
             fail(parse_option_error::missing_positional, oss.str());
         }
 
-        hana::fold(result, 0_c, [&](auto i, auto & result_i) {
+        hana::fold(opt_tuple, 0_c, [&](auto i, auto const & opt) {
             auto const i_plus_1 = hana::llong_c<decltype(i)::value + 1>;
-
-            auto const & opt = opt_tuple[i];
             using opt_type = std::remove_cvref_t<decltype(opt)>;
+            auto & result_i = accessor(opt, i);
             using result_type = std::remove_cvref_t<decltype(result_i)>;
             if constexpr (
                 !opt_type::required && detail::has_default<opt_type>() &&
                 !std::is_same_v<result_type, no_value>) {
-                if (!result_i)
-                    detail::assign_or_insert(result_i, opt.default_value);
+                if (!result_i) {
+                    detail::assign_or_insert<opt_type>(
+                        result_i, opt.default_value);
+                }
             }
-
             return i_plus_1;
         });
 
@@ -730,17 +790,19 @@ namespace boost { namespace program_options_2 { namespace detail {
     }
 
     template<typename Char, typename Args, typename... Options>
-    auto parse_options_into_tuple(
+    auto parse_options_as_tuple(
         customizable_strings const & strings,
         Args const & args,
         std::basic_string_view<Char> program_desc,
         std::basic_ostream<Char> & os,
         bool no_help,
-        Options... opts)
+        Options const &... opts)
     {
         auto result = detail::make_result_tuple(opts...);
-        detail::parse_options_into_tuple_impl(
-            result,
+        detail::parse_options_into(
+            [&](auto const & opt, auto i) -> decltype(auto) {
+                return result[i];
+            },
             strings,
             false,
             args,
@@ -749,6 +811,55 @@ namespace boost { namespace program_options_2 { namespace detail {
             os,
             no_help,
             opts...);
+        return result;
+    }
+
+    template<
+        typename OptionsMap,
+        typename Char,
+        typename Args,
+        typename... Options>
+    parse_option_result parse_options_into_map(
+        OptionsMap & result,
+        customizable_strings const & strings,
+        bool deserializing,
+        Args const & args,
+        std::basic_string_view<Char> program_desc,
+        std::basic_ostream<Char> & os,
+        bool no_help,
+        Options const &... opts)
+    {
+        return detail::parse_options_into(
+            [&](auto const & opt, auto i) -> decltype(auto) {
+                return result[program_options_2::storage_name(opt.names)];
+            },
+            strings,
+            deserializing,
+            args,
+            true,
+            program_desc,
+            os,
+            no_help,
+            opts...);
+    }
+
+    template<
+        typename OptionsMap,
+        typename Char,
+        typename Args,
+        typename... Options>
+    OptionsMap parse_options_as_map(
+        customizable_strings const & strings,
+        Args const & args,
+        std::basic_string_view<Char> program_desc,
+        std::basic_ostream<Char> & os,
+        bool no_help,
+        Options const &... opts)
+    {
+        OptionsMap result;
+        detail::init_options_map(result, opts...);
+        detail::parse_options_into_map(
+            result, strings, false, args, program_desc, os, no_help, opts...);
         return result;
     }
 
