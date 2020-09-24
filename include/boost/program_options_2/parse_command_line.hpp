@@ -140,7 +140,16 @@ namespace boost { namespace program_options_2 {
         }
 
         detail::parse_options_into_map(
-            map, strings, false, args, program_desc, os, no_help, opt, opts...);
+            map,
+            strings,
+            false,
+            args,
+            program_desc,
+            os,
+            no_help,
+            true,
+            opt,
+            opts...);
     }
 
     /** TODO */

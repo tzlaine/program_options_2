@@ -124,21 +124,37 @@ namespace boost { namespace program_options_2 {
             using opt_type = std::remove_cvref_t<decltype(opt)>;
             using type = typename opt_type::type;
 
-            // To use save_response_file(), all options must have a type that
-            // can be written to file using operator<<().
-            static_assert(detail::is_detected<detail::streamable, type>::value);
-
             auto const name = program_options_2::storage_name(opt);
             auto it = m.find(name);
             if (it == m.end() || it->second.empty())
                 return;
 
-            type const * value_ptr =
-                ::boost::any_cast<type const *>(&it->second);
-            if (!value_ptr)
+            try {
+                type const & value =
+                    program_options_2::any_cast<type const &>(it->second);
+                ofs << detail::first_long_name(opt.names);
+                if constexpr (insertable<type>) {
+                    for (auto const & x : value) {
+                        // To use save_response_file(), all options must have
+                        // a type that can be written to file using
+                        // operator<<().
+                        static_assert(detail::is_detected<
+                                      detail::streamable,
+                                      decltype(x)>::value);
+                        ofs << ' ' << x;
+                    }
+                } else {
+                    // To use save_response_file(), all options must have a
+                    // type that can be written to file using operator<<().
+                    static_assert(
+                        detail::is_detected<detail::streamable, type>::value);
+                    ofs << ' ' << value;
+                }
+                ofs << '\n';
+            } catch (...) {
                 BOOST_THROW_EXCEPTION(
-                    save_error(save_result::bad_any_cast, name));
-            ofs << detail::first_long_name(opt) << ' ' << *value_ptr << '\n';
+                    save_error(save_result::bad_any_cast, filename));
+            }
         });
     }
 
@@ -160,8 +176,9 @@ namespace boost { namespace program_options_2 {
             customizable_strings{},
             true,
             detail::response_file_arg_view(ifs),
-            "",
+            std::string_view{},
             oss,
+            false,
             false,
             opts...);
 

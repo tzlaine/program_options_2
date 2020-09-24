@@ -859,6 +859,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         std::basic_string_view<Char> program_desc,
         std::basic_ostream<Char> & os,
         bool no_help,
+        bool skip_first,
         Options const &... opts)
     {
         auto const retval = detail::parse_options_into(
@@ -868,7 +869,7 @@ namespace boost { namespace program_options_2 { namespace detail {
             strings,
             deserializing,
             args,
-            true,
+            skip_first,
             program_desc,
             os,
             no_help,
