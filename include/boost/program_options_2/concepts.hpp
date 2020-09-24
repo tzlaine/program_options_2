@@ -8,13 +8,18 @@
 
 #include <boost/program_options_2/fwd.hpp>
 
-#if defined(BOOST_PROGRAM_OPTIONS_2_DOXYGEN) ||                                \
+#if defined(BOOST_PROGRAM_OPTIONS_2_DOXYGEN) || \
     BOOST_PROGRAM_OPTIONS_2_USE_CONCEPTS
 
 #include <ranges>
 
 
 namespace boost { namespace program_options_2 {
+
+    namespace detail {
+        struct arbitrary_type
+        {};
+    }
 
     // clang-format off
 
@@ -37,6 +42,31 @@ namespace boost { namespace program_options_2 {
     template<typename T>
     concept insertable = requires(T t) {
         t.insert(t.end(), *t.begin());
+    };
+
+    template<typename T>
+    concept erased_type = requires(T t) {
+        // If these are all well-formed, this is probably an erased type.
+        t = (void *)0;
+        t = no_value{};
+        t = std::pair<int, std::vector<double> *>{};
+        t = 0;
+        t = 0.0;
+        t = std::string_view{};
+    };
+
+    template<typename T>
+    using map_key_t =
+        std::remove_const_t<typename std::ranges::range_value_t<T>::first_type>;
+    template<typename T>
+    using map_value_t = typename std::ranges::range_value_t<T>::second_type;
+
+    template<typename T>
+    concept options_map = std::ranges::range<T> &&
+        std::same_as<map_key_t<T>, std::string_view> &&
+            erased_type<map_value_t<T>> && requires(T t)  {
+        { t[std::string_view{}] } -> std::same_as<map_value_t<T> &>;
+        t.erase(t.begin());
     };
 
     // clang-format on

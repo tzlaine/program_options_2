@@ -7,6 +7,7 @@
 #define BOOST_PROGRAM_OPTIONS_2_FWD_HPP
 
 #include <boost/program_options_2/config.hpp>
+#include <boost/program_options_2/tag_invoke.hpp>
 
 #include <boost/any.hpp>
 
@@ -22,6 +23,7 @@
 #pragma GCC diagnostic pop
 #endif
 
+#include <any>
 #include <array>
 #include <map>
 #include <string_view>
@@ -82,7 +84,50 @@ namespace boost { namespace program_options_2 {
     {};
 
     /** TODO */
-    using options_map = std::map<std::string_view, boost::any>;
+    using any_map = std::map<std::string_view, boost::any>;
+
+    /** TODO */
+    inline constexpr struct any_empty_fn
+    {
+        template<typename Any>
+        bool operator()(Any && a) const
+        {
+            if constexpr (program_options_2::tag_invocable<any_empty_fn, Any>) {
+                return program_options_2::tag_invoke(*this, (Any &&) a);
+            } else if constexpr (std::is_same_v<
+                                     std::remove_cvref_t<Any>,
+                                     boost::any>) {
+                return a.empty();
+            } else {
+                return !a.has_value();
+            }
+        }
+    } any_empty;
+
+    /** TODO */
+    template<typename T>
+    struct any_cast_fn
+    {
+        template<typename Any>
+        decltype(auto) operator()(Any && a) const
+        {
+            if constexpr (program_options_2::
+                              tag_invocable<any_cast_fn, Any, type_<T>>) {
+                return program_options_2::tag_invoke(
+                    *this, (Any &&) a, type_c<T>);
+            } else if constexpr (std::is_same_v<
+                                     std::remove_cvref_t<Any>,
+                                     boost::any>) {
+                return boost::any_cast<T>(a);
+            } else {
+                return std::any_cast<T>(a);
+            }
+        }
+    };
+
+    /** TODO */
+    template<typename T>
+    inline constexpr any_cast_fn<T> any_cast;
 
     namespace detail {
         enum struct option_kind { positional, argument };

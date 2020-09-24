@@ -107,10 +107,10 @@ namespace boost { namespace program_options_2 {
     }
 
     /** TODO */
-    template<typename... Options>
+    template<options_map OptionsMap, typename... Options>
     void save_response_file(
         std::string_view filename,
-        options_map const & m,
+        OptionsMap const & m,
         Options const &... opts)
     {
         std::ofstream ofs(filename.data());
@@ -143,9 +143,9 @@ namespace boost { namespace program_options_2 {
     }
 
     /** TODO */
-    template<typename... Options>
+    template<options_map OptionsMap, typename... Options>
     void load_response_file(
-        std::string_view filename, options_map & m, Options const &... opts)
+        std::string_view filename, OptionsMap & m, Options const &... opts)
     {
         std::ifstream ifs(filename.data());
         ifs.unsetf(ifs.skipws);

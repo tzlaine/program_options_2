@@ -19,8 +19,10 @@ namespace boost { namespace program_options_2 { namespace detail {
 
     template<typename T>
     using type_eraser = decltype(
-        std::declval<T &>() = std::declval<int *>(),
-        std::declval<T &>() = std::declval<std::pair<int, int *>>());
+        std::declval<T &>() = std::declval<void *>(),
+        std::declval<T &>() = std::declval<no_value>(),
+        std::declval<T &>() =
+            std::declval<std::pair<int, std::vector<double> *>>());
 
     template<typename... Options>
     bool no_help_option(Options const &... opts)
@@ -200,15 +202,13 @@ namespace boost { namespace program_options_2 { namespace detail {
         // type.
         if constexpr (inserting_into_any<Option, T>::value) {
             using stored_type = result_map_element_t<Option>;
-            if (t.empty()) {
+            if (program_options_2::any_empty(t)) {
                 stored_type temp;
                 detail::assign_or_insert_impl<false>(temp, u);
                 t = temp;
             } else {
-                // TODO: This cast is not generic!  Maybe we need CPOs for
-                // empty and cast, implemented via tag_invoke().
                 detail::assign_or_insert_impl<false>(
-                    boost::any_cast<stored_type &>(t), u);
+                    program_options_2::any_cast<stored_type &>(t), u);
             }
         } else {
             detail::assign_or_insert_impl(t, u);
@@ -795,7 +795,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         auto empty = [](auto const & result_i) {
             using type = std::remove_cvref_t<decltype(result_i)>;
             if constexpr (is_erased_type<type>::value) {
-                return result_i.empty();
+                return program_options_2::any_empty(result_i);
             } else {
                 return !result_i;
             }
@@ -877,7 +877,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         auto prev_it = it;
         auto const last = result.end();
         while (it != last) {
-            if (it->second.empty()) {
+            if (program_options_2::any_empty(it->second)) {
                 prev_it = it;
                 ++it;
                 result.erase(prev_it);

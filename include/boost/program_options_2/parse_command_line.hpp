@@ -110,11 +110,12 @@ namespace boost { namespace program_options_2 {
     /** TODO */
     template<
         range_of_string_view<char> Args,
+        options_map OptionsMap,
         option_or_group Option,
         option_or_group... Options>
     void parse_command_line(
         Args const & args,
-        options_map & map,
+        OptionsMap & map,
         std::string_view program_desc,
         std::ostream & os,
         customizable_strings const & strings,
@@ -145,11 +146,12 @@ namespace boost { namespace program_options_2 {
     /** TODO */
     template<
         range_of_string_view<char> Args,
+        options_map OptionsMap,
         option_or_group Option,
         option_or_group... Options>
     void parse_command_line(
         Args const & args,
-        options_map & map,
+        OptionsMap & map,
         std::string_view program_desc,
         std::ostream & os,
         Option opt,
@@ -160,11 +162,14 @@ namespace boost { namespace program_options_2 {
     }
 
     /** TODO */
-    template<option_or_group Option, option_or_group... Options>
+    template<
+        options_map OptionsMap,
+        option_or_group Option,
+        option_or_group... Options>
     void parse_command_line(
         int argc,
         char const ** argv,
-        options_map & map,
+        OptionsMap & map,
         std::string_view program_desc,
         std::ostream & os,
         customizable_strings const & strings,
@@ -176,11 +181,14 @@ namespace boost { namespace program_options_2 {
     }
 
     /** TODO */
-    template<option_or_group Option, option_or_group... Options>
+    template<
+        options_map OptionsMap,
+        option_or_group Option,
+        option_or_group... Options>
     void parse_command_line(
         int argc,
         char const ** argv,
-        options_map & map,
+        OptionsMap & map,
         std::string_view program_desc,
         std::ostream & os,
         Option opt,
