@@ -640,7 +640,12 @@ namespace boost { namespace program_options_2 { namespace detail {
         bool no_help,
         Options const &... opts)
     {
-        auto const argv0 = *args.begin();
+        // This dance is here to support the case where the values returned by
+        // args are temporaries -- args may have an underlying proxy iterator.
+        std::basic_string<Char> const argv0_str(
+            args.begin()->begin(), args.begin()->end());
+        std::basic_string_view<Char> argv0 = argv0_str;
+
         auto fail = [&](parse_option_error error,
                         std::basic_string_view<Char> cl_arg_or_opt_name) {
             if (deserializing)
@@ -846,6 +851,50 @@ namespace boost { namespace program_options_2 { namespace detail {
         return result;
     }
 
+    template<typename Map, typename Key = map_key_t<Map>>
+    struct map_lookup;
+
+    template<typename Map>
+    struct map_lookup<Map, std::string>
+    {
+        map_lookup(Map & m) : m_(m) {}
+        template<typename Option>
+        auto find(Option const & opt)
+        {
+            scratch_ = program_options_2::storage_name(opt);
+            return m_.find(scratch_);
+        }
+        template<typename Option, long long I = 0>
+        decltype(auto) operator()(Option const & opt, hana::llong<I> = {})
+        {
+            scratch_ = program_options_2::storage_name(opt);
+            return m_[scratch_];
+        }
+
+    private:
+        Map & m_;
+        std::string scratch_;
+    };
+
+    template<typename Map>
+    struct map_lookup<Map, std::string_view>
+    {
+        map_lookup(Map & m) : m_(m) {}
+        template<typename Option>
+        auto find(Option const & opt)
+        {
+            return m_.find(program_options_2::storage_name(opt));
+        }
+        template<typename Option, long long I = 0>
+        decltype(auto) operator()(Option const & opt, hana::llong<I> = {})
+        {
+            return m_[program_options_2::storage_name(opt)];
+        }
+
+    private:
+        Map & m_;
+    };
+
     template<
         typename OptionsMap,
         typename Char,
@@ -863,9 +912,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         Options const &... opts)
     {
         auto const retval = detail::parse_options_into(
-            [&](auto const & opt, auto i) -> decltype(auto) {
-                return result[program_options_2::storage_name(opt)];
-            },
+            map_lookup<OptionsMap>(result),
             strings,
             deserializing,
             args,

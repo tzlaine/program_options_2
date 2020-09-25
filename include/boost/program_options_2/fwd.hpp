@@ -84,7 +84,10 @@ namespace boost { namespace program_options_2 {
     {};
 
     /** TODO */
-    using any_map = std::map<std::string_view, boost::any>;
+    using string_any_map = std::map<std::string, boost::any>;
+
+    /** TODO */
+    using string_view_any_map = std::map<std::string_view, boost::any>;
 
     /** TODO */
     inline constexpr struct any_empty_fn

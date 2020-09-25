@@ -80,88 +80,92 @@ namespace boost { namespace program_options_2 {
 
 #if defined(BOOST_PROGRAM_OPTIONS_2_DOXYGEN) || defined(_MSC_VER)
 
-    /** TODO */
-    template<typename Char>
-    struct winmain_arg_iter : stl_interfaces::proxy_iterator_interface<
-                                  winmain_arg_iter<Char>,
-                                  std::forward_iterator_tag,
-                                  std::basic_string_view<Char>,
-                                  std::basic_string_view<Char>,
-                                  detail::string_view_arrow_result<Char>>
-    {
-        winmain_arg_iter() = default;
-
-        explicit winmain_arg_iter(Char const * ptr) : ptr_(ptr)
+    namespace detial {
+        template<typename Char>
+        struct winmain_arg_iter : stl_interfaces::proxy_iterator_interface<
+                                      winmain_arg_iter<Char>,
+                                      std::forward_iterator_tag,
+                                      std::basic_string_view<Char>,
+                                      std::basic_string_view<Char>,
+                                      detail::string_view_arrow_result<Char>>
         {
-            BOOST_ASSERT(ptr);
-            operator++();
-        }
+            winmain_arg_iter() = default;
 
-        std::basic_string_view<Char> operator*() const { return current_; }
-
-        winmain_arg_iter & operator++()
-        {
-            current_.clear();
-
-            text::null_sentinel last;
-
-            ptr_ = std::ranges::find_if(
-                ptr_, last, [](unsigned char c) { return !std::isspace(c); });
-
-            if (ptr_ == last)
-                return *this;
-
-            bool in_quotes = false;
-            int backslashes = 0;
-
-            for (; ptr_ != last; ++ptr_) {
-                if (*ptr_ == '"') {
-                    if (backslashes % 2 == 0) {
-                        current_.append(backslashes / 2, '\\');
-                        in_quotes = !in_quotes;
-                    } else {
-                        current_.append(backslashes / 2, '\\');
-                        current_ += '"';
-                    }
-                    backslashes = 0;
-                } else if (*ptr_ == '\\') {
-                    ++backslashes;
-                } else {
-                    if (backslashes) {
-                        current_.append(backslashes, '\\');
-                        backslashes = 0;
-                    }
-                    if (std::isspace((unsigned char)*ptr_) && !in_quotes)
-                        return *this;
-                    else
-                        current_ += *ptr_;
-                }
+            explicit winmain_arg_iter(
+                Char const * ptr, std::basc_string<Char> & current) :
+                ptr_(ptr), current_(current)
+            {
+                BOOST_ASSERT(ptr);
+                operator++();
             }
 
-            if (backslashes)
-                current_.append(backslashes, '\\');
+            std::basic_string_view<Char> operator*() const { return *current_; }
 
-            return *this;
-        }
+            winmain_arg_iter & operator++()
+            {
+                current_->clear();
 
-        friend bool
-        operator==(winmain_arg_iter lhs, text::null_sentinel rhs) noexcept
-        {
-            return lhs.ptr_ == rhs;
-        }
+                text::null_sentinel last;
 
-        using base_type = stl_interfaces::proxy_iterator_interface<
-            winmain_arg_iter<Char>,
-            std::forward_iterator_tag,
-            std::basic_string_view<Char>,
-            std::basic_string_view<Char>,
-            string_view_arrow_result<Char>>;
-        using base_type::operator++;
+                ptr_ = std::ranges::find_if(ptr_, last, [](unsigned char c) {
+                    return !std::isspace(c);
+                });
 
-    private:
-        Char const * ptr_;
-        std::basc_string<Char> current_;
-    };
+                if (ptr_ == last)
+                    return *this;
+
+                bool in_quotes = false;
+                int backslashes = 0;
+
+                for (; ptr_ != last; ++ptr_) {
+                    if (*ptr_ == '"') {
+                        if (backslashes % 2 == 0) {
+                            current_->append(backslashes / 2, '\\');
+                            in_quotes = !in_quotes;
+                        } else {
+                            current_->append(backslashes / 2, '\\');
+                            *current_ += '"';
+                        }
+                        backslashes = 0;
+                    } else if (*ptr_ == '\\') {
+                        ++backslashes;
+                    } else {
+                        if (backslashes) {
+                            current_->append(backslashes, '\\');
+                            backslashes = 0;
+                        }
+                        if (std::isspace((unsigned char)*ptr_) && !in_quotes)
+                            return *this;
+                        else
+                            *current_ += *ptr_;
+                    }
+                }
+
+                if (backslashes)
+                    current_->append(backslashes, '\\');
+
+                return *this;
+            }
+
+            friend bool
+            operator==(winmain_arg_iter lhs, text::null_sentinel rhs) noexcept
+            {
+                return lhs.ptr_ == rhs;
+            }
+
+            using base_type = stl_interfaces::proxy_iterator_interface<
+                winmain_arg_iter<Char>,
+                std::forward_iterator_tag,
+                std::basic_string_view<Char>,
+                std::basic_string_view<Char>,
+                string_view_arrow_result<Char>>;
+            using base_type::operator++;
+
+        private:
+            Char const * ptr_ = nullptr;
+            std::basc_string<Char> * current_ = nullptr;
+        };
+    }
 
     /** TODO */
     template<typename Char>
@@ -171,13 +175,15 @@ namespace boost { namespace program_options_2 {
         using iterator = winmain_arg_iter<Char>;
 
         winmain_arg_view() = default;
-        winmain_arg_view(Char const * args) : first_(args) {}
+        winmain_arg_view(Char const * args) : current_(), first_(args, current_)
+        {}
 
         iterator begin() const { return first_; }
         text::null_sentinel end() const { return text::null_sentinel{}; }
 
     private:
-        iterator first_;
+        std::basc_string<Char> current_;
+        detail::iterator first_;
     };
 
 #endif
@@ -194,16 +200,18 @@ namespace boost { namespace program_options_2 {
         {
             response_file_arg_iter() = default;
 
-            explicit response_file_arg_iter(IStreamIter it) : it_(it)
+            explicit response_file_arg_iter(
+                IStreamIter it, std::string & current) :
+                it_(it), current_(&current)
             {
                 operator++();
             }
 
-            std::string_view operator*() const { return current_; }
+            std::string_view operator*() const { return *current_; }
 
             response_file_arg_iter & operator++()
             {
-                current_.clear();
+                current_->clear();
 
                 IStreamIter last;
                 auto skip_ws = [&] {
@@ -213,10 +221,10 @@ namespace boost { namespace program_options_2 {
                 };
                 auto final_business = [&] {
                     skip_ws();
-                    if (2u <= current_.size() && current_.front() == '"' &&
-                        current_.back() == '"') {
-                        current_ = std::string_view(
-                            current_.data() + 1, current_.size() - 2);
+                    if (2u <= current_->size() && current_->front() == '"' &&
+                        current_->back() == '"') {
+                        *current_ = std::string_view(
+                            current_->data() + 1, current_->size() - 2);
                     }
                     if (it_ == last)
                         just_before_end_ = true;
@@ -233,7 +241,7 @@ namespace boost { namespace program_options_2 {
                 while (it_ != last) {
                     char const c = *it_++;
                     if (c == '"') { // unescaped quote
-                        current_ += c;
+                        *current_ += c;
                         in_quotes = !in_quotes;
                         if (!in_quotes) {
                             final_business();
@@ -241,18 +249,18 @@ namespace boost { namespace program_options_2 {
                         }
                     } else if (in_quotes && c == '\\') {
                         if (it_ == last) {
-                            current_ += c;
+                            *current_ += c;
                         } else {
                             char const next_c = *it_++;
                             if (next_c != '\\' && next_c != '"')
-                                current_ += c;
-                            current_ += next_c;
+                                *current_ += c;
+                            *current_ += next_c;
                         }
                     } else if (std::isspace((unsigned char)c) && !in_quotes) {
                         final_business();
                         return *this;
                     } else {
-                        current_ += c;
+                        *current_ += c;
                     }
                 }
 
@@ -277,7 +285,7 @@ namespace boost { namespace program_options_2 {
 
         private:
             IStreamIter it_;
-            std::string current_;
+            std::string * current_ = nullptr;
             bool just_before_end_ = false;
         };
 
@@ -289,13 +297,14 @@ namespace boost { namespace program_options_2 {
 
             response_file_arg_view() = default;
             response_file_arg_view(std::istream & is) :
-                first_(std::istream_iterator<char>(is))
+                current_(), first_(std::istream_iterator<char>(is), current_)
             {}
 
             iterator begin() const { return first_; }
             iterator end() const { return {}; }
 
         private:
+            std::string current_;
             iterator first_;
         };
     }

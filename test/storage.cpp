@@ -24,7 +24,6 @@ namespace po2 = boost::program_options_2;
 
 TEST(storage, save_load_response_file)
 {
-#if 0
     {
         std::ostringstream os;
         std::vector<std::string_view> args{
@@ -42,7 +41,7 @@ TEST(storage, save_load_response_file)
             "88",
             "--dolemite",
             "5"};
-        po2::any_map m;
+        po2::string_any_map m;
         po2::parse_command_line(
             args, m, "A program.", os, ARGUMENTS(int, 4, 5, 6));
 
@@ -78,7 +77,7 @@ TEST(storage, save_load_response_file)
             "88",
             "--dolemite",
             "5"};
-        po2::any_map m;
+        po2::string_any_map m;
         po2::parse_command_line(
             args, m, "A program.", os, ARGUMENTS(int, 4, 5, 6));
 
@@ -104,7 +103,7 @@ TEST(storage, save_load_response_file)
     {
         std::ostringstream os;
         std::vector<std::string_view> args{"prog", "@saved_map"};
-        po2::any_map m;
+        po2::string_any_map m;
         po2::parse_command_line(
             args, m, "A program.", os, ARGUMENTS(int, 4, 5, 6));
 
@@ -113,7 +112,7 @@ TEST(storage, save_load_response_file)
     }
 
     {
-        po2::any_map m;
+        po2::string_any_map m;
         po2::load_response_file("saved_map", m, ARGUMENTS(int, 4, 5, 6));
 
         EXPECT_EQ(m.size(), 6u);
@@ -131,7 +130,7 @@ TEST(storage, save_load_response_file)
     }
 
     {
-        po2::any_map m;
+        po2::string_any_map m;
         EXPECT_THROW(
             po2::load_response_file(
                 "nonexistent_file", m, ARGUMENTS(int, 4, 5, 6)),
@@ -149,7 +148,7 @@ TEST(storage, save_load_response_file)
         std::ofstream ofs("bad_map_for_loading");
         ofs << "--cataphract 5";
         ofs.close();
-        po2::any_map m;
+        po2::string_any_map m;
         EXPECT_THROW(
             po2::load_response_file(
                 "bad_map_for_loading", m, ARGUMENTS(int, 4, 5, 6)),
@@ -167,7 +166,7 @@ TEST(storage, save_load_response_file)
        std::ofstream ofs("bad_map_for_loading");
         ofs << "unknown";
         ofs.close();
-        po2::any_map m;
+        po2::string_any_map m;
         EXPECT_THROW(
             po2::load_response_file(
                 "bad_map_for_loading", m, ARGUMENTS(int, 4, 5, 6)),
@@ -185,7 +184,7 @@ TEST(storage, save_load_response_file)
         std::ofstream ofs("bad_map_for_loading");
         ofs << "--abacus fish";
         ofs.close();
-        po2::any_map m;
+        po2::string_any_map m;
         EXPECT_THROW(
             po2::load_response_file(
                 "bad_map_for_loading", m, ARGUMENTS(int, 4, 5, 6)),
@@ -202,7 +201,7 @@ TEST(storage, save_load_response_file)
         std::ofstream ofs("bad_map_for_loading");
         ofs << "--dolemite 555";
         ofs.close();
-        po2::any_map m;
+        po2::string_any_map m;
         EXPECT_THROW(
             po2::load_response_file(
                 "bad_map_for_loading", m, ARGUMENTS(int, 4, 5, 6)),
@@ -224,7 +223,7 @@ TEST(storage, save_load_response_file)
         ofs << "--abacus 55";
         ofs.close();
 
-        po2::any_map m;
+        po2::string_any_map m;
 #if 0 // TODO: Fix!
         EXPECT_THROW(
             po2::load_response_file(
@@ -243,7 +242,7 @@ TEST(storage, save_load_response_file)
                     po2::argument<int>("-a,--abacus", "The abacus."),
                     validator));
         } catch (po2::load_error & e) {
-            EXPECT_EQ(e.error(), po2::load_result::no_such_choice);
+            EXPECT_EQ(e.error(), po2::load_result::validation_error);
         }
     }
 }
@@ -267,7 +266,7 @@ TEST(storage, save_load_json_file)
             "88",
             "--dolemite",
             "5"};
-        po2::any_map m;
+        po2::string_any_map m;
         po2::parse_command_line(
             args, m, "A program.", os, ARGUMENTS(int, 4, 5, 6));
 
@@ -303,7 +302,7 @@ TEST(storage, save_load_json_file)
             "88",
             "--dolemite",
             "5"};
-        po2::any_map m;
+        po2::string_any_map m;
         po2::parse_command_line(
             args, m, "A program.", os, ARGUMENTS(int, 4, 5, 6));
 
@@ -323,7 +322,7 @@ TEST(storage, save_load_json_file)
         }
     }
     {
-        po2::any_map m;
+        po2::string_any_map m;
         EXPECT_THROW(
             po2::load_json_file("dummy_file", m, ARGUMENTS(int, 4, 5, 6)),
             po2::load_error);
@@ -331,13 +330,19 @@ TEST(storage, save_load_json_file)
             po2::load_json_file("dummy_file", m, ARGUMENTS(int, 4, 5, 6));
         } catch (po2::load_error & e) {
             EXPECT_EQ(e.error(), po2::load_result::malformed_json);
+            EXPECT_EQ(e.str(), R"(dummy_file:2:0: error: Expected '}' here (end of input):
+
+^
+
+Note: The file is expected to use a subset of JSON that contains only strings,
+arrays, and objects.  JSON types null, boolean, and number are not supported,
+and character escapes besides '\\' and '\"' are not supported.
+)");
         }
     }
-#endif
 
-#if 1 // TODO
     {
-        po2::any_map m;
+        po2::string_any_map m;
         po2::load_json_file("saved_json_map", m, ARGUMENTS(int, 4, 5, 6));
 
         EXPECT_EQ(m.size(), 6u);
@@ -353,7 +358,6 @@ TEST(storage, save_load_json_file)
         EXPECT_EQ(
             boost::any_cast<std::set<int>>(m["one-plus"]), std::set<int>{2});
     }
-#endif
 }
 
 #undef ARGUMENTS

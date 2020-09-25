@@ -94,17 +94,19 @@ namespace boost { namespace program_options_2 {
             return "Failed to load command line arguments from storage.";
         }
         load_result error() const { return error_; }
-        std::string_view str() const { return str_; }
+        std::string const & str() const { return str_; }
 
     private:
         load_result error_;
-        std::string_view str_;
+        std::string str_;
     };
 
     namespace detail {
         template<typename T>
         using streamable =
             decltype(std::declval<std::ofstream>() << std::declval<T>());
+        template<typename T>
+        using quotable = decltype(std::quoted(std::declval<T>()));
     }
 
     /** TODO */
@@ -120,22 +122,21 @@ namespace boost { namespace program_options_2 {
                 save_result::could_not_open_file_for_writing, filename));
         }
 
+        detail::map_lookup<OptionsMap const> lookup(m);
         auto const opt_tuple = detail::make_opt_tuple(opts...);
         hana::for_each(opt_tuple, [&](auto const & opt) {
             using opt_type = std::remove_cvref_t<decltype(opt)>;
             using type = typename opt_type::type;
 
-            auto const name = program_options_2::storage_name(opt);
-            auto it = m.find(name);
+            auto it = lookup.find(opt);
             if (it == m.end() || it->second.empty())
                 return;
 
             try {
                 type const & value =
                     program_options_2::any_cast<type const &>(it->second);
-                // TODO: Quote the name and the value, if it is string-like.
-                ofs << detail::first_long_name(
-                    opt.names); // TODO: Wrong in the positional case.
+                if (!detail::positional(opt))
+                    ofs << detail::first_long_name(opt.names);
                 if constexpr (insertable<type>) {
                     for (auto const & x : value) {
                         // To use save_response_file(), all options must have
@@ -144,7 +145,14 @@ namespace boost { namespace program_options_2 {
                         static_assert(detail::is_detected<
                                       detail::streamable,
                                       decltype(x)>::value);
-                        ofs << ' ' << x;
+                        if constexpr (detail::is_detected<
+                                          detail::quotable,
+                                          decltype(x)>::value) {
+                            // TODO: Needs a test.
+                            ofs << ' ' << std::quoted(x);
+                        } else {
+                            ofs << ' ' << x;
+                        }
                     }
                 } else {
                     // To use save_response_file(), all options must have a
@@ -172,8 +180,6 @@ namespace boost { namespace program_options_2 {
             BOOST_THROW_EXCEPTION(load_error(
                 load_result::could_not_open_file_for_reading, filename));
         }
-
-        // TODO: If the map contains std::string_view keys, they will dangle!
 
         std::ostringstream oss;
         auto const parse_result = detail::parse_options_into_map(
@@ -355,14 +361,14 @@ namespace boost { namespace program_options_2 {
 
         ofs << "{\n";
 
-        bool first_opt = true;
+        detail::map_lookup<OptionsMap const> lookup(m);
         auto const opt_tuple = detail::make_opt_tuple(opts...);
+        bool first_opt = true;
         hana::for_each(opt_tuple, [&](auto const & opt) {
             using opt_type = std::remove_cvref_t<decltype(opt)>;
             using type = typename opt_type::type;
 
-            auto const name = program_options_2::storage_name(opt);
-            auto it = m.find(name);
+            auto it = lookup.find(opt);
             if (it == m.end() || it->second.empty())
                 return;
 
@@ -416,17 +422,26 @@ namespace boost { namespace program_options_2 {
                 save_result::could_not_open_file_for_writing, filename));
         }
 
+        std::string error_message;
+        auto record_error = [&](std::string const & error) {
+            error_message = error;
+        };
+        parser::callback_error_handler error_callbacks(
+            record_error, record_error, filename);
+
         std::vector<std::string_view> args;
         detail::json_callbacks callbacks(args);
         auto const contents = detail::file_slurp(ifs);
-        auto const parser = detail::value; // TODO
+        auto const parser =
+            parser::with_error_handler(detail::value, error_callbacks);
         if (!parser::callback_parse(contents, parser, detail::ws, callbacks)) {
-            // TODO: Capture the parse error as a string, and pass it to
-            // load_error.  Append a little note indicating that null, bool,
-            // number, and escaping within strings is not supported (except
-            // for \\ and \').
+            error_message += R"(
+Note: The file is expected to use a subset of JSON that contains only strings,
+arrays, and objects.  JSON types null, boolean, and number are not supported,
+and character escapes besides '\\' and '\"' are not supported.
+)";
             BOOST_THROW_EXCEPTION(
-                load_error(load_result::malformed_json, filename));
+                load_error(load_result::malformed_json, error_message));
         }
 
         std::ostringstream oss;

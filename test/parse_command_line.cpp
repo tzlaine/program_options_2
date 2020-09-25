@@ -149,7 +149,7 @@ TEST(parse_command_line, api)
     }
     {
         std::ostringstream os;
-        po2::any_map result;
+        po2::string_view_any_map result;
         po2::parse_command_line(
             po2::arg_view(argc, argv),
             result,
@@ -202,7 +202,7 @@ TEST(parse_command_line, api)
     }
     {
         std::wostringstream os;
-        po2::any_map result; // TODO: Test with custom map types.
+        po2::string_view_any_map result;
         po2::parse_command_line(
             po2::arg_view(wargc, wargv),
             result,
@@ -227,7 +227,7 @@ TEST(parse_command_line, api)
     }
     {
         std::ostringstream os;
-        po2::any_map result;
+        po2::string_view_any_map result;
         po2::parse_command_line(
             po2::arg_view(argc, argv),
             result,
@@ -264,7 +264,7 @@ TEST(parse_command_line, api)
     }
     {
         std::wostringstream os;
-        po2::any_map result;
+        po2::string_view_any_map result;
         po2::parse_command_line(
             po2::arg_view(wargc, wargv),
             result,
@@ -290,7 +290,7 @@ TEST(parse_command_line, api)
     }
     {
         std::ostringstream os;
-        po2::any_map result;
+        po2::string_view_any_map result;
         po2::parse_command_line(
             argc,
             argv,
@@ -314,7 +314,7 @@ TEST(parse_command_line, api)
     }
     {
         std::wostringstream os;
-        po2::any_map result;
+        po2::string_view_any_map result;
         po2::parse_command_line(
             wargc,
             wargv,
@@ -341,7 +341,7 @@ TEST(parse_command_line, api)
     }
     {
         std::ostringstream os;
-        po2::any_map result;
+        po2::string_view_any_map result;
         po2::parse_command_line(
             argc,
             argv,
@@ -367,7 +367,7 @@ TEST(parse_command_line, api)
     }
     {
         std::wostringstream os;
-        po2::any_map result;
+        po2::string_view_any_map result;
         po2::parse_command_line(
             wargc,
             wargv,
@@ -1295,7 +1295,7 @@ TEST(parse_command_line, arguments_map)
             "88",
             "--dolemite",
             "5"};
-        po2::any_map result;
+        po2::string_view_any_map result;
         po2::parse_command_line(
             args, result, "A program.", os, ARGUMENTS(int, 4, 5, 6));
         EXPECT_EQ(result.size(), 6u);
@@ -1315,7 +1315,7 @@ TEST(parse_command_line, arguments_map)
     {
         std::ostringstream os;
         std::vector<std::string_view> args{"prog", "-b", "-z"};
-        po2::any_map result;
+        po2::string_view_any_map result;
         po2::parse_command_line(
             args, result, "A program.", os, ARGUMENTS(int, 4, 5, 6));
         EXPECT_EQ(result.size(), 2u);
@@ -1329,7 +1329,7 @@ TEST(parse_command_line, arguments_map)
     {
         std::ostringstream os;
         std::vector<std::string_view> args{"prog", "-b", "-z"};
-        po2::any_map result;
+        po2::string_view_any_map result;
         po2::parse_command_line(
             args, result, "A program.", os, ARGUMENTS(double, 4, 5, 6));
         EXPECT_EQ(result.size(), 2u);
@@ -1343,7 +1343,7 @@ TEST(parse_command_line, arguments_map)
     {
         std::ostringstream os;
         std::vector<std::string_view> args{"prog"};
-        po2::any_map result;
+        po2::string_view_any_map result;
         po2::parse_command_line(
             args,
             result,
@@ -1362,7 +1362,7 @@ TEST(parse_command_line, arguments_map)
         std::ostringstream os;
         std::vector<std::string_view> args{
             "prog", "--dolemite", "5", "--bobcat", "66", "-c", "77", "88"};
-        po2::any_map result;
+        po2::string_view_any_map result;
         po2::parse_command_line(
             args,
             result,
@@ -1381,7 +1381,7 @@ TEST(parse_command_line, arguments_map)
     {
         std::ostringstream os;
         std::vector<std::string_view> args{"prog", "-z", "3"};
-        po2::any_map result;
+        po2::string_view_any_map result;
         po2::parse_command_line(
             args,
             result,
@@ -1399,7 +1399,7 @@ TEST(parse_command_line, arguments_map)
     {
         std::ostringstream os;
         std::vector<std::string_view> args{"prog", "-z", "3.0"};
-        po2::any_map result;
+        po2::string_view_any_map result;
         po2::parse_command_line(
             args,
             result,
@@ -1531,7 +1531,7 @@ TEST(parse_command_line, positionals_map)
         std::ostringstream os;
         std::vector<std::string_view> args{
             "prog", "55", "66", "77", "88", "5", "2"};
-        po2::any_map result;
+        po2::string_view_any_map result;
         po2::parse_command_line(
             args, result, "A program.", os, POSITIONALS(int, 4, 5, 6));
         EXPECT_EQ(result.size(), 5u);
@@ -1550,7 +1550,7 @@ TEST(parse_command_line, positionals_map)
         std::ostringstream os;
         std::vector<std::string_view> args{
             "prog", "55", "66", "77", "88", "5", "2"};
-        po2::any_map result;
+        po2::string_view_any_map result;
         po2::parse_command_line(
             args, result, "A program.", os, POSITIONALS(double, 4, 5, 6));
         EXPECT_EQ(result.size(), 5u);
@@ -1570,7 +1570,7 @@ TEST(parse_command_line, positionals_map)
         std::ostringstream os;
         std::vector<std::string_view> args{
             "prog", "55", "66", "77", "88", "5", "2"};
-        po2::any_map result;
+        po2::string_view_any_map result;
         po2::parse_command_line(
             args,
             result,
@@ -1586,7 +1586,7 @@ TEST(parse_command_line, positionals_map)
         std::ostringstream os;
         std::vector<std::string_view> args{
             "prog", "55", "66", "77", "88", "5", "2"};
-        po2::any_map result;
+        po2::string_view_any_map result;
         po2::parse_command_line(
             args,
             result,
@@ -1793,7 +1793,7 @@ TEST(parse_command_line, counted_flags_map)
     {
         std::ostringstream os;
         std::vector<std::string_view> args{"prog"};
-        po2::any_map result;
+        po2::string_view_any_map result;
         po2::parse_command_line(
             args,
             result,
@@ -1805,7 +1805,7 @@ TEST(parse_command_line, counted_flags_map)
     {
         std::ostringstream os;
         std::vector<std::string_view> args{"prog", "-v"};
-        po2::any_map result;
+        po2::string_view_any_map result;
         po2::parse_command_line(
             args,
             result,
@@ -1819,7 +1819,7 @@ TEST(parse_command_line, counted_flags_map)
     {
         std::ostringstream os;
         std::vector<std::string_view> args{"prog", "--verbose"};
-        po2::any_map result;
+        po2::string_view_any_map result;
         po2::parse_command_line(
             args,
             result,
@@ -1833,7 +1833,7 @@ TEST(parse_command_line, counted_flags_map)
     {
         std::ostringstream os;
         std::vector<std::string_view> args{"prog", "-vvvv"};
-        po2::any_map result;
+        po2::string_view_any_map result;
         po2::parse_command_line(
             args,
             result,
