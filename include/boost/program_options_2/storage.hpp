@@ -136,8 +136,9 @@ namespace boost { namespace program_options_2 {
                 type const & value =
                     program_options_2::any_cast<type const &>(it->second);
                 if (!detail::positional(opt))
-                    ofs << detail::first_long_name(opt.names);
+                    ofs << detail::first_long_name(opt.names) << ' ';
                 if constexpr (insertable<type>) {
+                    bool first = true;
                     for (auto const & x : value) {
                         // To use save_response_file(), all options must have
                         // a type that can be written to file using
@@ -145,13 +146,16 @@ namespace boost { namespace program_options_2 {
                         static_assert(detail::is_detected<
                                       detail::streamable,
                                       decltype(x)>::value);
+                        if (!first)
+                            ofs << ' ';
+                        first = false;
                         if constexpr (detail::is_detected<
                                           detail::quotable,
                                           decltype(x)>::value) {
                             // TODO: Needs a test.
-                            ofs << ' ' << std::quoted(x);
+                            ofs << std::quoted(x);
                         } else {
-                            ofs << ' ' << x;
+                            ofs << x;
                         }
                     }
                 } else {
@@ -159,7 +163,7 @@ namespace boost { namespace program_options_2 {
                     // type that can be written to file using operator<<().
                     static_assert(
                         detail::is_detected<detail::streamable, type>::value);
-                    ofs << ' ' << value;
+                    ofs << value;
                 }
                 ofs << '\n';
             } catch (...) {
