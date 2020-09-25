@@ -59,7 +59,8 @@ namespace boost { namespace program_options_2 {
             (int)detail::parse_option_error::wrong_number_of_args,
         cannot_parse_arg = (int)detail::parse_option_error::cannot_parse_arg,
         no_such_choice = (int)detail::parse_option_error::no_such_choice,
-        validation_error = (int)detail::parse_option_error::validation_error
+        validation_error = (int)detail::parse_option_error::validation_error,
+        malformed_json
     };
 
     /** TODO */
@@ -132,7 +133,9 @@ namespace boost { namespace program_options_2 {
             try {
                 type const & value =
                     program_options_2::any_cast<type const &>(it->second);
-                ofs << detail::first_long_name(opt.names);
+                // TODO: Quote the name and the value, if it is string-like.
+                ofs << detail::first_long_name(
+                    opt.names); // TODO: Wrong in the positional case.
                 if constexpr (insertable<type>) {
                     for (auto const & x : value) {
                         // To use save_response_file(), all options must have
@@ -170,12 +173,268 @@ namespace boost { namespace program_options_2 {
                 load_result::could_not_open_file_for_reading, filename));
         }
 
+        // TODO: If the map contains std::string_view keys, they will dangle!
+
         std::ostringstream oss;
         auto const parse_result = detail::parse_options_into_map(
             m,
             customizable_strings{},
             true,
             detail::response_file_arg_view(ifs),
+            std::string_view{},
+            oss,
+            false,
+            false,
+            opts...);
+
+        if (!parse_result) {
+            BOOST_THROW_EXCEPTION(
+                load_error((load_result)parse_result.error, filename));
+        }
+    }
+
+    namespace detail {
+        inline parser::rule<class ws> const ws = "whitespace";
+        inline parser::rule<class single_escaped_char, uint32_t> const
+            single_escaped_char = "'\"' or '\\'";
+        inline parser::rule<class string_char, uint32_t> const string_char =
+            "code point (code points must be > U+001F)";
+        parser::callback_rule<class string_tag, std::string_view> const string =
+            "string";
+        parser::callback_rule<
+            class object_element_key_tag,
+            std::string_view> const object_element_key = "string";
+        inline parser::rule<class object_element_tag> const object_element =
+            "object-element";
+
+        parser::callback_rule<class object_open_tag> const object_open = "'{'";
+        parser::callback_rule<class object_close_tag> const object_close =
+            "'}'";
+        inline parser::rule<class object_tag> const object = "object";
+
+        parser::callback_rule<class array_open_tag> const array_open = "'['";
+        parser::callback_rule<class array_close_tag> const array_close = "']'";
+        inline parser::rule<class array_tag> const array = "array";
+
+        inline parser::rule<class value_tag> const value = "value";
+
+
+        class string_tag
+        {};
+        class object_element_key_tag
+        {};
+        class object_open_tag
+        {};
+        class object_close_tag
+        {};
+        class array_open_tag
+        {};
+        class array_close_tag
+        {};
+
+
+        inline auto const ws_def =
+            parser::lit('\x09') | '\x0a' | '\x0d' | '\x20';
+
+        inline auto const
+            single_escaped_char_def = '\"' >> parser::attr(0x0022u) |
+                                      '\\' >> parser::attr(0x005cu);
+
+        inline auto const string_char_def =
+            ('\\' > single_escaped_char) |
+            (parser::cp - parser::char_(0x0000u, 0x001fu));
+
+        // TODO: In parser, make a directive that creates a string_view of the
+        // underlying input ragne's value type.  It should be ill-formed to
+        // use it with non-contiguous underlying iterators.
+
+        struct json_string_view_action
+        {
+            template<typename Context>
+            void operator()(Context & ctx) const
+            {
+                auto const where = _where(ctx);
+                auto const first = ++where.begin();
+                auto const last = --where.end();
+                _val(ctx) =
+                    std::string_view{&*first, std::size_t(last - first)};
+            }
+        };
+
+        inline auto const string_def =
+            parser::raw[parser::lexeme['"' >> *(string_char - '"') > '"']]
+                       [json_string_view_action{}];
+
+        inline auto const object_element_key_def = string_def;
+
+        inline auto const object_element_def = object_element_key > ':' > value;
+
+        inline auto const object_open_def = parser::lit('{');
+        inline auto const object_close_def = parser::lit('}');
+        inline auto const object_def = object_open >>
+                                       -(object_element % ',') > object_close;
+
+        inline auto const array_open_def = parser::lit('[');
+        inline auto const array_close_def = parser::lit(']');
+        inline auto const array_def = array_open >>
+                                      -(value % ',') > array_close;
+
+        inline auto const value_def = string | array | object;
+
+        BOOST_PARSER_DEFINE_RULES(
+            ws,
+            single_escaped_char,
+            string_char,
+            string,
+            object_element_key,
+            object_element,
+            object_open,
+            object_close,
+            object,
+            array_open,
+            array_close,
+            array,
+            value);
+
+        struct json_callbacks
+        {
+            json_callbacks(std::vector<std::string_view> & result) :
+                result_(result)
+            {}
+
+            void operator()(string_tag, std::string_view s) const
+            {
+                result_.push_back(s);
+            }
+            void operator()(object_element_key_tag, std::string_view key) const
+            {
+                result_.push_back(key);
+            }
+            void operator()(object_open_tag) const
+            {
+            }
+            void operator()(object_close_tag) const
+            {
+            }
+            void operator()(array_open_tag) const
+            {
+            }
+            void operator()(array_close_tag) const
+            {
+            }
+
+        private:
+            std::vector<std::string_view> & result_;
+        };
+
+        inline std::string file_slurp(std::ifstream & ifs)
+        {
+            std::string retval;
+            while (ifs) {
+                char const c = ifs.get();
+                retval += c;
+            }
+            if (!retval.empty() && retval[retval.back() == -1])
+                retval.pop_back();
+            return retval;
+        }
+    }
+
+    /** TODO */
+    template<options_map OptionsMap, typename... Options>
+    void save_json_file(
+        std::string_view filename,
+        OptionsMap const & m,
+        Options const &... opts)
+    {
+        std::ofstream ofs(filename.data());
+        if (!ofs) {
+            BOOST_THROW_EXCEPTION(save_error(
+                save_result::could_not_open_file_for_writing, filename));
+        }
+
+        ofs << "{\n";
+
+        bool first_opt = true;
+        auto const opt_tuple = detail::make_opt_tuple(opts...);
+        hana::for_each(opt_tuple, [&](auto const & opt) {
+            using opt_type = std::remove_cvref_t<decltype(opt)>;
+            using type = typename opt_type::type;
+
+            auto const name = program_options_2::storage_name(opt);
+            auto it = m.find(name);
+            if (it == m.end() || it->second.empty())
+                return;
+
+            try {
+                type const & value =
+                    program_options_2::any_cast<type const &>(it->second);
+                if (!first_opt)
+                    ofs << ",\n";
+                first_opt = false;
+                ofs << "    \"" << detail::first_long_name(opt.names) << "\":";
+                if constexpr (insertable<type>) {
+                    bool first_arg = true;
+                    ofs << " [";
+                    for (auto const & x : value) {
+                        // To use save_json_file(), all options must have a
+                        // type that can be written to file using
+                        // operator<<().
+                        static_assert(detail::is_detected<
+                                      detail::streamable,
+                                      decltype(x)>::value);
+                        if (!first_arg)
+                            ofs << ',';
+                        first_arg = false;
+                        ofs << " \"" << x << '"';
+                    }
+                    ofs << " ]";
+                } else {
+                    // To use save_json_file(), all options must have a type
+                    // that can be written to file using operator<<().
+                    static_assert(
+                        detail::is_detected<detail::streamable, type>::value);
+                    ofs << " \"" << value << '"';
+                }
+            } catch (...) {
+                BOOST_THROW_EXCEPTION(
+                    save_error(save_result::bad_any_cast, filename));
+            }
+        });
+
+        ofs << "\n}\n";
+    }
+
+    /** TODO */
+    template<options_map OptionsMap, typename... Options>
+    void load_json_file(
+        std::string_view filename, OptionsMap & m, Options const &... opts)
+    {
+        std::ifstream ifs(filename.data());
+        if (!ifs) {
+            BOOST_THROW_EXCEPTION(save_error(
+                save_result::could_not_open_file_for_writing, filename));
+        }
+
+        std::vector<std::string_view> args;
+        detail::json_callbacks callbacks(args);
+        auto const contents = detail::file_slurp(ifs);
+        auto const parser = detail::value; // TODO
+        if (!parser::callback_parse(contents, parser, detail::ws, callbacks)) {
+            // TODO: Capture the parse error as a string, and pass it to
+            // load_error.  Append a little note indicating that null, bool,
+            // number, and escaping within strings is not supported (except
+            // for \\ and \').
+            BOOST_THROW_EXCEPTION(
+                load_error(load_result::malformed_json, filename));
+        }
+
+        std::ostringstream oss;
+        auto const parse_result = detail::parse_options_into_map(
+            m,
+            customizable_strings{},
+            true,
+            args,
             std::string_view{},
             oss,
             false,

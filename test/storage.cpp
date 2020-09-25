@@ -24,6 +24,7 @@ namespace po2 = boost::program_options_2;
 
 TEST(storage, save_load_response_file)
 {
+#if 0
     {
         std::ostringstream os;
         std::vector<std::string_view> args{
@@ -86,13 +87,13 @@ TEST(storage, save_load_response_file)
 
         EXPECT_THROW(
             po2::save_response_file(
-                "empty_file",
+                "dummy_file",
                 m,
                 po2::argument<double>("-a,--abacus", "The abacus.")),
             po2::save_error);
         try {
             po2::load_response_file(
-                "empty_file",
+                "dummy_file",
                 m,
                 po2::argument<double>("-a,--abacus", "The abacus."));
         } catch (po2::save_error & e) {
@@ -245,6 +246,114 @@ TEST(storage, save_load_response_file)
             EXPECT_EQ(e.error(), po2::load_result::no_such_choice);
         }
     }
+}
+
+TEST(storage, save_load_json_file)
+{
+    {
+        std::ostringstream os;
+        std::vector<std::string_view> args{
+            "prog",
+            "-a",
+            "55",
+            "--bobcat",
+            "66",
+            "-o",
+            "2",
+            "-z",
+            "2",
+            "-c",
+            "77",
+            "88",
+            "--dolemite",
+            "5"};
+        po2::any_map m;
+        po2::parse_command_line(
+            args, m, "A program.", os, ARGUMENTS(int, 4, 5, 6));
+
+        EXPECT_EQ(m.size(), 6u);
+        EXPECT_EQ(boost::any_cast<int>(m["abacus"]), 55);
+        EXPECT_EQ(boost::any_cast<int>(m["bobcat"]), 66);
+        EXPECT_EQ(
+            boost::any_cast<std::vector<int>>(m["cataphract"]),
+            std::vector<int>({77, 88}));
+        EXPECT_EQ(boost::any_cast<int>(m["dolemite"]), 5);
+        EXPECT_EQ(
+            boost::any_cast<std::vector<int>>(m["zero-plus"]),
+            std::vector<int>{2});
+        EXPECT_EQ(
+            boost::any_cast<std::set<int>>(m["one-plus"]), std::set<int>{2});
+
+        po2::save_json_file("saved_json_map", m, ARGUMENTS(int, 4, 5, 6));
+    }
+    {
+        std::ostringstream os;
+        std::vector<std::string_view> args{
+            "prog",
+            "-a",
+            "55",
+            "--bobcat",
+            "66",
+            "-o",
+            "2",
+            "-z",
+            "2",
+            "-c",
+            "77",
+            "88",
+            "--dolemite",
+            "5"};
+        po2::any_map m;
+        po2::parse_command_line(
+            args, m, "A program.", os, ARGUMENTS(int, 4, 5, 6));
+
+        EXPECT_THROW(
+            po2::save_json_file(
+                "dummy_file",
+                m,
+                po2::argument<double>("-a,--abacus", "The abacus.")),
+            po2::save_error);
+        try {
+            po2::save_json_file(
+                "dummy_file",
+                m,
+                po2::argument<double>("-a,--abacus", "The abacus."));
+        } catch (po2::save_error & e) {
+            EXPECT_EQ(e.error(), po2::save_result::bad_any_cast);
+        }
+    }
+    {
+        po2::any_map m;
+        EXPECT_THROW(
+            po2::load_json_file("dummy_file", m, ARGUMENTS(int, 4, 5, 6)),
+            po2::load_error);
+        try {
+            po2::load_json_file("dummy_file", m, ARGUMENTS(int, 4, 5, 6));
+        } catch (po2::load_error & e) {
+            EXPECT_EQ(e.error(), po2::load_result::malformed_json);
+        }
+    }
+#endif
+
+#if 1 // TODO
+    {
+        po2::any_map m;
+        po2::load_json_file("saved_json_map", m, ARGUMENTS(int, 4, 5, 6));
+
+        EXPECT_EQ(m.size(), 6u);
+        EXPECT_EQ(boost::any_cast<int>(m["abacus"]), 55);
+        EXPECT_EQ(boost::any_cast<int>(m["bobcat"]), 66);
+        EXPECT_EQ(
+            boost::any_cast<std::vector<int>>(m["cataphract"]),
+            std::vector<int>({77, 88}));
+        EXPECT_EQ(boost::any_cast<int>(m["dolemite"]), 5);
+        EXPECT_EQ(
+            boost::any_cast<std::vector<int>>(m["zero-plus"]),
+            std::vector<int>{2});
+        EXPECT_EQ(
+            boost::any_cast<std::set<int>>(m["one-plus"]), std::set<int>{2});
+    }
+#endif
 }
 
 #undef ARGUMENTS
