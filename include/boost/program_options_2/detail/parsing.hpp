@@ -631,6 +631,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         typename... Options>
     parse_option_result parse_options_into(
         Accessor accessor,
+        int & next_positional,
         customizable_strings const & strings,
         bool deserializing,
         Args const & args,
@@ -661,8 +662,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         auto parse_option_ = [&](auto & first,
                                  auto last,
                                  auto const & opt,
-                                 auto & result,
-                                 int & next_positional) {
+                                 auto & result) {
             return detail::parse_option<Char>(
                 strings,
                 deserializing,
@@ -687,6 +687,7 @@ namespace boost { namespace program_options_2 { namespace detail {
             ifs.unsetf(ifs.skipws);
             detail::parse_options_into(
                 accessor,
+                next_positional,
                 strings,
                 deserializing,
                 detail::response_file_arg_view(ifs),
@@ -704,7 +705,6 @@ namespace boost { namespace program_options_2 { namespace detail {
         if (skip_first)
             ++args_first;
         auto const args_last = args.end();
-        int next_positional = 0;
         while (args_first != args_last) {
             // Special case: an arg starting with @ names a response file.
             if (!strings.response_file_description.empty() &&
@@ -748,12 +748,8 @@ namespace boost { namespace program_options_2 { namespace detail {
                         return i_plus_1;
                 }
 
-                parse_result = parse_option_(
-                    args_first,
-                    args_last,
-                    opt,
-                    accessor(opt, i),
-                    next_positional);
+                parse_result =
+                    parse_option_(args_first, args_last, opt, accessor(opt, i));
 
                 // Special case: if we just parsed a response_file opt
                 // successfully, process the file.
@@ -836,10 +832,12 @@ namespace boost { namespace program_options_2 { namespace detail {
         Options const &... opts)
     {
         auto result = detail::make_result_tuple(opts...);
+        int next_positional = 0;
         detail::parse_options_into(
             [&](auto const & opt, auto i) -> decltype(auto) {
                 return result[i];
             },
+            next_positional,
             strings,
             false,
             args,
@@ -911,8 +909,10 @@ namespace boost { namespace program_options_2 { namespace detail {
         bool skip_first,
         Options const &... opts)
     {
+        int next_positional = 0;
         auto const retval = detail::parse_options_into(
             map_lookup<OptionsMap>(result),
+            next_positional,
             strings,
             deserializing,
             args,
