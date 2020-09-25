@@ -936,26 +936,6 @@ namespace boost { namespace program_options_2 { namespace detail {
         return retval;
     }
 
-    template<
-        typename OptionsMap,
-        typename Char,
-        typename Args,
-        typename... Options>
-    OptionsMap parse_options_as_map(
-        customizable_strings const & strings,
-        Args const & args,
-        std::basic_string_view<Char> program_desc,
-        std::basic_ostream<Char> & os,
-        bool no_help,
-        Options const &... opts)
-    {
-        OptionsMap result;
-        detail::init_options_map(result, opts...);
-        detail::parse_options_into_map(
-            result, strings, false, args, program_desc, os, no_help, opts...);
-        return result;
-    }
-
 }}}
 
 #endif
