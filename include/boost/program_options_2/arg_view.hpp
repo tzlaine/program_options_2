@@ -238,7 +238,7 @@ namespace boost { namespace program_options_2 {
                     }
                 };
                 auto final_business = [&] {
-                    skip_ws();
+                    skip();
                     if (2u <= current_->size() && current_->front() == '"' &&
                         current_->back() == '"') {
                         *current_ = std::string_view(
@@ -278,7 +278,6 @@ namespace boost { namespace program_options_2 {
                         final_business();
                         return *this;
                     } else if (c == '#' && !in_quotes) {
-                        skip();
                         final_business();
                         return *this;
                     } else {
@@ -293,7 +292,7 @@ namespace boost { namespace program_options_2 {
             friend bool operator==(
                 response_file_arg_iter lhs, response_file_arg_iter rhs) noexcept
             {
-                return !lhs.just_before_end_ && !rhs.just_before_end_ &&
+                return lhs.just_before_end_ == rhs.just_before_end_ &&
                        lhs.it_ == rhs.it_;
             }
 

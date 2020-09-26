@@ -248,7 +248,6 @@ TEST(storage, save_load_response_file)
         }
     }
 
-#if 0 // TODO: Fix! (seems to be an unbounded loop)
     {
         std::ofstream ofs("bad_map_for_loading");
         ofs << "--unknown";
@@ -265,9 +264,7 @@ TEST(storage, save_load_response_file)
             EXPECT_EQ(e.error(), po2::load_result::unknown_arg);
         }
     }
-#endif
 
-#if 0 // TODO: Fix! (seems to be an unbounded loop)
     {
         std::ofstream ofs("bad_map_for_loading");
         ofs << "unknown";
@@ -284,7 +281,6 @@ TEST(storage, save_load_response_file)
             EXPECT_EQ(e.error(), po2::load_result::unknown_arg);
         }
     }
-#endif
 
     {
         std::ofstream ofs("bad_map_for_loading");
@@ -322,7 +318,7 @@ TEST(storage, save_load_response_file)
 
     {
         auto validator = [](auto const &) {
-            return po2::validation_result{false};
+            return po2::validation_result{false, "bad"};
         };
 
         std::ofstream ofs("bad_map_for_loading");
@@ -330,7 +326,6 @@ TEST(storage, save_load_response_file)
         ofs.close();
 
         po2::string_any_map m;
-#if 0 // TODO: Fix!
         EXPECT_THROW(
             po2::load_response_file(
                 "bad_map_for_loading",
@@ -339,7 +334,6 @@ TEST(storage, save_load_response_file)
                     po2::argument<int>("-a,--abacus", "The abacus."),
                     validator)),
             po2::load_error);
-#endif
         try {
             po2::load_response_file(
                 "bad_map_for_loading",
@@ -355,6 +349,8 @@ TEST(storage, save_load_response_file)
 
 TEST(storage, save_load_json_file)
 {
+    // Mixed arguments only
+
     {
         std::ostringstream os;
         std::vector<std::string_view> args{
@@ -473,6 +469,88 @@ and character escapes besides '\\' and '\"' are not supported.
             std::vector<int>{2});
         EXPECT_EQ(
             boost::any_cast<std::set<int>>(m["one-plus"]), std::set<int>{2});
+    }
+
+
+    // Mixed arguments and positionals
+
+    {
+        std::ostringstream os;
+        std::vector<std::string_view> args{
+            "prog",
+            "-a",
+            "55",
+            "--bobcat",
+            "66",
+            "77",
+            "88",
+            "--dolemite",
+            "5",
+            "\\2\""};
+        po2::string_any_map m;
+        po2::parse_command_line(
+            args, m, "A program.", os, MIXED(int, 4, 5, 6, 42));
+
+        EXPECT_EQ(m.size(), 5u);
+        EXPECT_EQ(boost::any_cast<int>(m["abacus"]), 55);
+        EXPECT_EQ(boost::any_cast<int>(m["bobcat"]), 66);
+        EXPECT_EQ(
+            boost::any_cast<std::vector<int>>(m["cataphract"]),
+            std::vector<int>({77, 88}));
+        EXPECT_EQ(boost::any_cast<int>(m["dolemite"]), 5);
+        EXPECT_EQ(
+            boost::any_cast<std::vector<std::string>>(m["args"]),
+            std::vector<std::string>({"\\2\""}));
+
+        po2::save_response_file(
+            "saved_mixed_json_map", m, MIXED(int, 4, 5, 6, 42));
+
+        {
+            std::ifstream ifs("saved_mixed_json_map");
+            std::string const contents_with_comments =
+                "#comments are ignored\n" + po2::detail::file_slurp(ifs) +
+                "#   more comments";
+            ifs.close();
+            std::ofstream ofs("saved_mixed_json_map");
+            ofs << contents_with_comments;
+        }
+    }
+
+    {
+        po2::string_any_map m;
+        po2::load_response_file(
+            "saved_mixed_json_map", m, MIXED(int, 4, 5, 6, 42));
+
+        EXPECT_EQ(m.size(), 5u);
+        EXPECT_EQ(boost::any_cast<int>(m["abacus"]), 55);
+        EXPECT_EQ(boost::any_cast<int>(m["bobcat"]), 66);
+        EXPECT_EQ(
+            boost::any_cast<std::vector<int>>(m["cataphract"]),
+            std::vector<int>({77, 88}));
+        EXPECT_EQ(boost::any_cast<int>(m["dolemite"]), 5);
+        EXPECT_EQ(
+            boost::any_cast<std::vector<std::string>>(m["args"]),
+            std::vector<std::string>({"\\2\""}));
+    }
+
+
+    // Error cases
+
+    {
+        std::ofstream ofs("bad_json_map_for_loading");
+        ofs << "{ \"--unknown\": \"unknown\" }";
+        ofs.close();
+        po2::string_any_map m;
+        EXPECT_THROW(
+            po2::load_response_file(
+                "bad_json_map_for_loading", m, ARGUMENTS(int, 4, 5, 6)),
+            po2::load_error);
+        try {
+            po2::load_response_file(
+                "bad_json_map_for_loading", m, ARGUMENTS(int, 4, 5, 6));
+        } catch (po2::load_error & e) {
+            EXPECT_EQ(e.error(), po2::load_result::unknown_arg);
+        }
     }
 }
 

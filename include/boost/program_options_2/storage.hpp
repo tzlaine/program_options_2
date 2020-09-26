@@ -210,21 +210,24 @@ namespace boost { namespace program_options_2 {
             single_escaped_char = "'\"' or '\\'";
         inline parser::rule<class string_char, uint32_t> const string_char =
             "code point (code points must be > U+001F)";
-        parser::callback_rule<class string_tag, std::string_view> const string =
-            "string";
-        parser::callback_rule<
+        inline parser::callback_rule<class string_tag, std::string_view> const
+            string = "string";
+        inline parser::callback_rule<
             class object_element_key_tag,
             std::string_view> const object_element_key = "string";
         inline parser::rule<class object_element_tag> const object_element =
             "object-element";
 
-        parser::callback_rule<class object_open_tag> const object_open = "'{'";
-        parser::callback_rule<class object_close_tag> const object_close =
-            "'}'";
+        inline parser::callback_rule<class object_open_tag> const object_open =
+            "'{'";
+        inline parser::callback_rule<class object_close_tag> const
+            object_close = "'}'";
         inline parser::rule<class object_tag> const object = "object";
 
-        parser::callback_rule<class array_open_tag> const array_open = "'['";
-        parser::callback_rule<class array_close_tag> const array_close = "']'";
+        inline parser::callback_rule<class array_open_tag> const array_open =
+            "'['";
+        inline parser::callback_rule<class array_close_tag> const array_close =
+            "']'";
         inline parser::rule<class array_tag> const array = "array";
 
         inline parser::rule<class value_tag> const value = "value";
