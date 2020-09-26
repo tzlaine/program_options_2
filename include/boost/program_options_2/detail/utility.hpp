@@ -189,10 +189,26 @@ namespace boost { namespace program_options_2 { namespace detail {
     }
 
     template<typename... Options>
+    auto make_opt_tuple(hana::tuple<Options const &...> const & opts)
+    {
+        auto unflattened = hana::transform(opts, [](auto const & opt) {
+            using opt_type = std::remove_cvref_t<decltype(opt)>;
+            if constexpr (is_group<opt_type>::value) {
+                if constexpr (
+                    !opt_type::mutually_exclusive && !opt_type::subcommand) {
+                    return detail::make_opt_tuple(opt.options);
+                }
+            }
+            return hana::make_tuple(opt);
+        });
+        return hana::flatten(unflattened);
+    }
+
+    template<typename... Options>
     auto make_opt_tuple(Options const &... opts)
     {
-        using opt_tuple_type = hana::tuple<Options const &...>;
-        return opt_tuple_type{opts...};
+        using opts_as_tuple_type = hana::tuple<Options const &...>;
+        return detail::make_opt_tuple(opts_as_tuple_type{opts...});
     }
 
 }}}

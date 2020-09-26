@@ -59,6 +59,12 @@ namespace boost { namespace program_options_2 { namespace detail {
     using result_map_element_t =
         std::conditional_t<std::is_same_v<T, void>, no_value, T>;
 
+    template<typename... Options>
+    auto variant_for_tuple(hana::tuple<Options...> const & opts)
+    {
+        return std::variant<typename Options::type...>{};
+    }
+
     template<typename Option>
     auto make_result_tuple_element()
     {
@@ -74,18 +80,31 @@ namespace boost { namespace program_options_2 { namespace detail {
     };
 
     template<typename... Options>
+    auto make_result_tuple(hana::tuple<Options...> const & opts)
+    {
+        return hana::transform(opts, [](auto const & opt) {
+            using opt_type = std::remove_cvref_t<decltype(opt)>;
+            if constexpr (is_group<opt_type>::value) {
+                if constexpr (opt_type::mutually_exclusive)
+                    return detail::variant_for_tuple(opt.options);
+                else
+                    return detail::make_result_tuple(opt.options);
+            } else {
+                constexpr bool required_option =
+                    opt_type::positional || opt_type::required;
+                auto retval = detail::make_result_tuple_element<opt_type>();
+                if constexpr (required_option && detail::flag<opt_type>())
+                    retval = opt.default_value;
+                return retval;
+            }
+        });
+    }
+
+    template<typename... Options>
     auto make_result_tuple(Options const &... opts)
     {
         auto const opt_tuple = detail::make_opt_tuple(opts...);
-        return hana::transform(opt_tuple, [](auto const & opt) {
-            using opt_type = std::remove_cvref_t<decltype(opt)>;
-            constexpr bool required_option =
-                opt_type::positional || opt_type::required;
-            auto retval = detail::make_result_tuple_element<opt_type>();
-            if constexpr (required_option && detail::flag<opt_type>())
-                retval = opt.default_value;
-            return retval;
-        });
+        return detail::make_result_tuple(opt_tuple);
     }
 
     template<typename OptionsMap, typename... Options>

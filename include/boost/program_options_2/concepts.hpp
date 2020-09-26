@@ -29,6 +29,8 @@ namespace boost { namespace program_options_2 {
     concept group_ = detail::is_group<T>::value;
     template<typename T>
     concept option_or_group = option_<T> || group_<T>;
+    template<typename T>
+    concept command = detail::is_command<T>::value;
 
     template<typename V, typename T>
     concept validator = std::invocable<V, T const &> &&
