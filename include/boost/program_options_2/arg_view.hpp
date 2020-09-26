@@ -22,30 +22,31 @@
 
 namespace boost { namespace program_options_2 {
 
-    /** TODO */
-    template<typename Char>
-    struct arg_iter : stl_interfaces::proxy_iterator_interface<
-                          arg_iter<Char>,
-                          std::random_access_iterator_tag,
-                          std::basic_string_view<Char>>
-    {
-        arg_iter() = default;
-        arg_iter(Char const ** ptr) : it_(ptr) { BOOST_ASSERT(ptr); }
+    namespace detail {
+        template<typename Char>
+        struct arg_iter : stl_interfaces::proxy_iterator_interface<
+                              arg_iter<Char>,
+                              std::random_access_iterator_tag,
+                              std::basic_string_view<Char>>
+        {
+            arg_iter() = default;
+            arg_iter(Char const ** ptr) : it_(ptr) { BOOST_ASSERT(ptr); }
 
-        std::basic_string_view<Char> operator*() const { return {*it_}; }
+            std::basic_string_view<Char> operator*() const { return {*it_}; }
 
-    private:
-        friend stl_interfaces::access;
-        Char const **& base_reference() noexcept { return it_; }
-        Char const ** base_reference() const noexcept { return it_; }
-        Char const ** it_;
-    };
+        private:
+            friend stl_interfaces::access;
+            Char const **& base_reference() noexcept { return it_; }
+            Char const ** base_reference() const noexcept { return it_; }
+            Char const ** it_;
+        };
+    }
 
     /** TODO */
     template<typename Char>
     struct arg_view : stl_interfaces::view_interface<arg_view<Char>>
     {
-        using iterator = arg_iter<Char>;
+        using iterator = detail::arg_iter<Char>;
 
         arg_view() = default;
         arg_view(int argc, Char const ** argv) :
