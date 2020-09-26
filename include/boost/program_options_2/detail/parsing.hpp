@@ -9,10 +9,10 @@
 #include <boost/program_options_2/concepts.hpp>
 #include <boost/program_options_2/arg_view.hpp>
 #include <boost/program_options_2/options.hpp>
-#include <boost/program_options_2/detail/detection.hpp>
 #include <boost/program_options_2/detail/printing.hpp>
 
 #include <boost/parser/parser.hpp>
+#include <boost/type_traits/is_detected.hpp>
 
 
 namespace boost { namespace program_options_2 { namespace detail {
@@ -207,7 +207,7 @@ namespace boost { namespace program_options_2 { namespace detail {
     struct is_erased_type
         : std::integral_constant<
               bool,
-              is_detected<type_eraser, std::remove_cv_t<T>>::value>
+              boost::is_detected<type_eraser, std::remove_cv_t<T>>::value>
     {};
     template<typename Option, typename T>
     struct inserting_into_any

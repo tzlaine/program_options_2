@@ -7,11 +7,11 @@
 #define BOOST_PROGRAM_OPTIONS_2_STORAGE_HPP
 
 #include <boost/program_options_2/fwd.hpp>
-#include <boost/program_options_2/detail/detection.hpp>
 #include <boost/program_options_2/detail/parsing.hpp>
 #include <boost/program_options_2/detail/utility.hpp>
 
 #include <boost/throw_exception.hpp>
+#include <boost/type_traits/is_detected.hpp>
 
 #include <exception>
 
@@ -145,13 +145,13 @@ namespace boost { namespace program_options_2 {
                         // To use save_response_file(), all options must have
                         // a type that can be written to file using
                         // operator<<().
-                        static_assert(detail::is_detected<
+                        static_assert(boost::is_detected<
                                       detail::streamable,
                                       decltype(x)>::value);
                         if (!first)
                             ofs << ' ';
                         first = false;
-                        if constexpr (detail::is_detected<
+                        if constexpr (boost::is_detected<
                                           detail::quotable,
                                           decltype(x)>::value) {
                             ofs << std::quoted(x);
@@ -163,7 +163,7 @@ namespace boost { namespace program_options_2 {
                     // To use save_response_file(), all options must have a
                     // type that can be written to file using operator<<().
                     static_assert(
-                        detail::is_detected<detail::streamable, type>::value);
+                        boost::is_detected<detail::streamable, type>::value);
                     ofs << value;
                 }
                 ofs << '\n';
@@ -321,18 +321,10 @@ namespace boost { namespace program_options_2 {
             {
                 result_.push_back(key);
             }
-            void operator()(object_open_tag) const
-            {
-            }
-            void operator()(object_close_tag) const
-            {
-            }
-            void operator()(array_open_tag) const
-            {
-            }
-            void operator()(array_close_tag) const
-            {
-            }
+            void operator()(object_open_tag) const {}
+            void operator()(object_close_tag) const {}
+            void operator()(array_open_tag) const {}
+            void operator()(array_close_tag) const {}
 
         private:
             std::vector<std::string_view> & result_;
@@ -392,7 +384,7 @@ namespace boost { namespace program_options_2 {
                         // To use save_json_file(), all options must have a
                         // type that can be written to file using
                         // operator<<().
-                        static_assert(detail::is_detected<
+                        static_assert(boost::is_detected<
                                       detail::streamable,
                                       decltype(x)>::value);
                         if (!first_arg)
@@ -405,7 +397,7 @@ namespace boost { namespace program_options_2 {
                     // To use save_json_file(), all options must have a type
                     // that can be written to file using operator<<().
                     static_assert(
-                        detail::is_detected<detail::streamable, type>::value);
+                        boost::is_detected<detail::streamable, type>::value);
                     ofs << " \"" << value << '"';
                 }
             } catch (...) {

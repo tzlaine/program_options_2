@@ -11,17 +11,15 @@
 #ifndef BOOST_PROGRAM_OPTIONS_2_ILL_FORMED_HPP
 #define BOOST_PROGRAM_OPTIONS_2_ILL_FORMED_HPP
 
-#include <boost/program_options_2/detail/detection.hpp>
+#include <boost/type_traits/is_detected.hpp>
 
 
 template<template<class...> class Template, typename... Args>
-using ill_formed = std::integral_constant<
-    bool,
-    !boost::program_options_2::detail::is_detected<Template, Args...>::value>;
+using ill_formed =
+    std::integral_constant<bool, !boost::is_detected<Template, Args...>::value>;
 
 template<template<class...> class Template, typename... Args>
-using well_formed = std::integral_constant<
-    bool,
-    boost::program_options_2::detail::is_detected<Template, Args...>::value>;
+using well_formed =
+    std::integral_constant<bool, boost::is_detected<Template, Args...>::value>;
 
 #endif
