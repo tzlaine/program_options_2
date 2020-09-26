@@ -117,24 +117,48 @@ namespace boost { namespace program_options_2 { namespace detail {
             }
         }
     };
+
+    inline parser::rule<struct string_parser, std::string> const s_rule =
+        "string";
+    inline auto const s_rule_def =
+        parser::raw[*parser::char_][string_view_action<char>{}];
     inline parser::rule<struct string_view_parser, std::string_view> const
         sv_rule = "string_view";
     inline auto const sv_rule_def =
         parser::raw[*parser::char_][string_view_action<char>{}];
-    BOOST_PARSER_DEFINE_RULES(sv_rule);
+    BOOST_PARSER_DEFINE_RULES(s_rule, sv_rule);
 #if defined(_MSC_VER)
+    inline parser::rule<struct wstring_parser, std::wstring> const ws_rule =
+        "wstring";
+    inline auto const ws_rule_def =
+        parser::raw[*parser::char_][string_view_action<wchar_t>{}];
     inline parser::rule<struct wstring_view_parser, std::wstring_view> const
         wsv_rule = "wstring_view";
     inline auto const wsv_rule_def =
         parser::raw[*parser::char_][string_view_action<wchar_t>{}];
-    BOOST_PARSER_DEFINE_RULES(wsv_rule);
+    BOOST_PARSER_DEFINE_RULES(ws_rule, wsv_rule);
 #endif
+
+    template<typename T>
+    struct is_string : std::false_type
+    {};
+    template<typename Char>
+    struct is_string<std::basic_string<Char>> : std::true_type
+    {};
 
     template<typename Char, typename T>
     auto parser_for()
     {
         if constexpr (is_optional<T>::value) {
             return detail::parser_for<Char, typename T::value_type>();
+        } else if constexpr (is_string<T>::value) {
+#if defined(_MSC_VER)
+            if constexpr (std::is_same_v<Char, wchar_t>)
+                return ws_rule;
+            else
+#else
+            return s_rule;
+#endif
         } else if constexpr (insertable<T>) {
             return detail::parser_for<Char, std::ranges::range_value_t<T>>();
         } else if constexpr (std::is_same_v<T, bool>) {

@@ -8,6 +8,9 @@
 
 #include <gtest/gtest.h>
 
+// TODO: Document that the option default type (std::string_view) causes
+// dangling when loading from files.
+
 
 namespace po2 = boost::program_options_2;
 
@@ -22,8 +25,20 @@ namespace po2 = boost::program_options_2;
         po2::argument<std::set<T>>(                                            \
             "-o,--one-plus", "One is fine; so is more.", po2::one_or_more)
 
+#define MIXED(T, choice0, choice1, choice2, default_)                          \
+    po2::argument<T>("-a,--abacus", "The abacus."),                            \
+        po2::with_default(                                                     \
+            po2::argument<T>("-b,--bobcat", "The bobcat."), default_),         \
+        po2::positional<std::vector<T>>("cataphract", "The cataphract", 2),    \
+        po2::argument<T>(                                                      \
+            "-d,--dolemite", "*The* Dolemite.", 1, choice0, choice1, choice2), \
+        po2::remainder<std::vector<std::string>>(                              \
+            "args", "other args at the end")
+
 TEST(storage, save_load_response_file)
 {
+    // Just arguments
+
     {
         std::ostringstream os;
         std::vector<std::string_view> args{
@@ -129,6 +144,68 @@ TEST(storage, save_load_response_file)
             boost::any_cast<std::set<int>>(m["one-plus"]), std::set<int>{2});
     }
 
+    // Mixed arguments and positionals
+
+    {
+        std::ostringstream os;
+        std::vector<std::string_view> args{
+            "prog",
+            "-a",
+            "55",
+            "--bobcat",
+            "66",
+            "77",
+            "88",
+            "--dolemite",
+            "5",
+            "\\2\""};
+        po2::string_any_map m;
+        po2::parse_command_line(
+            args, m, "A program.", os, MIXED(int, 4, 5, 6, 42));
+
+        EXPECT_EQ(m.size(), 5u);
+        EXPECT_EQ(boost::any_cast<int>(m["abacus"]), 55);
+        EXPECT_EQ(boost::any_cast<int>(m["bobcat"]), 66);
+        EXPECT_EQ(
+            boost::any_cast<std::vector<int>>(m["cataphract"]),
+            std::vector<int>({77, 88}));
+        EXPECT_EQ(boost::any_cast<int>(m["dolemite"]), 5);
+        EXPECT_EQ(
+            boost::any_cast<std::vector<std::string>>(m["args"]),
+            std::vector<std::string>({"\\2\""}));
+
+        po2::save_response_file("saved_mixed_map", m, MIXED(int, 4, 5, 6, 42));
+    }
+
+    {
+        std::ostringstream os;
+        std::vector<std::string_view> args{"prog", "@saved_mixed_map"};
+        po2::string_any_map m;
+        po2::parse_command_line(
+            args, m, "A program.", std::cout, MIXED(int, 4, 5, 6, 42));
+
+        EXPECT_EQ(m.size(), 5u);
+        EXPECT_EQ(boost::any_cast<int>(m["abacus"]), 55);
+    }
+
+    {
+        po2::string_any_map m;
+        po2::load_response_file("saved_mixed_map", m, MIXED(int, 4, 5, 6, 42));
+
+        EXPECT_EQ(m.size(), 5u);
+        EXPECT_EQ(boost::any_cast<int>(m["abacus"]), 55);
+        EXPECT_EQ(boost::any_cast<int>(m["bobcat"]), 66);
+        EXPECT_EQ(
+            boost::any_cast<std::vector<int>>(m["cataphract"]),
+            std::vector<int>({77, 88}));
+        EXPECT_EQ(boost::any_cast<int>(m["dolemite"]), 5);
+        EXPECT_EQ(
+            boost::any_cast<std::vector<std::string>>(m["args"]),
+            std::vector<std::string>({"\\2\""}));
+    }
+
+    // Error cases.
+
     {
         po2::string_any_map m;
         EXPECT_THROW(
@@ -163,7 +240,26 @@ TEST(storage, save_load_response_file)
 
 #if 0 // TODO: Fix! (seems to be an unbounded loop)
     {
-       std::ofstream ofs("bad_map_for_loading");
+        std::ofstream ofs("bad_map_for_loading");
+        ofs << "--unknown";
+        ofs.close();
+        po2::string_any_map m;
+        EXPECT_THROW(
+            po2::load_response_file(
+                "bad_map_for_loading", m, ARGUMENTS(int, 4, 5, 6)),
+            po2::load_error);
+        try {
+            po2::load_response_file(
+                "bad_map_for_loading", m, ARGUMENTS(int, 4, 5, 6));
+        } catch (po2::load_error & e) {
+            EXPECT_EQ(e.error(), po2::load_result::unknown_arg);
+        }
+    }
+#endif
+
+#if 0 // TODO: Fix! (seems to be an unbounded loop)
+    {
+        std::ofstream ofs("bad_map_for_loading");
         ofs << "unknown";
         ofs.close();
         po2::string_any_map m;
@@ -361,3 +457,4 @@ and character escapes besides '\\' and '\"' are not supported.
 }
 
 #undef ARGUMENTS
+#undef MIXED

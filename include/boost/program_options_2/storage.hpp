@@ -122,6 +122,8 @@ namespace boost { namespace program_options_2 {
                 save_result::could_not_open_file_for_writing, filename));
         }
 
+        ofs << std::boolalpha;
+
         detail::map_lookup<OptionsMap const> lookup(m);
         auto const opt_tuple = detail::make_opt_tuple(opts...);
         hana::for_each(opt_tuple, [&](auto const & opt) {
@@ -152,7 +154,6 @@ namespace boost { namespace program_options_2 {
                         if constexpr (detail::is_detected<
                                           detail::quotable,
                                           decltype(x)>::value) {
-                            // TODO: Needs a test.
                             ofs << std::quoted(x);
                         } else {
                             ofs << x;
@@ -363,6 +364,7 @@ namespace boost { namespace program_options_2 {
                 save_result::could_not_open_file_for_writing, filename));
         }
 
+        ofs << std::boolalpha;
         ofs << "{\n";
 
         detail::map_lookup<OptionsMap const> lookup(m);
