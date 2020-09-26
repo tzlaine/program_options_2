@@ -255,10 +255,6 @@ namespace boost { namespace program_options_2 {
             ('\\' > single_escaped_char) |
             (parser::cp - parser::char_(0x0000u, 0x001fu));
 
-        // TODO: In parser, make a directive that creates a string_view of the
-        // underlying input ragne's value type.  It should be ill-formed to
-        // use it with non-contiguous underlying iterators.
-
         struct json_string_view_action
         {
             template<typename Context>
@@ -291,6 +287,10 @@ namespace boost { namespace program_options_2 {
                                       -(value % ',') > array_close;
 
         inline auto const value_def = string | array | object;
+
+        inline auto const skipper =
+            parser::ws |
+            ('#' >> *(parser::char_ - parser::eol) >> -parser::eol);
 
         BOOST_PARSER_DEFINE_RULES(
             ws,
@@ -440,7 +440,8 @@ namespace boost { namespace program_options_2 {
         auto const contents = detail::file_slurp(ifs);
         auto const parser =
             parser::with_error_handler(detail::value, error_callbacks);
-        if (!parser::callback_parse(contents, parser, detail::ws, callbacks)) {
+        if (!parser::callback_parse(
+                contents, parser, detail::skipper, callbacks)) {
             error_message += R"(
 Note: The file is expected to use a subset of JSON that contains only strings,
 arrays, and objects.  JSON types null, boolean, and number are not supported,

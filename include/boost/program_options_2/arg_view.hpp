@@ -214,10 +214,28 @@ namespace boost { namespace program_options_2 {
                 current_->clear();
 
                 IStreamIter last;
+                auto skip_comment = [&] {
+                    it_ = std::ranges::find_if(it_, last, [&](unsigned char c) {
+                        return 0xa <= c && c <= 0xd;
+                    });
+                    if (*it_ == 0xa)
+                        ++it_;
+                };
                 auto skip_ws = [&] {
                     it_ = std::ranges::find_if(it_, last, [&](unsigned char c) {
                         return !std::isspace(c);
                     });
+                };
+                auto skip = [&] {
+                    while (it_ != last) {
+                        char const c = *it_;
+                        if (std::isspace(c))
+                            skip_ws();
+                        else if (c == '#')
+                            skip_comment();
+                        else
+                            break;
+                    }
                 };
                 auto final_business = [&] {
                     skip_ws();
@@ -230,7 +248,7 @@ namespace boost { namespace program_options_2 {
                         just_before_end_ = true;
                 };
 
-                skip_ws();
+                skip();
                 if (it_ == last) {
                     just_before_end_ = false;
                     return *this;
@@ -257,6 +275,10 @@ namespace boost { namespace program_options_2 {
                             *current_ += next_c;
                         }
                     } else if (std::isspace((unsigned char)c) && !in_quotes) {
+                        final_business();
+                        return *this;
+                    } else if (c == '#' && !in_quotes) {
+                        skip();
                         final_business();
                         return *this;
                     } else {

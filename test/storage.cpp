@@ -175,6 +175,16 @@ TEST(storage, save_load_response_file)
             std::vector<std::string>({"\\2\""}));
 
         po2::save_response_file("saved_mixed_map", m, MIXED(int, 4, 5, 6, 42));
+
+        {
+            std::ifstream ifs("saved_mixed_map");
+            std::string const contents_with_comments =
+                "#comments are ignored\n" + po2::detail::file_slurp(ifs) +
+                "#   more comments";
+            ifs.close();
+            std::ofstream ofs("saved_mixed_map");
+            ofs << contents_with_comments;
+        }
     }
 
     {
@@ -380,6 +390,16 @@ TEST(storage, save_load_json_file)
             boost::any_cast<std::set<int>>(m["one-plus"]), std::set<int>{2});
 
         po2::save_json_file("saved_json_map", m, ARGUMENTS(int, 4, 5, 6));
+
+        {
+            std::ifstream ifs("saved_json_map");
+            std::string const contents_with_comments =
+                "#comments are ignored\n" + po2::detail::file_slurp(ifs) +
+                "#   more comments";
+            ifs.close();
+            std::ofstream ofs("saved_json_map");
+            ofs << contents_with_comments;
+        }
     }
     {
         std::ostringstream os;
