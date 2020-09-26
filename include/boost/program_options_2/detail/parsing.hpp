@@ -886,8 +886,8 @@ namespace boost { namespace program_options_2 { namespace detail {
             scratch_ = program_options_2::storage_name(opt);
             return m_.find(scratch_);
         }
-        template<typename Option, long long I = 0>
-        decltype(auto) operator()(Option const & opt, hana::llong<I> = {})
+        template<typename Option, long long I>
+        decltype(auto) operator()(Option const & opt, hana::llong<I>)
         {
             scratch_ = program_options_2::storage_name(opt);
             return m_[scratch_];
@@ -907,8 +907,8 @@ namespace boost { namespace program_options_2 { namespace detail {
         {
             return m_.find(program_options_2::storage_name(opt));
         }
-        template<typename Option, long long I = 0>
-        decltype(auto) operator()(Option const & opt, hana::llong<I> = {})
+        template<typename Option, long long I>
+        decltype(auto) operator()(Option const & opt, hana::llong<I>)
         {
             return m_[program_options_2::storage_name(opt)];
         }

@@ -12,9 +12,6 @@
 
 namespace boost { namespace program_options_2 {
 
-#if 1 // TODO
-    // TODO: Form exclusive groups using operator||?
-
     /** TODO */
     template<option_or_group Option, option_or_group... Options>
     detail::option_group<true, Option, Options...>
@@ -38,7 +35,6 @@ namespace boost { namespace program_options_2 {
     {
         return {{}, {std::move(opt), std::move(opts)...}};
     }
-#endif
 
 }}
 
