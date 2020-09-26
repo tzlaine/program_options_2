@@ -11,10 +11,7 @@
 
 namespace boost::program_options_2::tag_invoke_fn_ns {
 
-#if 0 // TODO: Leaving this here, as it was in the code that accompanies
-      // P1895R0, breaks everything.  I should probably figure out why.
-    void tag_invoke() = delete;
-#endif
+    void tag_invoke();
 
     struct tag_invoke_fn
     {
