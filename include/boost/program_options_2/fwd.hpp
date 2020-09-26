@@ -194,7 +194,7 @@ namespace boost { namespace program_options_2 {
             : std::true_type
         {};
 
-        template<bool MutuallyExclusive, typename... Options>
+        template<bool MutuallyExclusive, bool Subcommand, typename... Options>
         struct option_group
         {
             // name is only nonempty when this is a group gated by some verb,
@@ -203,13 +203,22 @@ namespace boost { namespace program_options_2 {
             hana::tuple<Options...> options;
 
             constexpr static bool mutually_exclusive = MutuallyExclusive;
+            constexpr static bool subcommand = Subcommand;
         };
 
         template<typename T>
         struct is_group : std::false_type
         {};
-        template<bool MutuallyExclusive, typename... Options>
-        struct is_group<option_group<MutuallyExclusive, Options...>>
+        template<bool MutuallyExclusive, bool Subcommand, typename... Options>
+        struct is_group<option_group<MutuallyExclusive, Subcommand, Options...>>
+            : std::true_type
+        {};
+
+        template<typename T>
+        struct is_command : std::false_type
+        {};
+        template<typename... Options>
+        struct is_command<option_group<false, true, Options...>>
             : std::true_type
         {};
 
