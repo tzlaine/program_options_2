@@ -10,6 +10,9 @@
 #include <boost/program_options_2/detail/parsing.hpp>
 //#include <boost/program_options_2/detail/utility.hpp>
 
+#inlcude <cmath>
+#include <limits>
+
 
 namespace boost { namespace program_options_2 { namespace toml_detail {
 
@@ -63,21 +66,23 @@ namespace boost { namespace program_options_2 { namespace toml_detail {
 
     inline parser::rule<class integer, std::ptrdiff_t> const integer =
         "integer";
+    inline parser::rule<class dec_int, std::ptrdiff_t, std::string> const
+        dec_int = "decimal integer";
     inline parser::rule<class unsigned_dec_int, std::size_t, std::string> const
         unsigned_dec_int = "unsigned decimal integer";
-    inline parser::rule<class unsigned_integer, std::size_t> const
-        unsigned_integer = "unsigned integer";
     inline parser::rule<class hex_int, std::size_t, std::string> const hex_int =
-        "hexidecimal digits";
+        "unsigned hexidecimal integer";
     inline parser::rule<class oct_int, std::size_t, std::string> const oct_int =
-        "octal digits";
+        "unsigned octal integer";
     inline parser::rule<class bin_int, std::size_t, std::string> const bin_int =
-        "binary digits";
+        "unsigned binary integer";
 
 
     // Float
 
     inline parser::rule<class float_> const float_ = "floating-point number";
+    inline parser::rule<class float_impl> const float_impl =
+        "floating-point number";
     inline parser::rule<class special_float> const special_float =
         "+/-inf or +/-nan";
 
@@ -102,6 +107,8 @@ namespace boost { namespace program_options_2 { namespace toml_detail {
     auto const append_local_char = [](auto & ctx) {
         _locals(ctx).push_back(_attr(ctx));
     };
+    auto const negate_and_assign = [](auto & ctx) { _val(ctx) = -_attr(ctx); };
+    auto const assign = [](auto & ctx) { _val(ctx) = _attr(ctx); };
 
 
     // Definitions
@@ -201,38 +208,59 @@ namespace boost { namespace program_options_2 { namespace toml_detail {
         parser::parse(_locals(ctx), p, _val(ctx));
     };
 
-    inline auto const integer_def = ;
+    inline auto const integer_def = dec_int | hex_int | oct_int | bin_int;
+    inline auto const dec_int_def =
+        '-' >> unsigned_dec_int[negate_and_assign] | unsigned_dec_int[assign];
     inline auto const unsigned_dec_int_def =
         '0' >> parser::attr(std::size_t{0}) |
         parser::lexeme
             [parser::char_('1', '9')[append_local_char] >>
              *(-parser::lit('_') >> parser::char_('0', '9')[append_local_char])]
             [local_str_to_dec_size_t];
-    inline auto const unsigned_integer_def =
-        unsigned_dec_int | hex_int | oct_int |
-        bin_int; // TODO: Need to assign the attribute here....  Should that
-                 // be automatic?
     inline auto const hex_digit =
         parser::char_('0', '1') | parser::char_('A', 'F');
     inline auto const hex_def =
-        "0x" >> parser::lexeme
-                    [hex_digit[append_local_char] >>
-                     *(-parser::lit('_') >> hex_digit[append_local_char])]
-                    [local_str_to_hex_size_t];
+        "0x" >> parser::lexeme[hex_digit[append_local_char] % -parser::lit('_')]
+                              [local_str_to_hex_size_t];
     inline auto const oct_def =
-        "0o" >>
-        parser::lexeme
-            [parser::char_('0', '7')[append_local_char] >>
-             *(-parser::lit('_') >> parser::char_('0', '7')[append_local_char])]
-            [local_str_to_oct_size_t];
+        "0o" >> parser::lexeme
+                    [parser::char_('0', '7')[append_local_char] %
+                     -parser::lit('_')][local_str_to_oct_size_t];
     inline auto const bin_def =
-        "0b" >>
-        parser::lexeme
-            [parser::char_('0', '1')[append_local_char] >>
-             *(-parser::lit('_') >> parser::char_('0', '1')[append_local_char])]
-            [local_str_to_bin_size_t];
+        "0b" >> parser::lexeme
+                    [parser::char_('0', '1')[append_local_char] %
+                     -parser::lit('_')][local_str_to_bin_size_t];
 
     // Float
+
+    auto const assign_local_chars = [](auto & ctx) {
+        _val(ctx) = _locals(ctx);
+    };
+    auto const assign_exp = [](auto & ctx) {
+        _val(ctx) = "e";
+        _val(ctx) += _attr(ctx);
+    };
+    auto const local_str_to_double = [](auto & ctx) {
+        parser::parse(_locals(ctx), parser::double_, _val(ctx));
+    };
+
+    inline auto const float_def = '0' >> parser::attr(0.0) | float_impl
+                                  | special_float_def;
+
+    inline auto const zero_prefixable_int_def = parser::lexeme
+        [parser::char_('0', '9')[append_local_char] % -parser::lit('_')]
+        [assign_local_chars];
+
+    inline auto const exp_def =
+        parser::lexeme['e' >> zero_prefixable_int][assign_exp];
+
+    inline auto const special_float_def =
+        parser::lit('-') >> parser::lit("inf") >>
+            parser::attr(-std::numeric_limits<double>::infinity()) |
+        -parser::lit('+') >> parser::lit("inf") >>
+            parser::attr(std::numeric_limits<double>::infinity()) |
+        -(parser::lit('-') | parser::lit('+')) >> parser::lit("nan") >>
+            parser::attr(nan(""));
 
     // TODO
 
