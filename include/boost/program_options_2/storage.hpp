@@ -204,7 +204,7 @@ namespace boost { namespace program_options_2 {
         }
     }
 
-    namespace detail {
+    namespace json_detail {
         inline parser::rule<class ws> const ws = "whitespace";
         inline parser::rule<class single_escaped_char, uint32_t> const
             single_escaped_char = "'\"' or '\\'";
@@ -258,6 +258,7 @@ namespace boost { namespace program_options_2 {
             ('\\' > single_escaped_char) |
             (parser::cp - parser::char_(0x0000u, 0x001fu));
 
+        // TODO: The presence of escapes makes this wrong.
         struct json_string_view_action
         {
             template<typename Context>
@@ -310,10 +311,9 @@ namespace boost { namespace program_options_2 {
             array,
             value);
 
-        struct json_callbacks
+        struct callbacks
         {
-            json_callbacks(std::vector<std::string_view> & result) :
-                result_(result)
+            callbacks(std::vector<std::string_view> & result) : result_(result)
             {}
 
             void operator()(string_tag, std::string_view s) const
@@ -332,7 +332,9 @@ namespace boost { namespace program_options_2 {
         private:
             std::vector<std::string_view> & result_;
         };
+    }
 
+    namespace detail {
         inline std::string file_slurp(std::ifstream & ifs)
         {
             std::string retval;
@@ -431,12 +433,12 @@ namespace boost { namespace program_options_2 {
             record_error, record_error, filename);
 
         std::vector<std::string_view> args;
-        detail::json_callbacks callbacks(args);
+        json_detail::callbacks callbacks(args);
         auto const contents = detail::file_slurp(ifs);
         auto const parser =
-            parser::with_error_handler(detail::value, error_callbacks);
+            parser::with_error_handler(json_detail::value, error_callbacks);
         if (!parser::callback_parse(
-                contents, parser, detail::skipper, callbacks)) {
+                contents, parser, json_detail::skipper, callbacks)) {
             error_message += R"(
 Note: The file is expected to use a subset of JSON that contains only strings,
 arrays, and objects.  JSON types null, boolean, and number are not supported,
