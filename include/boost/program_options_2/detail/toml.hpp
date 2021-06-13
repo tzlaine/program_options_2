@@ -64,6 +64,7 @@ namespace boost { namespace program_options_2 { namespace toml_detail {
     inline parser::rule<class expression> const expression =
         "key/value pair or table";
     inline parser::rule<class ws_char> const ws_char = "whitespace character";
+    inline parser::rule<class ws> const ws = "whitespace";
     inline parser::rule<class newline> const newline = "newline";
     inline parser::rule<class non_ascii> const non_ascii = "non-ASCII character";
     inline parser::rule<class comment> const comment = "comment";
@@ -180,6 +181,7 @@ namespace boost { namespace program_options_2 { namespace toml_detail {
     inline auto const toml_def = expression % newline;
     inline auto const expression_def = keyval | table;
     inline auto const ws_char_def = parser::lit('\x20') | '\x09';
+    inline auto const ws_def = *ws_char;
     inline auto const newline_def = -parser::lit('\x0d') | '\x0a';
     inline auto const non_ascii_def =
         parser::char_(0x80, 0xd7ff) | parser::char_(0xe000, 0x10ffff);
@@ -190,9 +192,9 @@ namespace boost { namespace program_options_2 { namespace toml_detail {
 
     inline auto const keyval_def = key >> '=' >> val;
     inline auto const key_def = (quoted_key | unquoted_key) % '.';
-    inline auto const unquoted_key_def = parser::lexeme[+(
-        parser::char_('A', 'Z') | parser::char_('a', 'z') |
-        parser::char_('0', '9') | parser::char_("-_"))];
+    inline auto const unquoted_key_def =
+        +(parser::char_('A', 'Z') | parser::char_('a', 'z') |
+          parser::char_('0', '9') | parser::char_("-_"));
     inline auto const quoted_key_def = basic_string | literal_string;
     inline auto const val_def =
         string | boolean | array | inline_table | date_time | float_ | integer;
@@ -202,12 +204,11 @@ namespace boost { namespace program_options_2 { namespace toml_detail {
     inline parser::uint_parser<unsigned int, 16, 4, 4> const hex4;
     inline parser::uint_parser<unsigned int, 16, 8, 8> const hex8;
 
-    inline auto const escaped_def = parser::lexeme
-        ['\\' >>
-         ('\"' >> parser::attr(0x0022u) | '\\' >> parser::attr(0x005cu) |
-          'b' >> parser::attr(0x0008u) | 'f' >> parser::attr(0x000cu) |
-          'n' >> parser::attr(0x000au) | 'r' >> parser::attr(0x000du) |
-          't' >> parser::attr(0x0009u) | 'u' >> hex4 | 'U' >> hex8)];
+    inline auto const escaped_def =
+        '\\' >> ('\"' >> parser::attr(0x0022u) | '\\' >> parser::attr(0x005cu) |
+                 'b' >> parser::attr(0x0008u) | 'f' >> parser::attr(0x000cu) |
+                 'n' >> parser::attr(0x000au) | 'r' >> parser::attr(0x000du) |
+                 't' >> parser::attr(0x0009u) | 'u' >> hex4 | 'U' >> hex8);
 
     inline auto const string_def =
         ml_basic_string | basic_string | ml_literal_string | literal_string;
@@ -283,22 +284,19 @@ namespace boost { namespace program_options_2 { namespace toml_detail {
         unsigned_dec_int_impl[attr_str_to_dec_size_t];
     inline auto const unsigned_dec_int_impl_def =
         parser::char_('0')[append] |
-        parser::lexeme
-            [parser::char_('1', '9')[append] >>
-             *(-parser::lit('_') >> parser::char_('0', '9')[append])];
+        parser::char_('1', '9')[append] >>
+            *(-parser::lit('_') >> parser::char_('0', '9')[append]);
     inline auto const hex_digit =
         parser::char_('0', '1') | parser::char_('A', 'F');
-    inline auto const hex_def =
-        "0x" >> parser::lexeme[hex_digit[append_to_local] % -parser::lit('_')]
-                              [local_str_to_hex_size_t];
-    inline auto const oct_def =
-        "0o" >> parser::lexeme
-                    [parser::char_('0', '7')[append_to_local] %
-                     -parser::lit('_')][local_str_to_oct_size_t];
-    inline auto const bin_def =
-        "0b" >> parser::lexeme
-                    [parser::char_('0', '1')[append_to_local] %
-                     -parser::lit('_')][local_str_to_bin_size_t];
+    inline auto const hex_def = "0x" >>
+                                (hex_digit[append_to_local] %
+                                 -parser::lit('_'))[local_str_to_hex_size_t];
+    inline auto const oct_def = "0o" >>
+                                (parser::char_('0', '7')[append_to_local] %
+                                 -parser::lit('_'))[local_str_to_oct_size_t];
+    inline auto const bin_def = "0b" >>
+                                (parser::char_('0', '1')[append_to_local] %
+                                 -parser::lit('_'))[local_str_to_bin_size_t];
 
     // Float
 
@@ -308,18 +306,18 @@ namespace boost { namespace program_options_2 { namespace toml_detail {
 
     inline auto const float_def = '0' >> parser::attr(0.0) | float_impl
                                   | special_float_def;
-    inline auto const float_impl_def = parser::lexeme
-        [dec_int_impl[append_to_local] >>
+    inline auto const float_impl_def =
+        (dec_int_impl[append_to_local] >>
          (exp[append_to_local] |
-          frac[append_to_local] >> -exp[append_to_local])][local_str_to_double];
+          frac[append_to_local] >> -exp[append_to_local]))[local_str_to_double];
     inline auto const zero_prefixable_int_def =
-        parser::lexeme[parser::char_('0', '9')[append] % -parser::lit('_')];
-    inline auto const exp_def = parser::lexeme
-        [parser::char_('e')[append] >>
-         (parser::char_('-')[append] | parser::char_('+')[append]) >>
-         zero_prefixable_int[append]];
-    inline auto const frac_def = parser::lexeme
-        [parser::char_('.')[append] >> zero_prefixable_int[append]];
+        parser::char_('0', '9')[append] % -parser::lit('_');
+    inline auto const exp_def = parser::char_('e')[append] >>
+                                (parser::char_('-')[append] |
+                                 parser::char_('+')[append]) >>
+                                zero_prefixable_int[append];
+    inline auto const frac_def =
+        parser::char_('.')[append] >> zero_prefixable_int[append];
     inline auto const special_float_def =
         parser::lit('-') >> parser::lit("inf") >>
             parser::attr(-std::numeric_limits<double>::infinity()) |
