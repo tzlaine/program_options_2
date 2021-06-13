@@ -12,9 +12,22 @@
 
 #inlcude <cmath>
 #include <limits>
+#include <optional>
 
 
 namespace boost { namespace program_options_2 { namespace toml_detail {
+
+    using days = std::chrono::
+        duration<std::chrono::milliseconds::rep, std::ratio<86400>>;
+    using date = std::chrono::time_point<std::chrono::system_clock, days>;
+    struct time
+    {
+        std::chrono::
+            time_point<std::chrono::system_clock, std::chrono::milliseconds>
+                time;
+        std::optional<std::chrono::milliseconds> tz_offset;
+    };
+
 
     // Basic rules
 
@@ -291,6 +304,8 @@ namespace boost { namespace program_options_2 { namespace toml_detail {
 
     inline auto const date_time_def =
         offset_date_time | local_date_time | local_date | local_time;
+
+    inline auto const _def = ;
 
     inline auto const offset_date_time_def = ;
     inline auto const local_date_time_def = ;
