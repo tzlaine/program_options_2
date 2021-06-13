@@ -497,10 +497,10 @@ namespace boost { namespace program_options_2 { namespace toml_detail {
 
     inline auto const array_table_def = "[[" >> ws >> key >> ws >> "]]";
 
-#if 0 // TODO
-    BOOST_PARSER_DEFINE_RULES(
-);
 
+    // TODO    BOOST_PARSER_DEFINE_RULES(toml);
+
+#if 0 // TODO
     struct callbacks
     {
         callbacks(std::vector<std::string_view> & result) : result_(result) {}
