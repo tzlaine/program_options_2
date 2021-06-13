@@ -172,6 +172,7 @@ namespace boost { namespace program_options_2 { namespace toml_detail {
     // Date-Time
 
     inline parser::rule<class date_time> const date_time = "date/time";
+
     inline parser::rule<class date_month> const date_month = "month (01-12)";
     inline parser::rule<class date_mday> const date_mday =
         "day of the month (01-31)";
@@ -180,6 +181,14 @@ namespace boost { namespace program_options_2 { namespace toml_detail {
         "minutes (00-59)";
     inline parser::rule<class time_second> const time_second =
         "seconds (00-60)";
+
+    inline parser::rule<class partial_time> const partial_time = "time";
+    inline parser::rule<class time_offset> const time_offset =
+        "time zone offset";
+    inline parser::rule<class full_date> const full_date = "year/month/day";
+    inline parser::rule<class full_time> const full_time =
+        "time with time zone offset";
+
     inline parser::rule<class date_time> const offset_date_time =
         "offset date/time";
     inline parser::rule<class date_time> const local_date_time =
@@ -187,17 +196,28 @@ namespace boost { namespace program_options_2 { namespace toml_detail {
     inline parser::rule<class date_time> const local_date = "date";
     inline parser::rule<class date_time> const local_time = "local time";
 
-    // TODO
-
 
     // Array
 
-    // TODO
+    inline parser::rule<class array> const array = "array";
+    inline parser::rule<class ws_comment_newline> const ws_comment_newline =
+        "ws comment newline";
 
 
     // Table
 
     inline parser::rule<class table> const table = "table";
+    inline parser::rule<class std_table> const std_table = "non-inline table";
+
+
+    // Inline
+
+    inline parser::rule<class inline_table> const inline_table = "inline table";
+
+
+    // Array
+
+    inline parser::rule<class array_table> const array_table = "array table";
 
 
     auto const append_to_local = [](auto & ctx) { _locals(ctx) += _attr(ctx); };
@@ -212,19 +232,21 @@ namespace boost { namespace program_options_2 { namespace toml_detail {
     // Basic rules
 
     inline auto const toml_def = expression % newline;
-    inline auto const expression_def = keyval | table;
+    inline auto const expression_def = ws >> -(keyval | table) >> ws >>
+                                       -comment;
     inline auto const ws_char_def = parser::lit('\x20') | '\x09';
     inline auto const ws_def = *ws_char;
     inline auto const newline_def = -parser::lit('\x0d') | '\x0a';
     inline auto const non_ascii_def =
         parser::char_(0x80, 0xd7ff) | parser::char_(0xe000, 0x10ffff);
-    inline auto const comment_def = '#' >> *(parser::char_(0x80, 0xd7ff) |
-                                             '\0x09' | non_ascii);
+    inline auto const non_eol_def =
+        parser::char_(0x09) | parser::char_(0x20, 0x7f) | non_ascii;
+    inline auto const comment_def = '#' >> *non_eol;
 
     // Key/value pair
 
-    inline auto const keyval_def = key >> '=' >> val;
-    inline auto const key_def = (quoted_key | unquoted_key) % '.';
+    inline auto const keyval_def = key >> ws >> '=' >> ws >> val;
+    inline auto const key_def = (quoted_key | unquoted_key) % (ws >> '.' >> ws);
     inline auto const unquoted_key_def =
         +(parser::char_('A', 'Z') | parser::char_('a', 'z') |
           parser::char_('0', '9') | parser::char_("-_"));
@@ -252,8 +274,8 @@ namespace boost { namespace program_options_2 { namespace toml_detail {
                                          parser::lit('"');
 
     inline auto const basic_char_def =
-        parser::char_(" \t!") | parser::char_(0x23, 0x5b) |
-        parser::char_(0x5d, 0x7e) | non_ascii | escaped;
+        ws_char | '!' | parser::char_(0x23, 0x5b) | parser::char_(0x5d, 0x7e) |
+        non_ascii | escaped;
 
     // Multiline string
 
@@ -282,7 +304,7 @@ namespace boost { namespace program_options_2 { namespace toml_detail {
                                               parser::lit("'''");
 
     inline auto const mll_content_def =
-        (literal_char | newline_nl) - parser::lit("'''");
+        (literal_char | newline) - parser::lit("'''");
 
     // Integer
 
@@ -452,19 +474,28 @@ namespace boost { namespace program_options_2 { namespace toml_detail {
     inline auto const local_date_def = full_date;
     inline auto const local_time_def = partial_time;
 
-    // TODO
-
     // Array
 
-    // TODO
+    inline auto const array_def = '[' >> (ws_comment_newline >> val) %
+                                             (ws_comment_newline >> ',') >>
+                                  ws_comment_newline >> ']';
+
+    inline auto const ws_comment_newline_def = *(ws_char | -comment >> newline);
 
     // Table
 
-    // TODO
+    inline auto const table_def = std_table | array_table;
+    inline auto const std_table_def = '[' >> ws >> key >> ws >> ']';
 
-    // Array Table
+    // Inline table
 
-    // TODO
+    inline auto const inline_table_def = '{' >> ws >>
+                                         (key_val % (ws >> ',' >> ws)) >> ws >>
+                                         '}';
+
+    // Array table
+
+    inline auto const array_table_def = "[[" >> ws >> key >> ws >> "]]";
 
 #if 0 // TODO
     BOOST_PARSER_DEFINE_RULES(
