@@ -143,10 +143,15 @@ namespace boost { namespace program_options_2 { namespace toml_detail {
 
     // Date-Time
 
-    using partial_time_t = std::chrono::
-        time_point<std::chrono::system_clock, std::chrono::milliseconds>;
-
     inline parser::rule<class date_time> const date_time = "date/time";
+    inline parser::rule<class date_month> const date_month = "month (01-12)";
+    inline parser::rule<class date_mday> const date_mday =
+        "day of the month (01-31)";
+    inline parser::rule<class time_hour> const time_hour = "hours (00-23)";
+    inline parser::rule<class time_minute> const time_minute =
+        "minutes (00-59)";
+    inline parser::rule<class time_second> const time_second =
+        "seconds (00-60)";
     inline parser::rule<class date_time> const offset_date_time =
         "offset date/time";
     inline parser::rule<class date_time> const local_date_time =
@@ -332,17 +337,43 @@ namespace boost { namespace program_options_2 { namespace toml_detail {
 
     // Date/time
 
+    auto const parse_hour_into_locals = [](auto & ctx) {
+        parser::parse(_attr(ctx), parser::uint_, _locals(ctx).hours);
+        if (23 < _locals(ctx).hours)
+            _pass(ctx) = false;
+    };
+    auto const parse_minute_into_locals = [](auto & ctx) {
+        parser::parse(_attr(ctx), parser::uint_, _locals(ctx).minutes);
+        if (59 < _locals(ctx).minutes)
+            _pass(ctx) = false;
+    };
+    auto const parse_second_and_assign = [](auto & ctx) {
+        double s = 0.0;
+        parser::parse(_where(ctx), parser::double_, s);
+        // Due to the leap second rules, the number of seconds may be up
+        // to 60.xxx.
+        if (61.0 < _locals(ctx).minutes)
+            _pass(ctx) = false;
+        unsigned int seconds = s * 1000.0;
+        _val(ctx) = time{
+            std::chrono::hours(_locals(ctx).hours) +
+            std::chrono::minutes(_locals(ctx).minutes) +
+            std::chrono::seconds(seconds)};
+    };
+
     inline auto const date_time_def =
         offset_date_time | local_date_time | local_date | local_time;
-
     inline parser::uint_parser<unsigned int, 10, 4, 4> const date_fullyear;
-    inline parser::uint_parser<unsigned int, 10, 2, 2> const date_month;
-    inline parser::uint_parser<unsigned int, 10, 2, 2> const date_mday;
-    inline parser::uint_parser<unsigned int, 10, 2, 2> const time_hour;
-    inline parser::uint_parser<unsigned int, 10, 2, 2> const time_minute;
-    inline parser::uint_parser<unsigned int, 10, 2, 2> const time_second;
-
-    inline auto const partial_time_def = ;
+    inline parser::uint_parser<unsigned int, 10, 2, 2> const date_month_def;
+    inline parser::uint_parser<unsigned int, 10, 2, 2> const date_mday_def;
+    inline parser::uint_parser<unsigned int, 10, 2, 2> const time_hour_def;
+    inline parser::uint_parser<unsigned int, 10, 2, 2> const time_minute_def;
+    inline parser::uint_parser<unsigned int, 10, 2, 2> const time_second_def;
+    inline auto const partial_time_def =
+        time_hour[parse_hour_into_locals] >> ':' >>
+        time_minute[parse_minute_into_locals] >> ':' >>
+        (time_second >>
+         -('.' >> +parser::char_('0', '9')))[parse_second_and_assign];
 
     inline auto const offset_date_time_def = ;
     inline auto const local_date_time_def = ;
