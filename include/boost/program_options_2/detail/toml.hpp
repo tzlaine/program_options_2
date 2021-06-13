@@ -70,6 +70,11 @@ namespace boost { namespace program_options_2 { namespace toml_detail {
         dec_int = "decimal integer";
     inline parser::rule<class unsigned_dec_int, std::size_t, std::string> const
         unsigned_dec_int = "unsigned decimal integer";
+    inline parser::rule<class dec_int_impl, std::ptrdiff_t, std::string> const
+        dec_int_impl = "decimal integer";
+    inline parser::
+        rule<class unsigned_dec_int_impl, std::size_t, std::string> const
+            unsigned_dec_int_impl = "unsigned decimal integer";
     inline parser::rule<class hex_int, std::size_t, std::string> const hex_int =
         "unsigned hexidecimal integer";
     inline parser::rule<class oct_int, std::size_t, std::string> const oct_int =
@@ -83,6 +88,12 @@ namespace boost { namespace program_options_2 { namespace toml_detail {
     inline parser::rule<class float_> const float_ = "floating-point number";
     inline parser::rule<class float_impl> const float_impl =
         "floating-point number";
+    inline parser::rule<class zero_prefixable_int_impl> const
+        zero_prefixable_int_impl = "floating-point number";
+    inline parser::rule<class exp_impl> const exp_impl =
+        "floating-point exponent";
+    inline parser::rule<class frac_impl> const frac_impl =
+        "floating-point frcational part";
     inline parser::rule<class special_float> const special_float =
         "+/-inf or +/-nan";
 
@@ -90,6 +101,12 @@ namespace boost { namespace program_options_2 { namespace toml_detail {
     // Date-Time
 
     inline parser::rule<class date_time> const date_time = "date/time";
+    inline parser::rule<class date_time> const offset_date_time =
+        "offset date/time";
+    inline parser::rule<class date_time> const local_date_time =
+        "local date/time";
+    inline parser::rule<class date_time> const local_date = "date";
+    inline parser::rule<class date_time> const local_time = "local time";
 
     // TODO
 
@@ -104,11 +121,10 @@ namespace boost { namespace program_options_2 { namespace toml_detail {
     inline parser::rule<class table> const table = "table";
 
 
-    auto const append_local_char = [](auto & ctx) {
-        _locals(ctx).push_back(_attr(ctx));
-    };
+    auto const append_to_local = [](auto & ctx) { _locals(ctx) += _attr(ctx); };
     auto const negate_and_assign = [](auto & ctx) { _val(ctx) = -_attr(ctx); };
     auto const assign = [](auto & ctx) { _val(ctx) = _attr(ctx); };
+    auto const append = [](auto & ctx) { _val(ctx) += _attr(ctx); };
 
 
     // Definitions
@@ -191,9 +207,13 @@ namespace boost { namespace program_options_2 { namespace toml_detail {
 
     // Integer
 
-    auto const local_str_to_dec_size_t = [](auto & ctx) {
+    auto const attr_str_to_dec_size_t = [](auto & ctx) {
         parser::uint_parser<std::size_t> const p;
-        parser::parse(_locals(ctx), p, _val(ctx));
+        parser::parse(_attr(ctx), p, _val(ctx));
+    };
+    auto const attr_str_to_ptrdiff_t = [](auto & ctx) {
+        parser::int_parser<std::ptrdiff_t> const p;
+        parser::parse(_attr(ctx), p, _val(ctx));
     };
     auto const local_str_to_hex_size_t = [](auto & ctx) {
         parser::uint_parser<std::size_t, 16> const p;
@@ -209,51 +229,52 @@ namespace boost { namespace program_options_2 { namespace toml_detail {
     };
 
     inline auto const integer_def = dec_int | hex_int | oct_int | bin_int;
-    inline auto const dec_int_def =
-        '-' >> unsigned_dec_int[negate_and_assign] | unsigned_dec_int[assign];
+    inline auto const dec_int_def = dec_int_impl[attr_str_to_ptrdiff_t];
+    inline auto const
+        dec_int_impl_def = parser::char_('-')[append] >>
+                               unsigned_dec_int_impl[append] |
+                           -parser::lit('+') >> unsigned_dec_int_impl[append];
     inline auto const unsigned_dec_int_def =
-        '0' >> parser::attr(std::size_t{0}) |
+        unsigned_dec_int_impl[attr_str_to_dec_size_t];
+    inline auto const unsigned_dec_int_impl_def =
+        parser::char_('0')[append] |
         parser::lexeme
-            [parser::char_('1', '9')[append_local_char] >>
-             *(-parser::lit('_') >> parser::char_('0', '9')[append_local_char])]
-            [local_str_to_dec_size_t];
+            [parser::char_('1', '9')[append] >>
+             *(-parser::lit('_') >> parser::char_('0', '9')[append])];
     inline auto const hex_digit =
         parser::char_('0', '1') | parser::char_('A', 'F');
     inline auto const hex_def =
-        "0x" >> parser::lexeme[hex_digit[append_local_char] % -parser::lit('_')]
+        "0x" >> parser::lexeme[hex_digit[append_to_local] % -parser::lit('_')]
                               [local_str_to_hex_size_t];
     inline auto const oct_def =
         "0o" >> parser::lexeme
-                    [parser::char_('0', '7')[append_local_char] %
+                    [parser::char_('0', '7')[append_to_local] %
                      -parser::lit('_')][local_str_to_oct_size_t];
     inline auto const bin_def =
         "0b" >> parser::lexeme
-                    [parser::char_('0', '1')[append_local_char] %
+                    [parser::char_('0', '1')[append_to_local] %
                      -parser::lit('_')][local_str_to_bin_size_t];
 
     // Float
 
-    auto const assign_local_chars = [](auto & ctx) {
-        _val(ctx) = _locals(ctx);
-    };
-    auto const assign_exp = [](auto & ctx) {
-        _val(ctx) = "e";
-        _val(ctx) += _attr(ctx);
-    };
     auto const local_str_to_double = [](auto & ctx) {
         parser::parse(_locals(ctx), parser::double_, _val(ctx));
     };
 
     inline auto const float_def = '0' >> parser::attr(0.0) | float_impl
                                   | special_float_def;
-
-    inline auto const zero_prefixable_int_def = parser::lexeme
-        [parser::char_('0', '9')[append_local_char] % -parser::lit('_')]
-        [assign_local_chars];
-
-    inline auto const exp_def =
-        parser::lexeme['e' >> zero_prefixable_int][assign_exp];
-
+    inline auto const float_impl_def = parser::lexeme
+        [dec_int_impl[append_to_local] >>
+         (exp[append_to_local] |
+          frac[append_to_local] >> -exp[append_to_local])][local_str_to_double];
+    inline auto const zero_prefixable_int_def =
+        parser::lexeme[parser::char_('0', '9')[append] % -parser::lit('_')];
+    inline auto const exp_def = parser::lexeme
+        [parser::char_('e')[append] >>
+         (parser::char_('-')[append] | parser::char_('+')[append]) >>
+         zero_prefixable_int[append]];
+    inline auto const frac_def = parser::lexeme
+        [parser::char_('.')[append] >> zero_prefixable_int[append]];
     inline auto const special_float_def =
         parser::lit('-') >> parser::lit("inf") >>
             parser::attr(-std::numeric_limits<double>::infinity()) |
@@ -262,11 +283,19 @@ namespace boost { namespace program_options_2 { namespace toml_detail {
         -(parser::lit('-') | parser::lit('+')) >> parser::lit("nan") >>
             parser::attr(nan(""));
 
-    // TODO
+    // Boolean
 
     inline parser::bool_ const boolean;
 
     // Date/time
+
+    inline auto const date_time_def =
+        offset_date_time | local_date_time | local_date | local_time;
+
+    inline auto const offset_date_time_def = ;
+    inline auto const local_date_time_def = ;
+    inline auto const local_date_def = ;
+    inline auto const local_time_def = ;
 
     // TODO
 
