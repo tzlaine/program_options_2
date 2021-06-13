@@ -17,9 +17,37 @@
 
 namespace boost { namespace program_options_2 { namespace toml_detail {
 
-    using days = std::chrono::
+#if defined(__cpp_lib_chrono) && 201907 <= __cpp_lib_chrono
+    using year_t = std::chrono::year;
+    using month_t = std::chrono::month;
+    using day_t = std::chrono::day;
+    using year_month_day = std::chrono::year_month_day;
+#else
+    using year_t = std::chrono::
+        duration<std::chrono::milliseconds::rep, std::ratio<31556952>>;
+    using month_t = std::chrono::
+        duration<std::chrono::milliseconds::rep, std::ratio<2629746>>;
+    using day_t = std::chrono::
         duration<std::chrono::milliseconds::rep, std::ratio<86400>>;
-    using date = std::chrono::time_point<std::chrono::system_clock, days>;
+
+    struct year_month_day
+    {
+        year_month_day() = default;
+        constexpr year_month_day(year_t y, month_t m, day_t d) noexcept :
+            y_(y), m_(m), d_(d)
+        {}
+
+        constexpr year_t year() const noexcept { return y_; }
+        constexpr month_t month() const noexcept { return m_; }
+        constexpr day_t day() const noexcept { return d_; }
+
+    private:
+        year y_;
+        month m_;
+        day d_;
+    };
+#endif
+
     struct time
     {
         std::chrono::
@@ -27,6 +55,7 @@ namespace boost { namespace program_options_2 { namespace toml_detail {
                 time;
         std::optional<std::chrono::milliseconds> tz_offset;
     };
+
 
 
     // Basic rules
@@ -112,6 +141,9 @@ namespace boost { namespace program_options_2 { namespace toml_detail {
 
 
     // Date-Time
+
+    using partial_time_t = std::chrono::
+        time_point<std::chrono::system_clock, std::chrono::milliseconds>;
 
     inline parser::rule<class date_time> const date_time = "date/time";
     inline parser::rule<class date_time> const offset_date_time =
@@ -305,7 +337,14 @@ namespace boost { namespace program_options_2 { namespace toml_detail {
     inline auto const date_time_def =
         offset_date_time | local_date_time | local_date | local_time;
 
-    inline auto const _def = ;
+    inline parser::uint_parser<unsigned int, 10, 4, 4> const date_fullyear;
+    inline parser::uint_parser<unsigned int, 10, 2, 2> const date_month;
+    inline parser::uint_parser<unsigned int, 10, 2, 2> const date_mday;
+    inline parser::uint_parser<unsigned int, 10, 2, 2> const time_hour;
+    inline parser::uint_parser<unsigned int, 10, 2, 2> const time_minute;
+    inline parser::uint_parser<unsigned int, 10, 2, 2> const time_second;
+
+    inline auto const partial_time_def = ;
 
     inline auto const offset_date_time_def = ;
     inline auto const local_date_time_def = ;
