@@ -48,15 +48,15 @@ namespace boost { namespace program_options_2 { namespace toml_detail {
     };
 #endif
 
-    struct time_t
+    struct time_tz
     {
         using time_point = std::chrono::
             time_point<std::chrono::system_clock, std::chrono::milliseconds>;
         using tz_duration = std::chrono::milliseconds;
 
-        time_t() = default;
-        constexpr time_t(time_point t) : t_(t), tz_() {}
-        constexpr time_t(time_point t, tz_duration tz) : t_(t), tz_(tz) {}
+        time_tz() = default;
+        constexpr time_tz(time_point t) : t_(t), tz_() {}
+        constexpr time_tz(time_point t, tz_duration tz) : t_(t), tz_(tz) {}
 
         constexpr time_point time() const noexcept { return t_; }
         constexpr std::optional<tz_duration> tz_offset() const noexcept
@@ -72,16 +72,16 @@ namespace boost { namespace program_options_2 { namespace toml_detail {
     struct date_time
     {
         date_time() = default;
-        constexpr date_time(year_month_day date, time_t time) :
+        constexpr date_time(year_month_day date, time_tz time) :
             d_(date), t_(time)
         {}
 
         constexpr year_month_day date() const noexcept { return d_; }
-        constexpr time_t time() const noexcept { return t_; }
+        constexpr time_tz time() const noexcept { return t_; }
 
     private:
         year_month_day d_;
-        time_t t_;
+        time_tz t_;
     };
 
 
