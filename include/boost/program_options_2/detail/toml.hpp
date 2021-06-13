@@ -48,12 +48,40 @@ namespace boost { namespace program_options_2 { namespace toml_detail {
     };
 #endif
 
-    struct time
+    struct time_t
     {
-        std::chrono::
-            time_point<std::chrono::system_clock, std::chrono::milliseconds>
-                time;
-        std::optional<std::chrono::milliseconds> tz_offset;
+        using time_point = std::chrono::
+            time_point<std::chrono::system_clock, std::chrono::milliseconds>;
+        using tz_duration = std::chrono::milliseconds;
+
+        time_t() = default;
+        constexpr time_t(time_point t) : t_(t), tz_() {}
+        constexpr time_t(time_point t, tz_duration tz) : t_(t), tz_(tz) {}
+
+        constexpr time_point time() const noexcept { return t_; }
+        constexpr std::optional<tz_duration> tz_offset() const noexcept
+        {
+            return tz_;
+        }
+
+    private:
+        time_point t_;
+        std::optional<tz_duration> tz_;
+    };
+
+    struct date_time
+    {
+        date_time() = default;
+        constexpr date_time(year_month_day date, time_t time) :
+            d_(date), t_(time)
+        {}
+
+        constexpr year_month_day date() const noexcept { return d_; }
+        constexpr time_t time() const noexcept { return t_; }
+
+    private:
+        year_month_day d_;
+        time_t t_;
     };
 
 
@@ -178,7 +206,7 @@ namespace boost { namespace program_options_2 { namespace toml_detail {
     auto const append = [](auto & ctx) { _val(ctx) += _attr(ctx); };
 
 
-    // Definitions
+    // Rule definitions
 
 
     // Basic rules
@@ -360,25 +388,69 @@ namespace boost { namespace program_options_2 { namespace toml_detail {
             std::chrono::minutes(_locals(ctx).minutes) +
             std::chrono::seconds(seconds)};
     };
+    auto const parse_minute_and_assign = [](auto & ctx) {
+        unsigned int m = 0;
+        parser::parse(_where(ctx), parser::uint_, m);
+        if (59 < m)
+            _pass(ctx) = false;
+        _val(ctx) =
+            std::chrono::hours(_locals(ctx).hours) + std::chrono::minutes(m);
+    };
+    auto const construct_full_date = [](auto & ctx) {
+        auto tup = _attr(ctx);
+        using ::boost::parser::literals;
+        _val(ctx) = year_month_day(
+            year_t(tup[0_c]), month_t(tup[1_c]), day_t(tup[2_c]));
+    };
+    auto const construct_full_time = [](auto & ctx) {
+        using ::boost::parser::literals;
+        auto val = _attr(ctx)[0_c];
+        val.tz_offset = _attr(ctx)[1_c];
+        _val(ctx) = val;
+    };
+    auto const construct_date_time = [](auto & ctx) {
+        using ::boost::parser::literals;
+        _val(ctx) = date_time(_attr(ctx)[0_c], _attr(ctx)[1_c]);
+    };
 
     inline auto const date_time_def =
         offset_date_time | local_date_time | local_date | local_time;
+
     inline parser::uint_parser<unsigned int, 10, 4, 4> const date_fullyear;
     inline parser::uint_parser<unsigned int, 10, 2, 2> const date_month_def;
     inline parser::uint_parser<unsigned int, 10, 2, 2> const date_mday_def;
     inline parser::uint_parser<unsigned int, 10, 2, 2> const time_hour_def;
     inline parser::uint_parser<unsigned int, 10, 2, 2> const time_minute_def;
     inline parser::uint_parser<unsigned int, 10, 2, 2> const time_second_def;
+
     inline auto const partial_time_def =
         time_hour[parse_hour_into_locals] >> ':' >>
         time_minute[parse_minute_into_locals] >> ':' >>
         (time_second >>
          -('.' >> +parser::char_('0', '9')))[parse_second_and_assign];
 
-    inline auto const offset_date_time_def = ;
-    inline auto const local_date_time_def = ;
-    inline auto const local_date_def = ;
-    inline auto const local_time_def = ;
+    inline auto const time_offset_def =
+        ((parser::lit("Z") | "z") >>
+         parser::attr(std::chrono::milliseconds(0))) |
+        parser::raw[(parser::lit('+') | '-') >> time_hour]
+                   [parse_hour_into_locals] >>
+            ':' >> time_minute[parse_minute_and_assign];
+
+    inline auto const full_date_def =
+        (date_fullyear >> '-' >> date_month >> '-' >>
+         date_mday)[construct_full_date];
+
+    inline auto const full_time_def =
+        (partial_time >> time_offset)[construct_full_time];
+
+    inline auto const offset_date_time_def =
+        (full_date >> (parser::lit('T') | 't' | ' ') >>
+         full_time)[construct_date_time];
+    inline auto const local_date_time_def =
+        (full_date >> (parser::lit('T') | 't' | ' ') >>
+         partial_time)[construct_date_time];
+    inline auto const local_date_def = full_date;
+    inline auto const local_time_def = partial_time;
 
     // TODO
 
