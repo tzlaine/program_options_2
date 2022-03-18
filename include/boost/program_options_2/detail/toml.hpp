@@ -498,7 +498,82 @@ namespace boost { namespace program_options_2 { namespace toml_detail {
     inline auto const array_table_def = "[[" >> ws >> key >> ws >> "]]";
 
 
-    // TODO    BOOST_PARSER_DEFINE_RULES(toml);
+    BOOST_PARSER_DEFINE_RULES(
+        toml,
+        expression,
+        ws_char,
+        ws,
+        newline,
+        non_ascii,
+        comment,
+
+        keyval,
+        key,
+        simple_key,
+        unquoted_key,
+        quoted_key,
+        val,
+
+        string,
+        basic_string,
+        basic_char,
+        escaped,
+        literal_string,
+        literal_char,
+
+        ml_basic_string,
+        mlb_content,
+        mlb_escaped_nl,
+        ml_literal_string,
+        mll_content,
+
+        integer,
+
+        dec_int,
+
+        unsigned_dec_int,
+
+        dec_int_impl,
+        unsigned_dec_int_impl,
+        hex_int,
+        oct_int,
+        bin_int,
+
+        float_,
+        float_impl,
+
+        zero_prefixable_int_impl,
+        exp_impl,
+        frac_impl,
+        special_float,
+
+        date_time,
+
+        date_month,
+        date_mday,
+        time_hour,
+        time_minute,
+        time_second,
+
+        partial_time,
+        time_offset,
+        full_date,
+        full_time,
+
+        offset_date_time,
+        local_date_time,
+        local_date,
+        local_time,
+
+        array,
+        ws_comment_newline,
+
+        table,
+        std_table,
+
+        inline_table,
+
+        array_table);
 
 #if 0 // TODO
     struct callbacks
