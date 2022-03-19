@@ -103,11 +103,12 @@ namespace boost { namespace program_options_2 { namespace detail {
     template<typename... Options>
     auto make_result_tuple(hana::tuple<Options...> const & opts)
     {
-        return hana::transform(opts, [](auto const & opt) {
+        auto unflattened = hana::transform(opts, [](auto const & opt) {
             using opt_type = std::remove_cvref_t<decltype(opt)>;
             if constexpr (is_group<opt_type>::value) {
                 if constexpr (opt_type::mutually_exclusive)
-                    return detail::variant_for_tuple(opt.options);
+                    return hana::make_tuple(
+                        detail::variant_for_tuple(opt.options));
                 else
                     return detail::make_result_tuple(opt.options);
             } else {
@@ -116,9 +117,10 @@ namespace boost { namespace program_options_2 { namespace detail {
                 auto retval = detail::make_result_tuple_element<opt_type>();
                 if constexpr (required_option && detail::flag<opt_type>())
                     retval = opt.default_value;
-                return retval;
+                return hana::make_tuple(retval);
             }
         });
+        return hana::flatten(unflattened);
     }
 
     template<typename... Options>
