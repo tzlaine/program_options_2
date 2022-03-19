@@ -456,11 +456,40 @@ namespace boost { namespace program_options_2 { namespace detail {
 
     template<typename Char, typename... Options>
     bool known_dashed_argument(
-        std::basic_string_view<Char> str, Options const &... opts)
+        std::basic_string_view<Char> arg, Options const &... opts);
+
+    template<typename Char>
+    struct known_dashed_argument_impl
     {
-        if (!detail::leading_dash(str))
+        std::basic_string_view<Char> arg_;
+        template<typename... Options>
+        bool operator()(Options const &... opts)
+        {
+            return detail::known_dashed_argument(arg_, opts...);
+        }
+    };
+
+    template<
+        typename Char,
+        exclusive_t MutuallyExclusive,
+        subcommand_t Subcommand,
+        typename... Options>
+    bool matches_dashed_argument(
+        std::basic_string_view<Char> arg,
+        option_group<MutuallyExclusive, Subcommand, Options...> const & group)
+    {
+        return hana::unpack(
+            group.options, known_dashed_argument_impl<Char>{arg});
+    }
+
+    // TODO: This should maybe use a trie (pending perf testing, of course).
+    template<typename Char, typename... Options>
+    bool known_dashed_argument(
+        std::basic_string_view<Char> arg, Options const &... opts)
+    {
+        if (!detail::leading_dash(arg))
             return false;
-        return (detail::matches_dashed_argument(str, opts) || ...);
+        return (detail::matches_dashed_argument(arg, opts) || ...);
     }
 
     template<
