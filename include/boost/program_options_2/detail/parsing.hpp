@@ -290,10 +290,12 @@ namespace boost { namespace program_options_2 { namespace detail {
         customizable_strings const & strings,
         std::basic_ostream<Char> & os,
         parse_option_error error,
-        std::basic_string_view<Char> cl_arg_or_opt_name)
+        std::basic_string_view<Char> cl_arg_or_opt_name,
+        std::basic_string_view<Char> opt_name = {})
     {
         auto const error_str = strings.parse_errors[(int)error - 1];
-        detail::print_placeholder_string(os, error_str, cl_arg_or_opt_name);
+        detail::print_placeholder_string(
+            os, error_str, cl_arg_or_opt_name, opt_name);
     }
 
     template<typename Char, typename Option, typename Result>
@@ -724,10 +726,12 @@ namespace boost { namespace program_options_2 { namespace detail {
         std::basic_string_view<Char> argv0 = argv0_str;
 
         auto fail = [&](parse_option_error error,
-                        std::basic_string_view<Char> cl_arg_or_opt_name) {
+                        std::basic_string_view<Char> cl_arg_or_opt_name,
+                        std::basic_string_view<Char> opt_name = {}) {
             if (deserializing)
                 return;
-            detail::print_parse_error(strings, os, error, cl_arg_or_opt_name);
+            detail::print_parse_error(
+                strings, os, error, cl_arg_or_opt_name, opt_name);
             os << '\n';
             detail::print_help_and_exit(
                 1, strings, argv0, program_desc, os, no_help, opts...);
@@ -838,10 +842,12 @@ namespace boost { namespace program_options_2 { namespace detail {
                     if (parse_result.error ==
                             parse_option_error::cannot_parse_arg ||
                         parse_result.error ==
-                            parse_option_error::no_such_choice ||
-                        parse_result.error ==
                             parse_option_error::extra_positional) {
                         fail(parse_result.error, *args_first);
+                    } else if (
+                        parse_result.error ==
+                        parse_option_error::no_such_choice) {
+                        fail(parse_result.error, *args_first, opt_tuple[i].names);
                     } else {
                         fail(parse_result.error, opt_tuple[i].names);
                     }

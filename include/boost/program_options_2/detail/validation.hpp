@@ -47,7 +47,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         auto const utf8_sv = text::as_utf8(sv);
         scratch.assign(utf8_sv.begin(), utf8_sv.end());
         detail::print_placeholder_string(
-            oss, error_str, std::basic_string_view<Char>(scratch));
+            oss, error_str, std::basic_string_view<Char>(scratch), {});
         scratch = oss.str();
         return {false, std::string_view(scratch)};
     }

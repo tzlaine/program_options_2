@@ -55,7 +55,7 @@ namespace boost { namespace program_options_2 {
             {"error: unrecognized argument '{}'",
              "error: wrong number of arguments for '{}'",
              "error: cannot parse argument '{}'",
-             "error: '{}' is not one of the allowed choices",
+             "error: '{}' is not one of the allowed choices for '{}'",
              "error: unexpected positional argument '{}'",
              "error: one or more missing positional arguments, starting with "
              "'{}'"}};

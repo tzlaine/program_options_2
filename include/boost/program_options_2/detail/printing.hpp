@@ -445,24 +445,35 @@ namespace boost { namespace program_options_2 { namespace detail {
     void print_placeholder_string(
         std::basic_ostream<Char> & os,
         std::basic_string_view<Char> placeholder_str,
-        std::basic_string_view<Char> inserted_str)
+        std::basic_string_view<Char> inserted_str1,
+        std::basic_string_view<Char> inserted_str2)
     {
         using namespace parser::literals;
+        auto const before_brace = parser::omit[*(parser::char_ - '{')];
+        auto const brace = parser::raw
+            [('{'_l - "{{") >> *(parser::char_ - '}') >> ('}'_l - "}}")];
         auto const kinda_matched_braces =
-            parser::omit[*(parser::char_ - '{')] >>
-            parser::raw
-                [('{'_l - "{{") >> *(parser::char_ - '}') >> ('}'_l - "}}")];
+            before_brace >> brace >> -(before_brace >> brace);
         auto first = placeholder_str.begin();
         auto const braces =
             parser::parse(first, placeholder_str.end(), kinda_matched_braces);
         auto const open_brace =
-            braces ? braces->begin() : placeholder_str.end();
-        auto const close_brace = braces ? braces->end() : placeholder_str.end();
+            braces ? (*braces)[0].begin() : placeholder_str.end();
+        auto const close_brace = braces ? (*braces)[0].end() : placeholder_str.end();
+        auto const second_open_brace = braces && 1u < braces->size()
+                                           ? (*braces)[1].begin()
+                                           : placeholder_str.end();
+        auto const second_close_brace = braces && 1u < braces->size()
+                                            ? (*braces)[1].end()
+                                            : placeholder_str.end();
 
         os << text::as_utf8(placeholder_str.begin(), open_brace);
         if (braces)
-            os << text::as_utf8(inserted_str);
-        os << text::as_utf8(close_brace, placeholder_str.end());
+            os << text::as_utf8(inserted_str1);
+        os << text::as_utf8(close_brace, second_open_brace);
+        if (braces && 1u < braces->size())
+            os << text::as_utf8(inserted_str2);
+        os << text::as_utf8(second_close_brace, placeholder_str.end());
         os << '\n';
     }
 

@@ -473,7 +473,7 @@ response files:
                 po2::argument("-a", "Arg.", 1, "foo", "bar"));
         } catch (int) {
         }
-        EXPECT_EQ(os.str(), R"(error: 'baz' is not one of the allowed choices
+        EXPECT_EQ(os.str(), R"(error: 'baz' is not one of the allowed choices for '-a'
 
 usage:  prog [-h] [-a {foo,bar}]
 
