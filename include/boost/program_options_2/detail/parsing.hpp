@@ -17,13 +17,6 @@
 
 namespace boost { namespace program_options_2 { namespace detail {
 
-    template<typename T>
-    using type_eraser = decltype(
-        std::declval<T &>() = std::declval<void *>(),
-        std::declval<T &>() = std::declval<no_value>(),
-        std::declval<T &>() =
-            std::declval<std::pair<int, std::vector<double> *>>());
-
     template<typename... Options>
     bool no_help_option(Options const &... opts);
 
@@ -234,9 +227,7 @@ namespace boost { namespace program_options_2 { namespace detail {
 
     template<typename T>
     struct is_erased_type
-        : std::integral_constant<
-              bool,
-              boost::is_detected<type_eraser, std::remove_cv_t<T>>::value>
+        : std::integral_constant<bool, erased_type<std::remove_cv_t<T>>>
     {};
     template<typename Option, typename T>
     struct inserting_into_any
