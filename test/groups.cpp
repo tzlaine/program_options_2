@@ -98,11 +98,11 @@ TEST(groups, group)
             std::ostringstream os;
             po2::string_view_any_map result;
             po2::parse_command_line(args, result, "A program.", os, group);
-            EXPECT_EQ(boost::any_cast<float>(result["cats"]), 7.0f);
-            EXPECT_EQ(boost::any_cast<std::string>(result["dog"]), "11");
-            EXPECT_EQ(boost::any_cast<int>(result["apple"]), 55);
-            EXPECT_EQ(boost::any_cast<double>(result["branch"]), 2.0);
-            EXPECT_EQ(boost::any_cast<short>(result["e"]), 3);
+            EXPECT_EQ(std::any_cast<float>(result["cats"]), 7.0f);
+            EXPECT_EQ(std::any_cast<std::string>(result["dog"]), "11");
+            EXPECT_EQ(std::any_cast<int>(result["apple"]), 55);
+            EXPECT_EQ(std::any_cast<double>(result["branch"]), 2.0);
+            EXPECT_EQ(std::any_cast<short>(result["e"]), 3);
         }
     }
     {
@@ -148,11 +148,11 @@ TEST(groups, group)
             std::ostringstream os;
             po2::string_view_any_map result;
             po2::parse_command_line(args, result, "A program.", os, group);
-            EXPECT_EQ(boost::any_cast<float>(result["cats"]), 7.0f);
-            EXPECT_EQ(boost::any_cast<std::string>(result["dog"]), "11");
-            EXPECT_EQ(boost::any_cast<int>(result["apple"]), 55);
-            EXPECT_EQ(boost::any_cast<double>(result["branch"]), 2.0);
-            EXPECT_EQ(boost::any_cast<short>(result["e"]), 3);
+            EXPECT_EQ(std::any_cast<float>(result["cats"]), 7.0f);
+            EXPECT_EQ(std::any_cast<std::string>(result["dog"]), "11");
+            EXPECT_EQ(std::any_cast<int>(result["apple"]), 55);
+            EXPECT_EQ(std::any_cast<double>(result["branch"]), 2.0);
+            EXPECT_EQ(std::any_cast<short>(result["e"]), 3);
         }
     }
     {
@@ -185,9 +185,9 @@ TEST(groups, group)
             std::ostringstream os;
             po2::string_view_any_map result;
             po2::parse_command_line(args, result, "A program.", os, group);
-            EXPECT_EQ(boost::any_cast<float>(result["cats"]), 7.0f);
-            EXPECT_EQ(boost::any_cast<std::string>(result["dog"]), "11");
-            EXPECT_EQ(boost::any_cast<int>(result["apple"]), 55);
+            EXPECT_EQ(std::any_cast<float>(result["cats"]), 7.0f);
+            EXPECT_EQ(std::any_cast<std::string>(result["dog"]), "11");
+            EXPECT_EQ(std::any_cast<int>(result["apple"]), 55);
         }
     }
     {
@@ -220,9 +220,9 @@ TEST(groups, group)
             po2::string_view_any_map result;
             po2::parse_command_line(
                 args, result, "A program.", os, group, arg1);
-            EXPECT_EQ(boost::any_cast<float>(result["cats"]), 7.0f);
-            EXPECT_EQ(boost::any_cast<std::string>(result["dog"]), "11");
-            EXPECT_EQ(boost::any_cast<int>(result["apple"]), 55);
+            EXPECT_EQ(std::any_cast<float>(result["cats"]), 7.0f);
+            EXPECT_EQ(std::any_cast<std::string>(result["dog"]), "11");
+            EXPECT_EQ(std::any_cast<int>(result["apple"]), 55);
         }
     }
 }

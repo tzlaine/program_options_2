@@ -12,6 +12,7 @@
     BOOST_PROGRAM_OPTIONS_2_USE_CONCEPTS
 
 #include <ranges>
+#include <vector>
 
 
 namespace boost { namespace program_options_2 {

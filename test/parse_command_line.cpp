@@ -8,6 +8,7 @@
 
 #include "ill_formed.hpp"
 
+#include <boost/any.hpp>
 #include <boost/mpl/assert.hpp>
 #include <boost/type_traits/is_same.hpp>
 
@@ -149,7 +150,7 @@ TEST(parse_command_line, api)
     }
     {
         std::ostringstream os;
-        po2::string_view_any_map result;
+        std::map<std::string_view, boost::any> result;
         po2::parse_command_line(
             po2::arg_view(argc, argv),
             result,
@@ -209,7 +210,7 @@ TEST(parse_command_line, api)
             "A program.",
             os,
             po2::positional("pos", "Positional."));
-        EXPECT_EQ(boost::any_cast<std::wstring_view>(result["pos"]), "jj");
+        EXPECT_EQ(std::any_cast<std::wstring_view>(result["pos"]), "jj");
     }
 #endif
 
@@ -235,7 +236,7 @@ TEST(parse_command_line, api)
             os,
             user_strings(),
             po2::positional("pos", "Positional."));
-        EXPECT_EQ(boost::any_cast<std::string_view>(result["pos"]), "jj");
+        EXPECT_EQ(std::any_cast<std::string_view>(result["pos"]), "jj");
     }
     {
         std::ostringstream os;
@@ -272,7 +273,7 @@ TEST(parse_command_line, api)
             os,
             user_strings(),
             po2::positional("pos", "Positional."));
-        EXPECT_EQ(boost::any_cast<std::wstring_view>(result["pos"]), "jj");
+        EXPECT_EQ(std::any_cast<std::wstring_view>(result["pos"]), "jj");
     }
 #endif
 
@@ -298,7 +299,7 @@ TEST(parse_command_line, api)
             "A program.",
             os,
             po2::positional("pos", "Positional."));
-        EXPECT_EQ(boost::any_cast<std::string_view>(result["pos"]), "jj");
+        EXPECT_EQ(std::any_cast<std::string_view>(result["pos"]), "jj");
     }
 #if defined(_MSC_VER)
     {
@@ -322,7 +323,7 @@ TEST(parse_command_line, api)
             "A program.",
             os,
             po2::positional("pos", "Positional."));
-        EXPECT_EQ(boost::any_cast<std::wstring_view>(result["pos"]), "jj");
+        EXPECT_EQ(std::any_cast<std::wstring_view>(result["pos"]), "jj");
     }
 #endif
 
@@ -350,7 +351,7 @@ TEST(parse_command_line, api)
             os,
             user_strings(),
             po2::positional("pos", "Positional."));
-        EXPECT_EQ(boost::any_cast<std::string_view>(result["pos"]), "jj");
+        EXPECT_EQ(std::any_cast<std::string_view>(result["pos"]), "jj");
     }
 #if defined(_MSC_VER)
     {
@@ -376,7 +377,7 @@ TEST(parse_command_line, api)
             os,
             user_strings(),
             po2::positional("pos", "Positional."));
-        EXPECT_EQ(boost::any_cast<std::wstring_view>(result["pos"]), "jj");
+        EXPECT_EQ(std::any_cast<std::wstring_view>(result["pos"]), "jj");
     }
 #endif
 }
@@ -1299,17 +1300,17 @@ TEST(parse_command_line, arguments_map)
         po2::parse_command_line(
             args, result, "A program.", os, ARGUMENTS(int, 4, 5, 6));
         EXPECT_EQ(result.size(), 6u);
-        EXPECT_EQ(boost::any_cast<int>(result["abacus"]), 55);
-        EXPECT_EQ(*boost::any_cast<std::optional<int>>(result["bobcat"]), 66);
+        EXPECT_EQ(std::any_cast<int>(result["abacus"]), 55);
+        EXPECT_EQ(*std::any_cast<std::optional<int>>(result["bobcat"]), 66);
         EXPECT_EQ(
-            boost::any_cast<std::vector<int>>(result["cataphract"]),
+            std::any_cast<std::vector<int>>(result["cataphract"]),
             std::vector<int>({77, 88}));
-        EXPECT_EQ(boost::any_cast<int>(result["dolemite"]), 5);
+        EXPECT_EQ(std::any_cast<int>(result["dolemite"]), 5);
         EXPECT_EQ(
-            boost::any_cast<std::vector<int>>(result["zero-plus"]),
+            std::any_cast<std::vector<int>>(result["zero-plus"]),
             std::vector<int>{2});
         EXPECT_EQ(
-            boost::any_cast<std::set<int>>(result["one-plus"]),
+            std::any_cast<std::set<int>>(result["one-plus"]),
             std::set<int>{2});
     }
     {
@@ -1320,10 +1321,10 @@ TEST(parse_command_line, arguments_map)
             args, result, "A program.", os, ARGUMENTS(int, 4, 5, 6));
         EXPECT_EQ(result.size(), 2u);
         EXPECT_EQ(
-            boost::any_cast<std::optional<int>>(result["bobcat"]),
+            std::any_cast<std::optional<int>>(result["bobcat"]),
             std::nullopt);
         EXPECT_EQ(
-            boost::any_cast<std::vector<int>>(result["zero-plus"]),
+            std::any_cast<std::vector<int>>(result["zero-plus"]),
             std::vector<int>{});
     }
     {
@@ -1334,10 +1335,10 @@ TEST(parse_command_line, arguments_map)
             args, result, "A program.", os, ARGUMENTS(double, 4, 5, 6));
         EXPECT_EQ(result.size(), 2u);
         EXPECT_EQ(
-            boost::any_cast<std::optional<double>>(result["bobcat"]),
+            std::any_cast<std::optional<double>>(result["bobcat"]),
             std::nullopt);
         EXPECT_EQ(
-            boost::any_cast<std::vector<double>>(result["zero-plus"]),
+            std::any_cast<std::vector<double>>(result["zero-plus"]),
             std::vector<double>{});
     }
     {
@@ -1351,12 +1352,12 @@ TEST(parse_command_line, arguments_map)
             os,
             ARGUMENTS_WITH_DEFAULTS(int, 4, 5, 6, 42));
         EXPECT_EQ(result.size(), 4u);
-        EXPECT_EQ(boost::any_cast<int>(result["abacus"]), 42);
-        EXPECT_EQ(*boost::any_cast<std::optional<int>>(result["bobcat"]), 42);
+        EXPECT_EQ(std::any_cast<int>(result["abacus"]), 42);
+        EXPECT_EQ(*std::any_cast<std::optional<int>>(result["bobcat"]), 42);
         EXPECT_EQ(
-            boost::any_cast<std::vector<int>>(result["cataphract"]),
+            std::any_cast<std::vector<int>>(result["cataphract"]),
             std::vector<int>({42}));
-        EXPECT_EQ(boost::any_cast<int>(result["dolemite"]), 6);
+        EXPECT_EQ(std::any_cast<int>(result["dolemite"]), 6);
     }
     {
         std::ostringstream os;
@@ -1370,12 +1371,12 @@ TEST(parse_command_line, arguments_map)
             os,
             ARGUMENTS_WITH_DEFAULTS(int, 4, 5, 6, 42));
         EXPECT_EQ(result.size(), 4u);
-        EXPECT_EQ(boost::any_cast<int>(result["abacus"]), 42);
-        EXPECT_EQ(*boost::any_cast<std::optional<int>>(result["bobcat"]), 66);
+        EXPECT_EQ(std::any_cast<int>(result["abacus"]), 42);
+        EXPECT_EQ(*std::any_cast<std::optional<int>>(result["bobcat"]), 66);
         EXPECT_EQ(
-            boost::any_cast<std::vector<int>>(result["cataphract"]),
+            std::any_cast<std::vector<int>>(result["cataphract"]),
             std::vector<int>({77, 88}));
-        EXPECT_EQ(boost::any_cast<int>(result["dolemite"]), 5);
+        EXPECT_EQ(std::any_cast<int>(result["dolemite"]), 5);
     }
 
     {
@@ -1393,7 +1394,7 @@ TEST(parse_command_line, arguments_map)
                 po2::zero_or_more));
         EXPECT_EQ(result.size(), 1u);
         EXPECT_EQ(
-            boost::any_cast<std::vector<int>>(result["zero-plus"]),
+            std::any_cast<std::vector<int>>(result["zero-plus"]),
             std::vector<int>({3}));
     }
     {
@@ -1411,7 +1412,7 @@ TEST(parse_command_line, arguments_map)
                 po2::zero_or_more));
         EXPECT_EQ(result.size(), 1u);
         EXPECT_EQ(
-            boost::any_cast<std::vector<double>>(result["zero-plus"]),
+            std::any_cast<std::vector<double>>(result["zero-plus"]),
             std::vector<double>({3.0}));
     }
 
@@ -1535,15 +1536,15 @@ TEST(parse_command_line, positionals_map)
         po2::parse_command_line(
             args, result, "A program.", os, POSITIONALS(int, 4, 5, 6));
         EXPECT_EQ(result.size(), 5u);
-        EXPECT_EQ(boost::any_cast<int>(result["abacus"]), 55);
-        EXPECT_TRUE(boost::any_cast<std::optional<int>>(result["bobcat"]));
-        EXPECT_EQ(*boost::any_cast<std::optional<int>>(result["bobcat"]), 66);
+        EXPECT_EQ(std::any_cast<int>(result["abacus"]), 55);
+        EXPECT_TRUE(std::any_cast<std::optional<int>>(result["bobcat"]));
+        EXPECT_EQ(*std::any_cast<std::optional<int>>(result["bobcat"]), 66);
         EXPECT_EQ(
-            boost::any_cast<std::vector<int>>(result["cataphract"]),
+            std::any_cast<std::vector<int>>(result["cataphract"]),
             std::vector<int>({77, 88}));
-        EXPECT_EQ(boost::any_cast<int>(result["dolemite"]), 5);
+        EXPECT_EQ(std::any_cast<int>(result["dolemite"]), 5);
         EXPECT_EQ(
-            boost::any_cast<std::set<int>>(result["one-plus"]),
+            std::any_cast<std::set<int>>(result["one-plus"]),
             std::set<int>({2}));
     }
     {
@@ -1554,16 +1555,16 @@ TEST(parse_command_line, positionals_map)
         po2::parse_command_line(
             args, result, "A program.", os, POSITIONALS(double, 4, 5, 6));
         EXPECT_EQ(result.size(), 5u);
-        EXPECT_EQ(boost::any_cast<double>(result["abacus"]), 55.0);
-        EXPECT_TRUE(boost::any_cast<std::optional<double>>(result["bobcat"]));
+        EXPECT_EQ(std::any_cast<double>(result["abacus"]), 55.0);
+        EXPECT_TRUE(std::any_cast<std::optional<double>>(result["bobcat"]));
         EXPECT_EQ(
-            *boost::any_cast<std::optional<double>>(result["bobcat"]), 66.0);
+            *std::any_cast<std::optional<double>>(result["bobcat"]), 66.0);
         EXPECT_EQ(
-            boost::any_cast<std::vector<double>>(result["cataphract"]),
+            std::any_cast<std::vector<double>>(result["cataphract"]),
             std::vector<double>({77.0, 88.0}));
-        EXPECT_EQ(boost::any_cast<double>(result["dolemite"]), 5.0);
+        EXPECT_EQ(std::any_cast<double>(result["dolemite"]), 5.0);
         EXPECT_EQ(
-            boost::any_cast<std::set<double>>(result["one-plus"]),
+            std::any_cast<std::set<double>>(result["one-plus"]),
             std::set<double>({2.0}));
     }
     {
@@ -1579,7 +1580,7 @@ TEST(parse_command_line, positionals_map)
             po2::remainder("args", "other args at the end"));
         EXPECT_EQ(result.size(), 1u);
         EXPECT_EQ(
-            boost::any_cast<std::vector<std::string_view>>(result["args"]),
+            std::any_cast<std::vector<std::string_view>>(result["args"]),
             std::vector<std::string_view>({"55", "66", "77", "88", "5", "2"}));
     }
     {
@@ -1595,7 +1596,7 @@ TEST(parse_command_line, positionals_map)
             po2::remainder<std::vector<int>>("args", "other args at the end"));
         EXPECT_EQ(result.size(), 1u);
         EXPECT_EQ(
-            boost::any_cast<std::vector<int>>(result["args"]),
+            std::any_cast<std::vector<int>>(result["args"]),
             std::vector<int>({55, 66, 77, 88, 5, 2}));
     }
 }
@@ -1814,7 +1815,7 @@ TEST(parse_command_line, counted_flags_map)
             po2::counted_flag("-v,--verbose", "Verbosity level."));
         EXPECT_EQ(result.size(), 1u);
         EXPECT_NE(result.find("verbose"), result.end());
-        EXPECT_EQ(boost::any_cast<int>(result["verbose"]), 1);
+        EXPECT_EQ(std::any_cast<int>(result["verbose"]), 1);
     }
     {
         std::ostringstream os;
@@ -1828,7 +1829,7 @@ TEST(parse_command_line, counted_flags_map)
             po2::counted_flag("-v,--verbose", "Verbosity level."));
         EXPECT_EQ(result.size(), 1u);
         EXPECT_NE(result.find("verbose"), result.end());
-        EXPECT_EQ(boost::any_cast<int>(result["verbose"]), 1);
+        EXPECT_EQ(std::any_cast<int>(result["verbose"]), 1);
     }
     {
         std::ostringstream os;
@@ -1842,7 +1843,7 @@ TEST(parse_command_line, counted_flags_map)
             po2::counted_flag("-v,--verbose", "Verbosity level."));
         EXPECT_EQ(result.size(), 1u);
         EXPECT_NE(result.find("verbose"), result.end());
-        EXPECT_EQ(boost::any_cast<int>(result["verbose"]), 4);
+        EXPECT_EQ(std::any_cast<int>(result["verbose"]), 4);
     }
 }
 

@@ -61,17 +61,17 @@ TEST(storage, save_load_response_file)
             args, m, "A program.", os, ARGUMENTS(int, 4, 5, 6));
 
         EXPECT_EQ(m.size(), 6u);
-        EXPECT_EQ(boost::any_cast<int>(m["abacus"]), 55);
-        EXPECT_EQ(boost::any_cast<int>(m["bobcat"]), 66);
+        EXPECT_EQ(std::any_cast<int>(m["abacus"]), 55);
+        EXPECT_EQ(std::any_cast<int>(m["bobcat"]), 66);
         EXPECT_EQ(
-            boost::any_cast<std::vector<int>>(m["cataphract"]),
+            std::any_cast<std::vector<int>>(m["cataphract"]),
             std::vector<int>({77, 88}));
-        EXPECT_EQ(boost::any_cast<int>(m["dolemite"]), 5);
+        EXPECT_EQ(std::any_cast<int>(m["dolemite"]), 5);
         EXPECT_EQ(
-            boost::any_cast<std::vector<int>>(m["zero-plus"]),
+            std::any_cast<std::vector<int>>(m["zero-plus"]),
             std::vector<int>{2});
         EXPECT_EQ(
-            boost::any_cast<std::set<int>>(m["one-plus"]), std::set<int>{2});
+            std::any_cast<std::set<int>>(m["one-plus"]), std::set<int>{2});
 
         po2::save_response_file("saved_map", m, ARGUMENTS(int, 4, 5, 6));
     }
@@ -97,7 +97,7 @@ TEST(storage, save_load_response_file)
             args, m, "A program.", os, ARGUMENTS(int, 4, 5, 6));
 
         EXPECT_EQ(m.size(), 6u);
-        EXPECT_EQ(boost::any_cast<int>(m["abacus"]), 55);
+        EXPECT_EQ(std::any_cast<int>(m["abacus"]), 55);
 
         EXPECT_THROW(
             po2::save_response_file(
@@ -123,7 +123,7 @@ TEST(storage, save_load_response_file)
             args, m, "A program.", os, ARGUMENTS(int, 4, 5, 6));
 
         EXPECT_EQ(m.size(), 6u);
-        EXPECT_EQ(boost::any_cast<int>(m["abacus"]), 55);
+        EXPECT_EQ(std::any_cast<int>(m["abacus"]), 55);
     }
 
     {
@@ -131,17 +131,17 @@ TEST(storage, save_load_response_file)
         po2::load_response_file("saved_map", m, ARGUMENTS(int, 4, 5, 6));
 
         EXPECT_EQ(m.size(), 6u);
-        EXPECT_EQ(boost::any_cast<int>(m["abacus"]), 55);
-        EXPECT_EQ(boost::any_cast<int>(m["bobcat"]), 66);
+        EXPECT_EQ(std::any_cast<int>(m["abacus"]), 55);
+        EXPECT_EQ(std::any_cast<int>(m["bobcat"]), 66);
         EXPECT_EQ(
-            boost::any_cast<std::vector<int>>(m["cataphract"]),
+            std::any_cast<std::vector<int>>(m["cataphract"]),
             std::vector<int>({77, 88}));
-        EXPECT_EQ(boost::any_cast<int>(m["dolemite"]), 5);
+        EXPECT_EQ(std::any_cast<int>(m["dolemite"]), 5);
         EXPECT_EQ(
-            boost::any_cast<std::vector<int>>(m["zero-plus"]),
+            std::any_cast<std::vector<int>>(m["zero-plus"]),
             std::vector<int>{2});
         EXPECT_EQ(
-            boost::any_cast<std::set<int>>(m["one-plus"]), std::set<int>{2});
+            std::any_cast<std::set<int>>(m["one-plus"]), std::set<int>{2});
     }
 
     // Mixed arguments and positionals
@@ -164,14 +164,14 @@ TEST(storage, save_load_response_file)
             args, m, "A program.", os, MIXED(int, 4, 5, 6, 42));
 
         EXPECT_EQ(m.size(), 5u);
-        EXPECT_EQ(boost::any_cast<int>(m["abacus"]), 55);
-        EXPECT_EQ(boost::any_cast<int>(m["bobcat"]), 66);
+        EXPECT_EQ(std::any_cast<int>(m["abacus"]), 55);
+        EXPECT_EQ(std::any_cast<int>(m["bobcat"]), 66);
         EXPECT_EQ(
-            boost::any_cast<std::vector<int>>(m["cataphract"]),
+            std::any_cast<std::vector<int>>(m["cataphract"]),
             std::vector<int>({77, 88}));
-        EXPECT_EQ(boost::any_cast<int>(m["dolemite"]), 5);
+        EXPECT_EQ(std::any_cast<int>(m["dolemite"]), 5);
         EXPECT_EQ(
-            boost::any_cast<std::vector<std::string>>(m["args"]),
+            std::any_cast<std::vector<std::string>>(m["args"]),
             std::vector<std::string>({"\\2\""}));
 
         po2::save_response_file("saved_mixed_map", m, MIXED(int, 4, 5, 6, 42));
@@ -195,7 +195,7 @@ TEST(storage, save_load_response_file)
             args, m, "A program.", std::cout, MIXED(int, 4, 5, 6, 42));
 
         EXPECT_EQ(m.size(), 5u);
-        EXPECT_EQ(boost::any_cast<int>(m["abacus"]), 55);
+        EXPECT_EQ(std::any_cast<int>(m["abacus"]), 55);
     }
 
     {
@@ -203,14 +203,14 @@ TEST(storage, save_load_response_file)
         po2::load_response_file("saved_mixed_map", m, MIXED(int, 4, 5, 6, 42));
 
         EXPECT_EQ(m.size(), 5u);
-        EXPECT_EQ(boost::any_cast<int>(m["abacus"]), 55);
-        EXPECT_EQ(boost::any_cast<int>(m["bobcat"]), 66);
+        EXPECT_EQ(std::any_cast<int>(m["abacus"]), 55);
+        EXPECT_EQ(std::any_cast<int>(m["bobcat"]), 66);
         EXPECT_EQ(
-            boost::any_cast<std::vector<int>>(m["cataphract"]),
+            std::any_cast<std::vector<int>>(m["cataphract"]),
             std::vector<int>({77, 88}));
-        EXPECT_EQ(boost::any_cast<int>(m["dolemite"]), 5);
+        EXPECT_EQ(std::any_cast<int>(m["dolemite"]), 5);
         EXPECT_EQ(
-            boost::any_cast<std::vector<std::string>>(m["args"]),
+            std::any_cast<std::vector<std::string>>(m["args"]),
             std::vector<std::string>({"\\2\""}));
     }
 
@@ -373,17 +373,17 @@ TEST(storage, save_load_json_file)
             args, m, "A program.", os, ARGUMENTS(int, 4, 5, 6));
 
         EXPECT_EQ(m.size(), 6u);
-        EXPECT_EQ(boost::any_cast<int>(m["abacus"]), 55);
-        EXPECT_EQ(boost::any_cast<int>(m["bobcat"]), 66);
+        EXPECT_EQ(std::any_cast<int>(m["abacus"]), 55);
+        EXPECT_EQ(std::any_cast<int>(m["bobcat"]), 66);
         EXPECT_EQ(
-            boost::any_cast<std::vector<int>>(m["cataphract"]),
+            std::any_cast<std::vector<int>>(m["cataphract"]),
             std::vector<int>({77, 88}));
-        EXPECT_EQ(boost::any_cast<int>(m["dolemite"]), 5);
+        EXPECT_EQ(std::any_cast<int>(m["dolemite"]), 5);
         EXPECT_EQ(
-            boost::any_cast<std::vector<int>>(m["zero-plus"]),
+            std::any_cast<std::vector<int>>(m["zero-plus"]),
             std::vector<int>{2});
         EXPECT_EQ(
-            boost::any_cast<std::set<int>>(m["one-plus"]), std::set<int>{2});
+            std::any_cast<std::set<int>>(m["one-plus"]), std::set<int>{2});
 
         po2::save_json_file("saved_json_map", m, ARGUMENTS(int, 4, 5, 6));
 
@@ -458,17 +458,17 @@ and character escapes besides '\\' and '\"' are not supported.
         po2::load_json_file("saved_json_map", m, ARGUMENTS(int, 4, 5, 6));
 
         EXPECT_EQ(m.size(), 6u);
-        EXPECT_EQ(boost::any_cast<int>(m["abacus"]), 55);
-        EXPECT_EQ(boost::any_cast<int>(m["bobcat"]), 66);
+        EXPECT_EQ(std::any_cast<int>(m["abacus"]), 55);
+        EXPECT_EQ(std::any_cast<int>(m["bobcat"]), 66);
         EXPECT_EQ(
-            boost::any_cast<std::vector<int>>(m["cataphract"]),
+            std::any_cast<std::vector<int>>(m["cataphract"]),
             std::vector<int>({77, 88}));
-        EXPECT_EQ(boost::any_cast<int>(m["dolemite"]), 5);
+        EXPECT_EQ(std::any_cast<int>(m["dolemite"]), 5);
         EXPECT_EQ(
-            boost::any_cast<std::vector<int>>(m["zero-plus"]),
+            std::any_cast<std::vector<int>>(m["zero-plus"]),
             std::vector<int>{2});
         EXPECT_EQ(
-            boost::any_cast<std::set<int>>(m["one-plus"]), std::set<int>{2});
+            std::any_cast<std::set<int>>(m["one-plus"]), std::set<int>{2});
     }
 
 
@@ -492,14 +492,14 @@ and character escapes besides '\\' and '\"' are not supported.
             args, m, "A program.", os, MIXED(int, 4, 5, 6, 42));
 
         EXPECT_EQ(m.size(), 5u);
-        EXPECT_EQ(boost::any_cast<int>(m["abacus"]), 55);
-        EXPECT_EQ(boost::any_cast<int>(m["bobcat"]), 66);
+        EXPECT_EQ(std::any_cast<int>(m["abacus"]), 55);
+        EXPECT_EQ(std::any_cast<int>(m["bobcat"]), 66);
         EXPECT_EQ(
-            boost::any_cast<std::vector<int>>(m["cataphract"]),
+            std::any_cast<std::vector<int>>(m["cataphract"]),
             std::vector<int>({77, 88}));
-        EXPECT_EQ(boost::any_cast<int>(m["dolemite"]), 5);
+        EXPECT_EQ(std::any_cast<int>(m["dolemite"]), 5);
         EXPECT_EQ(
-            boost::any_cast<std::vector<std::string>>(m["args"]),
+            std::any_cast<std::vector<std::string>>(m["args"]),
             std::vector<std::string>({"\\2\""}));
 
         po2::save_response_file(
@@ -522,14 +522,14 @@ and character escapes besides '\\' and '\"' are not supported.
             "saved_mixed_json_map", m, MIXED(int, 4, 5, 6, 42));
 
         EXPECT_EQ(m.size(), 5u);
-        EXPECT_EQ(boost::any_cast<int>(m["abacus"]), 55);
-        EXPECT_EQ(boost::any_cast<int>(m["bobcat"]), 66);
+        EXPECT_EQ(std::any_cast<int>(m["abacus"]), 55);
+        EXPECT_EQ(std::any_cast<int>(m["bobcat"]), 66);
         EXPECT_EQ(
-            boost::any_cast<std::vector<int>>(m["cataphract"]),
+            std::any_cast<std::vector<int>>(m["cataphract"]),
             std::vector<int>({77, 88}));
-        EXPECT_EQ(boost::any_cast<int>(m["dolemite"]), 5);
+        EXPECT_EQ(std::any_cast<int>(m["dolemite"]), 5);
         EXPECT_EQ(
-            boost::any_cast<std::vector<std::string>>(m["args"]),
+            std::any_cast<std::vector<std::string>>(m["args"]),
             std::vector<std::string>({"\\2\""}));
     }
 

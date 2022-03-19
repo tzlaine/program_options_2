@@ -131,7 +131,7 @@ namespace boost { namespace program_options_2 {
             using type = typename opt_type::type;
 
             auto it = lookup.find(opt);
-            if (it == m.end() || it->second.empty())
+            if (it == m.end() || any_empty(it->second))
                 return;
 
             try {
@@ -370,7 +370,7 @@ namespace boost { namespace program_options_2 {
             using type = typename opt_type::type;
 
             auto it = lookup.find(opt);
-            if (it == m.end() || it->second.empty())
+            if (it == m.end() || any_empty(it->second))
                 return;
 
             try {
