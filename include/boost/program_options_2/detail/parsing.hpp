@@ -103,8 +103,8 @@ namespace boost { namespace program_options_2 { namespace detail {
     template<typename... Options>
     auto make_result_tuple(Options const &... opts)
     {
-        auto const opt_tuple = detail::make_opt_tuple(opts...);
-        return detail::make_result_tuple(opt_tuple);
+        using opts_as_tuple_type = hana::tuple<Options const &...>;
+        return detail::make_result_tuple(opts_as_tuple_type{opts...});
     }
 
     template<typename Char>
