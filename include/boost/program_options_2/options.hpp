@@ -46,17 +46,22 @@ namespace boost { namespace program_options_2 {
             return true;
         }
 
-        template<typename... Options>
-        void check_options(Options const &... opts)
+        struct option_checker
         {
-            auto const opt_tuple = detail::make_opt_tuple(opts...);
+            template<typename... Options>
+            void operator()(Options const &... opts)
+            {
+                auto result = ((*this)(opts), ..., 0);
+                (void)result;
+            }
 
-            bool already_saw_remainder = false;
-            hana::for_each(opt_tuple, [&](auto const & opt) {
+            template<typename Option>
+            void operator()(Option const & opt)
+            {
                 // Any option that uses args == remainder must come last.
-                BOOST_ASSERT(!already_saw_remainder);
+                BOOST_ASSERT(!already_saw_remainder_);
                 if (opt.positional && !opt.required)
-                    already_saw_remainder = true;
+                    already_saw_remainder_ = true;
 
                 // Whitespace characters are not allowed within the names
                 // or display-names of options, even if they are
@@ -68,7 +73,36 @@ namespace boost { namespace program_options_2 {
                 // This assert indicates that you're using an option with no
                 // name.  Fix this.
                 BOOST_ASSERT(!opt.names.empty());
-            });
+            }
+
+            template<
+                exclusive_t MutuallyExclusive,
+                subcommand_t Subcommand,
+                typename... Options>
+            void operator()(
+                option_group<MutuallyExclusive, Subcommand, Options...> const &
+                    group)
+            {
+                // TODO: Move helpful comments on other asserts into inline
+                // string literals like this.
+                BOOST_ASSERT(
+                    !detail::contains_ws(group.name) &&
+                    "Whitespace characters are not allowed within the names or "
+                    "display-names of commands");
+                BOOST_ASSERT(
+                    std::ranges::find(group.name, ',') == group.name.end() &&
+                    "Lists of names are not allowed on options groups.");
+                return hana::unpack(group.options, *this);
+            }
+
+            bool already_saw_remainder_ = false;
+        };
+
+        template<typename... Options>
+        void check_options(Options const &... opts)
+        {
+            option_checker check;
+            check(opts...);
         }
     }
 
