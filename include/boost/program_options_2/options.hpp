@@ -84,6 +84,7 @@ namespace boost { namespace program_options_2 {
         return {names, help_text, detail::action_kind::assign, 1};
     }
 
+    // TODO: Support a range interface for specifying choices.
     /** TODO */
     template<typename T = std::string_view, typename... Choices>
         // clang-format off
