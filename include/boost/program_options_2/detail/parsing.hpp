@@ -107,19 +107,6 @@ namespace boost { namespace program_options_2 { namespace detail {
         return detail::make_result_tuple(opt_tuple);
     }
 
-    template<typename OptionsMap, typename... Options>
-    void init_options_map(OptionsMap & m, Options const &... opts)
-    {
-        auto const opt_tuple = detail::make_opt_tuple(opts...);
-        return hana::for_each(opt_tuple, [&](auto const & opt) {
-            using opt_type = std::remove_cvref_t<decltype(opt)>;
-            if constexpr (detail::flag<opt_type>()) {
-                m[program_options_2::storage_name(opt.names)] =
-                    opt.default_value;
-            }
-        });
-    }
-
     template<typename Char>
     struct string_view_action
     {
