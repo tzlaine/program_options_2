@@ -23,9 +23,30 @@
 namespace boost { namespace program_options_2 { namespace detail {
 
     template<typename... Options>
+    bool no_response_file_option(Options const &... opts);
+
+    template<typename Option>
+    bool no_response_file_option_impl(Option const & opt)
+    {
+        return opt.action != detail::action_kind::response_file;
+    }
+
+    template<
+        exclusive_t MutuallyExclusive,
+        subcommand_t Subcommand,
+        typename... Options>
+    bool no_response_file_option_impl(
+        option_group<MutuallyExclusive, Subcommand, Options...> const & group)
+    {
+        return hana::unpack(group.options, [](Options const &... opts) {
+            return detail::no_response_file_option(opts...);
+        });
+    }
+
+    template<typename... Options>
     bool no_response_file_option(Options const &... opts)
     {
-        return ((opts.action != detail::action_kind::response_file) && ...);
+        return (detail::no_response_file_option_impl(opts) && ...);
     }
 
     template<typename Char>
