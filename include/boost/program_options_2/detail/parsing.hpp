@@ -700,8 +700,6 @@ namespace boost { namespace program_options_2 { namespace detail {
                 1, strings, argv0, program_desc, os, no_help, opts...);
         };
 
-        auto const opt_tuple = detail::make_opt_tuple(opts...);
-
         auto parse_option_ = [&](auto & first,
                                  auto last,
                                  auto const & opt,
@@ -743,6 +741,8 @@ namespace boost { namespace program_options_2 { namespace detail {
         };
 
         using namespace hana::literals;
+
+        auto const opt_tuple = detail::make_opt_tuple(opts...);
 
         auto args_first = args.begin();
         if (skip_first)
