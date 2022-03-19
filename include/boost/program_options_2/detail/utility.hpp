@@ -189,6 +189,15 @@ namespace boost { namespace program_options_2 { namespace detail {
     }
 
     template<typename... Options>
+    auto to_ref_tuple(hana::tuple<Options...> const & opts)
+    {
+        using opts_as_ref_tuple_type = hana::tuple<Options const &...>;
+        return hana::unpack(opts, [](Options const &... o) {
+            return opts_as_ref_tuple_type{o...};
+        });
+    }
+
+    template<typename... Options>
     auto make_opt_tuple(hana::tuple<Options const &...> const & opts)
     {
         auto unflattened = hana::transform(opts, [](auto const & opt) {
@@ -196,10 +205,14 @@ namespace boost { namespace program_options_2 { namespace detail {
             if constexpr (is_group<opt_type>::value) {
                 if constexpr (
                     !opt_type::mutually_exclusive && !opt_type::subcommand) {
-                    return detail::make_opt_tuple(opt.options);
+                    return detail::make_opt_tuple(
+                        detail::to_ref_tuple(opt.options));
+                } else {
+                    return hana::make_tuple(opt);
                 }
+            } else {
+                return hana::make_tuple(opt);
             }
-            return hana::make_tuple(opt);
         });
         return hana::flatten(unflattened);
     }
