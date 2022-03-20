@@ -12,6 +12,11 @@
 
 namespace boost { namespace program_options_2 {
 
+    // TODO: Allow automated abbreviation matching?
+
+    // TODO: Support a required mutually-exclusive group, in which exactly one
+    // must be provided on the command line?
+
     // TODO: Don't accept passing argument()s to this function.
     /** TODO */
     template<
@@ -28,6 +33,9 @@ namespace boost { namespace program_options_2 {
     {
         return {{}, {}, {std::move(opt1), std::move(opt2), std::move(opts)...}};
     }
+
+    // TODO: Allow commands to contain a callable that can be dispatched to
+    // after the parse.
 
     /** TODO */
     template<option_or_group... Options>
@@ -50,6 +58,8 @@ namespace boost { namespace program_options_2 {
     {
         return {names, help_text, {std::move(opts)...}};
     }
+
+    // TODO: Support group names and descriptions?
 
     /** TODO */
     template<
