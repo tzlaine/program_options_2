@@ -39,6 +39,8 @@ namespace boost { namespace program_options_2 {
     /** TODO */
     inline constexpr int one_or_more = -3;
 
+    // TODO: Allow replacement of '-' , '@', ',', etc.?
+
     /** TODO */
     struct customizable_strings
     {
