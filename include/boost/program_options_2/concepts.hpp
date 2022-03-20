@@ -8,9 +8,6 @@
 
 #include <boost/program_options_2/fwd.hpp>
 
-#if defined(BOOST_PROGRAM_OPTIONS_2_DOXYGEN) || \
-    BOOST_PROGRAM_OPTIONS_2_USE_CONCEPTS
-
 #include <ranges>
 #include <vector>
 
@@ -80,7 +77,5 @@ namespace boost { namespace program_options_2 {
     // clang-format on
 
 }}
-
-#endif
 
 #endif

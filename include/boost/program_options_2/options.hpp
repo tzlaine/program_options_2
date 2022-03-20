@@ -137,14 +137,6 @@ namespace boost { namespace program_options_2 {
         Choices... choices)
     // clang-format on
     {
-#if !BOOST_PROGRAM_OPTIONS_2_USE_CONCEPTS
-        // Each type in the parameter pack Choices... must be assignable to T,
-        // or insertable into T.
-        static_assert(
-            ((std::is_assignable_v<T &, Choices> &&
-              std::is_constructible_v<T, Choices>)&&...) ||
-            (detail::is_insertable_from<T, Choices>::value && ...));
-#endif
         // There's something wrong with the argument names in "names".  Either
         // it contains whitespace, or it contains at least one name that is
         // not of the form "-<name>" or "--<name>".
@@ -207,14 +199,6 @@ namespace boost { namespace program_options_2 {
         Choices... choices)
     // clang-format on
     {
-#if !BOOST_PROGRAM_OPTIONS_2_USE_CONCEPTS
-        // Each type in the parameter pack Choices... must be assignable to T,
-        // or insertable into T.
-        static_assert(
-            ((std::is_assignable_v<T &, Choices> &&
-              std::is_constructible_v<T, Choices>)&&...) ||
-            (detail::is_insertable_from<T, Choices>::value && ...));
-#endif
         // Looks like you tried to create a positional argument that starts
         // with a '-'.  Don't do that.
         BOOST_ASSERT(detail::positional(name));
