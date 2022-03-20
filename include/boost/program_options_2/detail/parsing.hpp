@@ -711,41 +711,23 @@ namespace boost { namespace program_options_2 { namespace detail {
     template<
         typename Accessor,
         typename Char,
-        typename Args,
+        typename ArgsIter,
+        typename FailFunc,
         typename... Options>
-    parse_option_result parse_options_into(
+    parse_option_result parse_options_into_impl(
         Accessor accessor,
         int & next_positional,
         customizable_strings const & strings,
         bool deserializing,
-        Args const & args,
-        bool skip_first,
+        ArgsIter & args_first,
+        ArgsIter args_last,
+        std::basic_string_view<Char> argv0,
         std::basic_string_view<Char> program_desc,
         std::basic_ostream<Char> & os,
         bool no_help,
+        FailFunc const & fail,
         Options const &... opts)
     {
-        // TODO: Check for args.begin() == args.end(), and return a suitable
-        // error.
-
-        // This dance is here to support the case where the values returned by
-        // args are temporaries -- args may have an underlying proxy iterator.
-        std::basic_string<Char> const argv0_str(
-            args.begin()->begin(), args.begin()->end());
-        std::basic_string_view<Char> argv0 = argv0_str;
-
-        auto fail = [&](parse_option_error error,
-                        std::basic_string_view<Char> cl_arg_or_opt_name,
-                        std::basic_string_view<Char> opt_name = {}) {
-            if (deserializing)
-                return;
-            detail::print_parse_error(
-                strings, os, error, cl_arg_or_opt_name, opt_name);
-            os << '\n';
-            detail::print_help_and_exit(
-                1, strings, argv0, program_desc, os, no_help, opts...);
-        };
-
         auto parse_option_ = [&](auto & first,
                                  auto last,
                                  auto const & opt,
@@ -772,16 +754,21 @@ namespace boost { namespace program_options_2 { namespace detail {
                 arg.erase(arg.begin());
             std::ifstream ifs(arg.c_str());
             ifs.unsetf(ifs.skipws);
-            detail::parse_options_into(
+            auto file_args = detail::response_file_arg_view(ifs);
+            auto file_args_first = file_args.begin();
+            auto const file_args_last = file_args.end();
+            detail::parse_options_into_impl(
                 accessor,
                 next_positional,
                 strings,
                 deserializing,
-                detail::response_file_arg_view(ifs),
-                false,
+                file_args_first,
+                file_args_last,
+                argv0,
                 program_desc,
                 os,
                 no_help,
+                fail,
                 opts...);
             ++sv_it;
         };
@@ -790,10 +777,6 @@ namespace boost { namespace program_options_2 { namespace detail {
 
         auto const opt_tuple = detail::make_opt_tuple(opts...);
 
-        auto args_first = args.begin();
-        if (skip_first)
-            ++args_first;
-        auto const args_last = args.end();
         while (args_first != args_last) {
             // Special case: an arg starting with @ names a response file.
             if (!strings.response_file_description.empty() &&
@@ -875,6 +858,71 @@ namespace boost { namespace program_options_2 { namespace detail {
             }
         }
 
+        return {
+            parse_option_result::match_keep_parsing, parse_option_error::none};
+    }
+
+    template<
+        typename Accessor,
+        typename Char,
+        typename Args,
+        typename... Options>
+    parse_option_result parse_options_into(
+        Accessor accessor,
+        int & next_positional,
+        customizable_strings const & strings,
+        bool deserializing,
+        Args const & args,
+        bool skip_first,
+        std::basic_string_view<Char> program_desc,
+        std::basic_ostream<Char> & os,
+        bool no_help,
+        Options const &... opts)
+    {
+        // TODO: Check for args.begin() == args.end(), and return a suitable
+        // error.
+
+        // This dance is here to support the case where the values returned by
+        // args are temporaries -- args may have an underlying proxy iterator.
+        std::basic_string<Char> const argv0_str(
+            args.begin()->begin(), args.begin()->end());
+        std::basic_string_view<Char> argv0 = argv0_str;
+
+        auto args_first = args.begin();
+        if (skip_first)
+            ++args_first;
+        auto const args_last = args.end();
+
+        auto const opt_tuple = detail::make_opt_tuple(opts...);
+
+        auto fail = [&](parse_option_error error,
+                        std::basic_string_view<Char> cl_arg_or_opt_name,
+                        std::basic_string_view<Char> opt_name = {}) {
+            if (deserializing)
+                return;
+            detail::print_parse_error(
+                strings, os, error, cl_arg_or_opt_name, opt_name);
+            os << '\n';
+            detail::print_help_and_exit(
+                1, strings, argv0, program_desc, os, no_help, opts...);
+        };
+
+        auto const impl_result = detail::parse_options_into_impl(
+            accessor,
+            next_positional,
+            strings,
+            deserializing,
+            args_first,
+            args_last,
+            argv0,
+            program_desc,
+            os,
+            no_help,
+            fail,
+            opts...);
+        if (!impl_result)
+            return impl_result;
+
         // Partial sets of positionals are ok when deserializing.
         if (!deserializing &&
             next_positional < detail::count_positionals(opt_tuple)) {
@@ -892,6 +940,8 @@ namespace boost { namespace program_options_2 { namespace detail {
                 return !result_i;
             }
         };
+
+        using namespace hana::literals;
 
         hana::fold(opt_tuple, 0_c, [&](auto i, auto const & opt) {
             auto const i_plus_1 = hana::llong_c<decltype(i)::value + 1>;
