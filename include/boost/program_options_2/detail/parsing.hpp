@@ -73,10 +73,19 @@ namespace boost { namespace program_options_2 { namespace detail {
     using result_map_element_t =
         std::conditional_t<std::is_same_v<T, void>, no_value, T>;
 
-    template<typename... Options>
-    auto variant_for_tuple(hana::tuple<Options...> const & opts)
+    template<typename Option1, typename... Options>
+    auto variant_for_tuple(hana::tuple<Option1, Options...> const & opts)
     {
-        return std::variant<typename Options::type...>{};
+        // TODO: These should probably be conditionally optional<>s.
+        if constexpr ((std::is_same_v<
+                           typename Option1::type,
+                           typename Options::type> &&
+                       ...)) {
+            return typename Option1::type{};
+        } else {
+            return std::
+                variant<typename Option1::type, typename Options::type...>{};
+        }
     }
 
     template<typename Option>
