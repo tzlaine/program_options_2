@@ -12,7 +12,7 @@
 
 namespace boost { namespace program_options_2 {
 
-    // TODO: Don't accept passing arguments to this function.
+    // TODO: Don't accept passing argument()s to this function.
     /** TODO */
     template<
         option_or_group Option1,
@@ -26,7 +26,7 @@ namespace boost { namespace program_options_2 {
         Options...>
     exclusive(Option1 opt1, Option2 opt2, Options... opts)
     {
-        return {{}, {std::move(opt1), std::move(opt2), std::move(opts)...}};
+        return {{}, {}, {std::move(opt1), std::move(opt2), std::move(opts)...}};
     }
 
     /** TODO */
@@ -41,6 +41,7 @@ namespace boost { namespace program_options_2 {
     {
         return {
             {},
+            {},
             {std::move(command1), std::move(command2), std::move(commands)...}};
     }
 
@@ -50,9 +51,20 @@ namespace boost { namespace program_options_2 {
         detail::exclusive_t::no,
         detail::subcommand_t::yes,
         Options...>
-    command(std::string_view name, Options... opts)
+    command(std::string_view names, Options... opts)
     {
-        return {name, {std::move(opts)...}};
+        return {names, {}, {std::move(opts)...}};
+    }
+
+    /** TODO */
+    template<option_or_group... Options>
+    detail::option_group<
+        detail::exclusive_t::no,
+        detail::subcommand_t::yes,
+        Options...>
+    command(std::string_view names, std::string_view help_text, Options... opts)
+    {
+        return {names, help_text, {std::move(opts)...}};
     }
 
     /** TODO */
@@ -68,7 +80,7 @@ namespace boost { namespace program_options_2 {
         Options...>
     group(Option1 opt1, Option2 opt2, Options... opts)
     {
-        return {{}, {std::move(opt1), std::move(opt2), std::move(opts)...}};
+        return {{}, {}, {std::move(opt1), std::move(opt2), std::move(opts)...}};
     }
 
 }}

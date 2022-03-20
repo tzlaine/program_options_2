@@ -86,12 +86,9 @@ namespace boost { namespace program_options_2 {
                 // TODO: Move helpful comments on other asserts into inline
                 // string literals like this.
                 BOOST_ASSERT(
-                    !detail::contains_ws(group.name) &&
+                    !detail::contains_ws(group.names) &&
                     "Whitespace characters are not allowed within the names or "
                     "display-names of commands");
-                BOOST_ASSERT(
-                    std::ranges::find(group.name, ',') == group.name.end() &&
-                    "Lists of names are not allowed on options groups.");
                 return hana::unpack(group.options, *this);
             }
 

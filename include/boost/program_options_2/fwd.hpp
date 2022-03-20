@@ -204,8 +204,9 @@ namespace boost { namespace program_options_2 {
         struct option_group
         {
             // name is only nonempty when this is a group gated by some verb,
-            // e.g. git push arg arg.
-            std::string_view name;
+            // e.g. "push" in "git push arg arg".
+            std::string_view names;
+            std::string_view help_text;
             hana::tuple<Options...> options;
 
             constexpr static bool mutually_exclusive =
