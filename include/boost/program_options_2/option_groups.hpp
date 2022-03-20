@@ -30,22 +30,6 @@ namespace boost { namespace program_options_2 {
     }
 
     /** TODO */
-    template<command_ Command1, command_ Command2, command_... Commands>
-    detail::option_group<
-        detail::exclusive_t::yes,
-        detail::subcommand_t::no,
-        Command1,
-        Command2,
-        Commands...>
-    subcommands(Command1 command1, Command2 command2, Commands... commands)
-    {
-        return {
-            {},
-            {},
-            {std::move(command1), std::move(command2), std::move(commands)...}};
-    }
-
-    /** TODO */
     template<option_or_group... Options>
     detail::option_group<
         detail::exclusive_t::no,
