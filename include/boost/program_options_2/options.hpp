@@ -78,10 +78,13 @@ namespace boost { namespace program_options_2 {
             template<
                 exclusive_t MutuallyExclusive,
                 subcommand_t Subcommand,
+                required_t Required,
                 typename... Options>
-            void operator()(
-                option_group<MutuallyExclusive, Subcommand, Options...> const &
-                    group)
+            void operator()(option_group<
+                            MutuallyExclusive,
+                            Subcommand,
+                            Required,
+                            Options...> const & group)
             {
                 // TODO: Move helpful comments on other asserts into inline
                 // string literals like this.

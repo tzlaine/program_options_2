@@ -31,31 +31,52 @@ auto const arg3 = po2::argument<short>("-e", "Number of e's", 1, 1, 2, 3);
 
 // TODO: Test printing for all of the below (in the printing test).
 
-#if 0
 TEST(groups, exclusive)
 {
     auto exclusive = po2::exclusive(arg1, arg2, arg3);
 
-    std::ostringstream os;
-    std::vector<std::string_view> args{
-        "prog", "-a", "55", "--branch", "2", "-e", "3"};
-    auto result = po2::parse_command_line(args, "A program.", os, exclusive);
-#if 0
-    BOOST_MPL_ASSERT((is_same<
-                      decltype(result),
-                      tuple<
-                          opt<int>,
-                          opt<double>,
-                          opt<float>,
-                          opt<std::string>,
-                          opt<short>>>));
+#if 0 // TODO: Test that this fails.
+    {
+        std::ostringstream os;
+        std::vector<std::string_view> args{
+            "prog", "-a", "55", "--branch", "2", "-e", "3"};
+        auto result =
+            po2::parse_command_line(args, "A program.", os, exclusive);
+        BOOST_MPL_ASSERT((is_same<
+                          decltype(result),
+                          tuple<std::variant<int, double, short>>>));
+    }
 #endif
+    {
+        std::ostringstream os;
+        std::vector<std::string_view> args{"prog", "-e", "3"};
+        auto result =
+            po2::parse_command_line(args, "A program.", os, exclusive);
+        BOOST_MPL_ASSERT((is_same<
+                          decltype(result),
+                          tuple<std::variant<int, double, short>>>));
+        EXPECT_EQ(result[0_c].index(), 2);
+        EXPECT_EQ(std::get<short>(result[0_c]), 3);
+    }
+}
+
+#if 0
+TEST(groups, command)
+{
+    {
+        auto command = po2::command("cmd", arg1, arg2, arg3);
+        std::vector<std::string_view> args{
+            "prog", "cmd", "-a", "55", "--branch", "2", "-e", "3"};
+#if 0
+        std::ostringstream os;
+        auto result = po2::parse_command_line(args, "A program.", os, command);
+#endif
+    }
 }
 #endif
 
 TEST(groups, group)
 {
-    // TODO: Repeat these tests, but parsing into a map.
     {
         auto group = po2::group(pos1, pos2, arg1, arg2, arg3);
 

@@ -44,7 +44,9 @@ endif()
 add_library(program_options_2 INTERFACE)
 target_include_directories(program_options_2 INTERFACE ${CMAKE_SOURCE_DIR}/include)
 target_link_libraries(program_options_2 INTERFACE boost)
-
+if (CMAKE_SYSTEM_NAME STREQUAL Linux)
+    target_compile_options(program_options_2 INTERFACE -ftemplate-backtrace-limit=0)
+endif()
 
 add_subdirectory(test)
 add_subdirectory(example)

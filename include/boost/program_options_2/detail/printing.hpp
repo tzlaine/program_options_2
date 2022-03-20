@@ -34,9 +34,13 @@ namespace boost { namespace program_options_2 { namespace detail {
     template<
         exclusive_t MutuallyExclusive,
         subcommand_t Subcommand,
+        required_t Required,
         typename... Options>
-    bool no_response_file_option_impl(
-        option_group<MutuallyExclusive, Subcommand, Options...> const & group)
+    bool no_response_file_option_impl(option_group<
+                                      MutuallyExclusive,
+                                      Subcommand,
+                                      Required,
+                                      Options...> const & group)
     {
         return hana::unpack(group.options, [](Options const &... opts) {
             return detail::no_response_file_option(opts...);
@@ -166,6 +170,26 @@ namespace boost { namespace program_options_2 { namespace detail {
 
         if (args_optional)
             os << ']';
+    }
+
+    template<
+        typename Stream,
+        typename Char,
+        exclusive_t MutuallyExclusive,
+        subcommand_t Subcommand,
+        required_t Required,
+        typename... Options>
+    void print_args(
+        Stream & os,
+        std::basic_string_view<Char> name,
+        option_group<
+            MutuallyExclusive,
+            Subcommand,
+            Required,
+            Options...> const & group,
+        bool print_leading_space)
+    {
+        // TODO
     }
 
     template<typename R>

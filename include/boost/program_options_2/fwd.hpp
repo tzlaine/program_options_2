@@ -53,14 +53,15 @@ namespace boost { namespace program_options_2 {
             "response files:\n  Write '@file' to load a file containing "
             "command line arguments.";
 
-        std::array<std::string_view, 6> parse_errors = {
+        std::array<std::string_view, 7> parse_errors = {
             {"error: unrecognized argument '{}'",
              "error: wrong number of arguments for '{}'",
              "error: cannot parse argument '{}'",
              "error: '{}' is not one of the allowed choices for '{}'",
              "error: unexpected positional argument '{}'",
              "error: one or more missing positional arguments, starting with "
-             "'{}'"}};
+             "'{}'",
+             "error: '{}' may not be used with '{}'"}};
 
         // validation errors
         std::string_view path_not_found = "error: path '{}' not found";
@@ -140,6 +141,7 @@ namespace boost { namespace program_options_2 {
         enum struct required_t { yes, no };
 
         enum struct action_kind {
+            none,
             assign,
             count,
             insert,
@@ -202,18 +204,28 @@ namespace boost { namespace program_options_2 {
         template<
             exclusive_t MutuallyExclusive,
             subcommand_t Subcommand,
+            required_t Required,
             typename... Options>
         struct option_group
         {
+            using type = no_value;
+            using value_type = no_value;
+            using choice_type = no_value;
+            using validator_type = no_value;
+
             // name is only nonempty when this is a group gated by some verb,
             // e.g. "push" in "git push arg arg".
             std::string_view names;
             std::string_view help_text;
             hana::tuple<Options...> options;
+            action_kind action = action_kind::none;
 
             constexpr static bool mutually_exclusive =
                 MutuallyExclusive == exclusive_t::yes;
             constexpr static bool subcommand = Subcommand == subcommand_t::yes;
+            constexpr static bool positional = false;
+            constexpr static bool required = Required == required_t::yes;
+            constexpr static int num_choices = 0;
         };
 
         template<typename T>
@@ -222,8 +234,10 @@ namespace boost { namespace program_options_2 {
         template<
             exclusive_t MutuallyExclusive,
             subcommand_t Subcommand,
+            required_t Required,
             typename... Options>
-        struct is_group<option_group<MutuallyExclusive, Subcommand, Options...>>
+        struct is_group<
+            option_group<MutuallyExclusive, Subcommand, Required, Options...>>
             : std::true_type
         {};
 
@@ -231,9 +245,11 @@ namespace boost { namespace program_options_2 {
         struct is_command : std::false_type
         {};
         template<typename... Options>
-        struct is_command<
-            option_group<exclusive_t::no, subcommand_t::yes, Options...>>
-            : std::true_type
+        struct is_command<option_group<
+            exclusive_t::no,
+            subcommand_t::yes,
+            required_t::no,
+            Options...>> : std::true_type
         {};
 
         inline bool positional(std::string_view name) { return name[0] != '-'; }
@@ -269,6 +285,20 @@ namespace boost { namespace program_options_2 {
                         Validator> const & opt)
         {
             return detail::positional(opt.names);
+        }
+
+        template<
+            exclusive_t MutuallyExclusive,
+            subcommand_t Subcommand,
+            required_t Required,
+            typename... Options>
+        bool positional(option_group<
+                        MutuallyExclusive,
+                        Subcommand,
+                        Required,
+                        Options...> const &)
+        {
+            return false;
         }
 
         template<typename Option>
