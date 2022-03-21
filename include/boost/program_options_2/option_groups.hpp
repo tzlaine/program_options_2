@@ -14,6 +14,9 @@ namespace boost { namespace program_options_2 {
 
     // TODO: Allow automated abbreviation matching?
 
+    // TODO: Allow automated matching of short args, a la "-ub" in "git diff
+    // -ub"?
+
     // TODO: Support a required mutually-exclusive group, in which exactly one
     // must be provided on the command line?
 
