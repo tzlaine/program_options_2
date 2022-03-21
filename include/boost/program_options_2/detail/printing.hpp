@@ -220,12 +220,16 @@ namespace boost { namespace program_options_2 { namespace detail {
             // This, plus the leading space in the first name printed
             // below, gives us a 2-space indent.
             oss << ' ';
-            bool print_separator = false;
-            for (auto name : names_view(opt.names)) {
-                if (print_separator)
-                    oss << ',' << ' ';
-                print_separator = true;
-                oss << text::as_utf8(name);
+            if (opt.positional && !opt.arg_display_name.empty()) {
+                oss << text::as_utf8(opt.arg_display_name);
+            } else {
+                bool print_separator = false;
+                for (auto name : detail::names_view(opt.names)) {
+                    if (print_separator)
+                        oss << ',' << ' ';
+                    print_separator = true;
+                    oss << text::as_utf8(name);
+                }
             }
         } else if (detail::positional(opt)) {
             detail::print_args(oss, opt.names, opt, false);
