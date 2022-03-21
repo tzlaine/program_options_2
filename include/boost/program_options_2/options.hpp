@@ -58,6 +58,11 @@ namespace boost { namespace program_options_2 {
             template<typename Option>
             void operator()(Option const & opt)
             {
+                BOOST_ASSERT(
+                    opt.positional == detail::positional(opt) &&
+                    "Whether an option is considered positional must match its "
+                    "name.");
+
                 // Any option that uses args == remainder must come last.
                 BOOST_ASSERT(!already_saw_remainder_);
                 if (opt.positional && !opt.required)
