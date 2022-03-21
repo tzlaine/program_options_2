@@ -249,10 +249,13 @@ namespace boost { namespace program_options_2 {
             exclusive_t::no,
             subcommand_t::yes,
             required_t::no,
+            named_group_t::yes,
             Options...>> : std::true_type
         {};
 
-        inline bool positional(std::string_view name) { return name[0] != '-'; }
+        // Defined in utility.hpp.
+        inline bool positional(std::string_view name);
+
         inline bool short_(std::string_view name)
         {
             return name[0] == '-' && name[1] != '-';

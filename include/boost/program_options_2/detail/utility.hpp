@@ -153,6 +153,15 @@ namespace boost { namespace program_options_2 { namespace detail {
         iterator last_;
     };
 
+    inline bool positional(std::string_view name)
+    {
+        for (auto name : detail::names_view(name)) {
+            if (name[0] == '-')
+                return false;
+        }
+        return true;
+    }
+
     template<typename Pred>
     std::string_view first_name_prefer(std::string_view names, Pred pred)
     {
