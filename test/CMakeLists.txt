@@ -34,3 +34,23 @@ add_test_executable(printing)
 add_test_executable(parse_command_line)
 add_test_executable(storage)
 add_test_executable(groups)
+
+function(add_compile_fail_test name)
+    try_compile(
+        compiles
+        ${CMAKE_BINARY_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}/${name}.cpp
+        COMPILE_DEFINITIONS
+            -std=c++20 -I${Boost_INCLUDE_DIR} -I${TEXT_ROOT}/include
+            -I${PARSER_ROOT}/include -I${CMAKE_SOURCE_DIR}/include
+        OUTPUT_VARIABLE foo
+    )
+    if (compiles)
+        message(FATAL_ERROR "Compile-fail test ${name} does not fail to compile.")
+      endif ()
+endfunction()
+
+add_compile_fail_test(fail_nested_exclusives_1)
+add_compile_fail_test(fail_nested_exclusives_2)
+add_compile_fail_test(fail_exclusives_with_positionals_1)
+add_compile_fail_test(fail_exclusives_with_positionals_2)

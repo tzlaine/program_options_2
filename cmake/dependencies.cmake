@@ -44,6 +44,7 @@ else ()
   add_library(boost INTERFACE)
   add_dependencies(boost boost_clone)
   target_include_directories(boost INTERFACE ${CMAKE_BINARY_DIR}/boost_root)
+  set(Boost_INCLUDE_DIR ${CMAKE_BINARY_DIR}/boost_root) # Needed for try_compile()s.
 endif ()
 
 
