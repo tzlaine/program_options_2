@@ -469,7 +469,7 @@ response files:
                 po2::argument("--non-positional", "A non-positional argument."),
                 po2::positional("positional", "A positional argument."),
                 po2::argument(
-                    "--an,--arg,--with,--many-names,--only,-s,--single,--short,"
+                    "--an,--arg,--with,--many-names,--only,-a,--single,--short,"
                     "--one",
                     "Another non-positional argument."),
                 po2::argument(
@@ -482,7 +482,7 @@ response files:
         }
         EXPECT_EQ(
             os.str(),
-            R"(usage:  bar [-h] [--non-positional NON-POSITIONAL] POSITIONAL [-s S]
+            R"(usage:  bar [-h] [--non-positional NON-POSITIONAL] POSITIONAL [-a A]
             [--non-pos-2 NON-POS-2]
 
 A test program to see how things work.
@@ -493,7 +493,7 @@ positional arguments:
 optional arguments:
   -h, --help            Print this help message and exit
   --non-positional      A non-positional argument.
-  --an, --arg, --with, --many-names, --only, -s, --single, --short, --one
+  --an, --arg, --with, --many-names, --only, -a, --single, --short, --one
                         Another non-positional argument.
   --non-pos-2           A second non-positional argument.  This one has a 
                         particularly long description, just so we can see what 
@@ -525,7 +525,7 @@ response files:
                 po2::argument("--non-positional", "A non-positional argument."),
                 po2::positional("positional", "A positional argument."),
                 po2::argument(
-                    "--an,--arg,--with,--many-names,--only,-s,--single,--short,"
+                    "--an,--arg,--with,--many-names,--only,-a,--single,--short,"
                     "--one",
                     "Another non-positional argument."),
                 po2::argument(
@@ -538,7 +538,7 @@ response files:
         }
         EXPECT_EQ(
             os.str(),
-            R"(USAGE:  bar [-r] [--non-positional NON-POSITIONAL] POSITIONAL [-s S]
+            R"(USAGE:  bar [-r] [--non-positional NON-POSITIONAL] POSITIONAL [-a A]
             [--non-pos-2 NON-POS-2]
 
 A test program to see how things work.
@@ -549,7 +549,7 @@ POSITIONAL arguments:
 OPTIONAL arguments:
   -r, --redacted        Nothing to see here.
   --non-positional      A non-positional argument.
-  --an, --arg, --with, --many-names, --only, -s, --single, --short, --one
+  --an, --arg, --with, --many-names, --only, -a, --single, --short, --one
                         Another non-positional argument.
   --non-pos-2           A second non-positional argument.  This one has a 
                         particularly long description, just so we can see what 

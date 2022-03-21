@@ -22,6 +22,28 @@
 
 namespace boost { namespace program_options_2 { namespace detail {
 
+    template<typename Char>
+    void print_placeholder_string(
+        std::basic_ostream<Char> & os,
+        std::basic_string_view<Char> placeholder_str,
+        std::basic_string_view<Char> inserted_str1,
+        std::basic_string_view<Char> inserted_str2,
+        bool end_with_newline = true);
+
+    template<typename... Options>
+    auto
+    make_opt_tuple_for_printing(hana::tuple<Options const &...> const & opts)
+    {
+        return detail::make_opt_tuple_impl<true>(opts);
+    }
+
+    template<typename... Options>
+    auto make_opt_tuple_for_printing(Options const &... opts)
+    {
+        using opts_as_tuple_type = hana::tuple<Options const &...>;
+        return detail::make_opt_tuple_for_printing(opts_as_tuple_type{opts...});
+    }
+
     template<typename... Options>
     bool no_response_file_option(Options const &... opts);
 
@@ -35,11 +57,13 @@ namespace boost { namespace program_options_2 { namespace detail {
         exclusive_t MutuallyExclusive,
         subcommand_t Subcommand,
         required_t Required,
+        named_group_t NamedGroup,
         typename... Options>
     bool no_response_file_option_impl(option_group<
                                       MutuallyExclusive,
                                       Subcommand,
                                       Required,
+                                      NamedGroup,
                                       Options...> const & group)
     {
         return hana::unpack(group.options, [](Options const &... opts) {
@@ -178,6 +202,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         exclusive_t MutuallyExclusive,
         subcommand_t Subcommand,
         required_t Required,
+        named_group_t NamedGroup,
         typename... Options>
     void print_args(
         Stream & os,
@@ -186,6 +211,7 @@ namespace boost { namespace program_options_2 { namespace detail {
             MutuallyExclusive,
             Subcommand,
             Required,
+            NamedGroup,
             Options...> const & group,
         bool print_leading_space)
     {
@@ -267,6 +293,41 @@ namespace boost { namespace program_options_2 { namespace detail {
         return current_width;
     }
 
+    template<
+        typename Stream,
+        exclusive_t MutuallyExclusive,
+        subcommand_t Subcommand,
+        required_t Required,
+        named_group_t NamedGroup,
+        typename... Options>
+    int print_option(
+        Stream & os,
+        option_group<
+            MutuallyExclusive,
+            Subcommand,
+            Required,
+            NamedGroup,
+            Options...> const & opt,
+        int first_column,
+        int current_width,
+        int max_width = max_col_width,
+        bool brief = false)
+    {
+        if constexpr (
+            MutuallyExclusive == exclusive_t::yes &&
+            Subcommand == subcommand_t::no) {
+            hana::for_each(opt.options, [&](auto const & opt) {
+                current_width =
+                    detail::print_option(os, opt, first_column, current_width);
+            });
+        } else if constexpr (Subcommand == subcommand_t::yes) {
+            // TODO
+        } else { // named group
+            // TODO
+        }
+        return current_width;
+    }
+
     template<typename Stream, typename Char, typename... Options>
     void print_help_synopsis(
         customizable_strings const & strings,
@@ -275,7 +336,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         std::basic_string_view<Char> prog_desc,
         Options const &... opts)
     {
-        auto const opt_tuple = detail::make_opt_tuple(opts...);
+        auto const opt_tuple = detail::make_opt_tuple_for_printing(opts...);
 
         os << text::as_utf8(strings.usage_text) << ' ' << text::as_utf8(prog);
 
@@ -301,8 +362,8 @@ namespace boost { namespace program_options_2 { namespace detail {
         else
             os << '\n' << '\n' << text::as_utf8(prog_desc) << '\n';
 
-        // TODO: When there are one or more subcommands in use, print all
-        // the non-subcommand options, as above, but then end with
+        // TODO: When there are one or more subcommands in use, print
+        // all the non-subcommand options, as above, but then end with
         // "COMMAND [COMMAND-ARGS]".  That string should of course be
         // user-configurable.
     }
@@ -311,15 +372,13 @@ namespace boost { namespace program_options_2 { namespace detail {
     {
         printed_names_and_desc() = default;
         printed_names_and_desc(
-            std::string printed_names,
-            std::string_view desc,
-            int estimated_width) :
+            std::string printed_names, std::string desc, int estimated_width) :
             printed_names(std::move(printed_names)),
             desc(desc),
             estimated_width(estimated_width)
         {}
         std::string printed_names;
-        std::string_view desc;
+        std::string desc;
         int estimated_width;
     };
 
@@ -382,26 +441,98 @@ namespace boost { namespace program_options_2 { namespace detail {
         Stream & os,
         Options const &... opts)
     {
-        auto const opt_tuple = detail::make_opt_tuple(opts...);
+        auto const opt_tuple = detail::make_opt_tuple_for_printing(opts...);
 
         int max_option_length = 0;
         std::vector<printed_names_and_desc> printed_positionals;
         std::vector<printed_names_and_desc> printed_arguments;
         hana::for_each(opt_tuple, [&](auto const & opt) {
-            std::vector<printed_names_and_desc> & vec =
-                detail::positional(opt) ? printed_positionals
-                                        : printed_arguments;
-            std::ostringstream oss;
-            detail::print_option(oss, opt, 0, 0, INT_MAX, true);
-            vec.emplace_back(std::move(oss).str(), opt.help_text, 0);
-            auto const opt_width =
-                detail::estimated_width(vec.back().printed_names);
-            vec.back().estimated_width = opt_width;
-            max_option_length = (std::max)(max_option_length, opt_width);
+            auto process_single_opt = [&](auto const & curr_opt,
+                                          auto const & parent_opt,
+                                          int child_index) {
+                std::vector<printed_names_and_desc> & vec =
+                    detail::positional(curr_opt) ? printed_positionals
+                                                 : printed_arguments;
+                std::ostringstream names_oss;
+                detail::print_option(names_oss, curr_opt, 0, 0, INT_MAX, true);
+                std::ostringstream desc_oss;
+                desc_oss << curr_opt.help_text;
+
+                // Special case: Print an option from an exclusive group.
+                if constexpr (!std::is_same_v<
+                                  std::remove_cvref_t<decltype(parent_opt)>,
+                                  no_value>) {
+                    using namespace hana::literals;
+                    bool first = true;
+                    unsigned num_printed = 0;
+                    hana::fold(
+                        parent_opt.options, 0_c, [&](auto i, auto const & opt) {
+                            auto const i_plus_1 =
+                                hana::llong_c<decltype(i)::value + 1>;
+                            if (i == child_index)
+                                return i_plus_1;
+                            if (first) {
+                                detail::print_placeholder_string(
+                                    desc_oss,
+                                    strings.mutually_exclusive_begin,
+                                    program_options_2::storage_name(opt),
+                                    {},
+                                    false);
+                                first = false;
+                            } else if (
+                                num_printed + 2 ==
+                                hana::size(parent_opt.options)) {
+                                detail::print_placeholder_string(
+                                    desc_oss,
+                                    strings.mutually_exclusive_continue_final,
+                                    program_options_2::storage_name(opt),
+                                    {},
+                                    false);
+                            } else {
+                                detail::print_placeholder_string(
+                                    desc_oss,
+                                    strings.mutually_exclusive_continue,
+                                    program_options_2::storage_name(opt),
+                                    {},
+                                    false);
+                            }
+                            ++num_printed;
+                            return i_plus_1;
+                        });
+                    desc_oss << strings.mutually_exclusive_end;
+                }
+
+                vec.emplace_back(
+                    std::move(names_oss).str(), std::move(desc_oss).str(), 0);
+                auto const opt_width =
+                    detail::estimated_width(vec.back().printed_names);
+                vec.back().estimated_width = opt_width;
+                max_option_length = (std::max)(max_option_length, opt_width);
+            };
+
+            if constexpr (group_<std::remove_cvref_t<decltype(opt)>>) {
+                if constexpr (opt.mutually_exclusive && !opt.subcommand) {
+                    auto const exclusive_opts =
+                        detail::make_opt_tuple_for_printing(
+                            detail::to_ref_tuple(opt.options));
+                    auto const sub_opts = hana::size(opt.options);
+                    auto curr_opt_index = 0;
+                    hana::for_each(exclusive_opts, [&](auto const & curr_opt) {
+                        process_single_opt(curr_opt, opt, curr_opt_index);
+                        ++curr_opt_index;
+                    });
+                } else if constexpr (opt.subcommand) {
+                    // TODO
+                } else { // named group
+                    // TODO
+                }
+            } else {
+                process_single_opt(opt, no_value{}, 0);
+            }
         });
 
-        // max_option_length includes a 2-space initial sequence, which acts
-        // as an indent.
+        // max_option_length includes a 2-space initial sequence, which
+        // acts as an indent.
         int const description_column = (std::min)(
             max_option_length + min_help_column_gap, max_option_col_width);
 
@@ -419,7 +550,8 @@ namespace boost { namespace program_options_2 { namespace detail {
 
         if (!strings.response_file_description.empty() &&
             detail::no_response_file_option(opts...)) {
-            os << '\n' << text::as_utf8(strings.response_file_description) << '\n';
+            os << '\n'
+               << text::as_utf8(strings.response_file_description) << '\n';
         }
     }
 
@@ -474,7 +606,8 @@ namespace boost { namespace program_options_2 { namespace detail {
         std::basic_ostream<Char> & os,
         std::basic_string_view<Char> placeholder_str,
         std::basic_string_view<Char> inserted_str1,
-        std::basic_string_view<Char> inserted_str2)
+        std::basic_string_view<Char> inserted_str2,
+        bool end_with_newline)
     {
         using namespace parser::literals;
         auto const before_brace = parser::omit[*(parser::char_ - '{')];
@@ -487,7 +620,8 @@ namespace boost { namespace program_options_2 { namespace detail {
             parser::parse(first, placeholder_str.end(), kinda_matched_braces);
         auto const open_brace =
             braces ? (*braces)[0].begin() : placeholder_str.end();
-        auto const close_brace = braces ? (*braces)[0].end() : placeholder_str.end();
+        auto const close_brace =
+            braces ? (*braces)[0].end() : placeholder_str.end();
         auto const second_open_brace = braces && 1u < braces->size()
                                            ? (*braces)[1].begin()
                                            : placeholder_str.end();
@@ -502,7 +636,8 @@ namespace boost { namespace program_options_2 { namespace detail {
         if (braces && 1u < braces->size())
             os << text::as_utf8(inserted_str2);
         os << text::as_utf8(second_close_brace, placeholder_str.end());
-        os << '\n';
+        if (end_with_newline)
+            os << '\n';
     }
 
 }}}

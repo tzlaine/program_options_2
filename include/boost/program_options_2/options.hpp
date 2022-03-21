@@ -86,11 +86,13 @@ namespace boost { namespace program_options_2 {
                 exclusive_t MutuallyExclusive,
                 subcommand_t Subcommand,
                 required_t Required,
+                named_group_t NamedGroup,
                 typename... Options>
             void operator()(option_group<
                             MutuallyExclusive,
                             Subcommand,
                             Required,
+                            NamedGroup,
                             Options...> const & group)
             {
                 BOOST_ASSERT(

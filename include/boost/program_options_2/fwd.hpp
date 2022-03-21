@@ -53,6 +53,11 @@ namespace boost { namespace program_options_2 {
             "response files:\n  Write '@file' to load a file containing "
             "command line arguments.";
 
+        std::string_view mutually_exclusive_begin = " (may not be used with '{}'";
+        std::string_view mutually_exclusive_continue = ", '{}'";
+        std::string_view mutually_exclusive_continue_final = " or '{}'";
+        std::string_view mutually_exclusive_end = ")";
+
         std::array<std::string_view, 7> parse_errors = {
             {"error: unrecognized argument '{}'",
              "error: wrong number of arguments for '{}'",
@@ -200,11 +205,13 @@ namespace boost { namespace program_options_2 {
 
         enum class exclusive_t { yes, no };
         enum class subcommand_t { yes, no };
+        enum class named_group_t { yes, no };
 
         template<
             exclusive_t MutuallyExclusive,
             subcommand_t Subcommand,
             required_t Required,
+            named_group_t NamedGroup,
             typename... Options>
         struct option_group
         {
@@ -226,6 +233,10 @@ namespace boost { namespace program_options_2 {
             constexpr static bool positional = false;
             constexpr static bool required = Required == required_t::yes;
             constexpr static int num_choices = 0;
+
+            constexpr static bool flatten_during_printing =
+                !mutually_exclusive && !subcommand &&
+                NamedGroup != named_group_t::yes;
         };
 
         template<typename T>
@@ -235,10 +246,14 @@ namespace boost { namespace program_options_2 {
             exclusive_t MutuallyExclusive,
             subcommand_t Subcommand,
             required_t Required,
+            named_group_t NamedGroup,
             typename... Options>
-        struct is_group<
-            option_group<MutuallyExclusive, Subcommand, Required, Options...>>
-            : std::true_type
+        struct is_group<option_group<
+            MutuallyExclusive,
+            Subcommand,
+            Required,
+            NamedGroup,
+            Options...>> : std::true_type
         {};
 
         template<typename T>
@@ -294,11 +309,13 @@ namespace boost { namespace program_options_2 {
             exclusive_t MutuallyExclusive,
             subcommand_t Subcommand,
             required_t Required,
+            named_group_t NamedGroup,
             typename... Options>
         bool positional(option_group<
                         MutuallyExclusive,
                         Subcommand,
                         Required,
+                        NamedGroup,
                         Options...> const &)
         {
             return false;

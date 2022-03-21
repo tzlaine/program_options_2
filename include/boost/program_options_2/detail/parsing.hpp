@@ -31,11 +31,13 @@ namespace boost { namespace program_options_2 { namespace detail {
         exclusive_t MutuallyExclusive,
         subcommand_t Subcommand,
         required_t Required,
+        named_group_t NamedGroup,
         typename... Options>
     bool no_help_option_impl(option_group<
                              MutuallyExclusive,
                              Subcommand,
                              Required,
+                             NamedGroup,
                              Options...> const & group)
     {
         return hana::unpack(group.options, [](Options const &... opts) {
@@ -504,6 +506,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         exclusive_t MutuallyExclusive,
         subcommand_t Subcommand,
         required_t Required,
+        named_group_t NamedGroup,
         typename... Options>
     bool matches_dashed_argument(
         std::basic_string_view<Char> arg,
@@ -511,6 +514,7 @@ namespace boost { namespace program_options_2 { namespace detail {
             MutuallyExclusive,
             Subcommand,
             Required,
+            NamedGroup,
             Options...> const & group)
     {
         return hana::unpack(

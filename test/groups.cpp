@@ -28,25 +28,46 @@ auto const pos1 = po2::positional<float>("cats", "Number of cats");
 auto const pos2 = po2::with_display_name(
     po2::positional<std::string>("dog", "Name of dog"), "Doggo-name");
 auto const arg3 = po2::argument<short>("-e", "Number of e's", 1, 1, 2, 3);
+auto const arg4 = po2::argument<unsigned>("-f", "Number of f's", 1, 1, 2, 3);
 
 // TODO: Test printing for all of the below (in the printing test).
+
+// TODO: Document the fat that, for exclusive groups, parsing that returns a
+// tuple requires that all the alternaties be the same type, or all be
+// different from one another.  Also, is this true for Boost.Parse, too?
 
 TEST(groups, exclusive)
 {
     auto exclusive = po2::exclusive(arg1, arg2, arg3);
 
-#if 0 // TODO: Test that this fails.
     {
         std::ostringstream os;
         std::vector<std::string_view> args{
             "prog", "-a", "55", "--branch", "2", "-e", "3"};
-        auto result =
-            po2::parse_command_line(args, "A program.", os, exclusive);
-        BOOST_MPL_ASSERT((is_same<
-                          decltype(result),
-                          tuple<std::variant<int, double, short>>>));
+        try {
+            auto result =
+                po2::parse_command_line(args, "A program.", os, exclusive);
+            BOOST_MPL_ASSERT((is_same<
+                              decltype(result),
+                              tuple<std::variant<int, double, short>>>));
+        } catch (int) {
+            EXPECT_EQ(os.str(), R"(error: '-a' may not be used with '--branch'
+
+usage:  prog [-h] [-a A] [-b {1,2,3}] [-e {1,2,3}]
+
+A program.
+
+optional arguments:
+  -h, --help    Print this help message and exit
+  -a, --apple   Number of apples (may not be used with 'branch' or 'e')
+  -b, --branch  Number of branchs (may not be used with 'apple' or 'e')
+  -e            Number of e's (may not be used with 'apple' or 'branch')
+
+response files:
+  Write '@file' to load a file containing command line arguments.
+)");
+        }
     }
-#endif
     {
         std::ostringstream os;
         std::vector<std::string_view> args{"prog", "-e", "3"};
@@ -57,6 +78,38 @@ TEST(groups, exclusive)
                           tuple<std::variant<int, double, short>>>));
         EXPECT_EQ(result[0_c].index(), 2);
         EXPECT_EQ(std::get<short>(result[0_c]), 3);
+    }
+    {
+        auto exclusive = po2::exclusive(arg1, arg2, arg3, arg4);
+
+        std::ostringstream os;
+        std::vector<std::string_view> args{
+            "prog", "-a", "55", "--branch", "2", "-e", "3"};
+        try {
+            auto result =
+                po2::parse_command_line(args, "A program.", os, exclusive);
+            BOOST_MPL_ASSERT(
+                (is_same<
+                    decltype(result),
+                    tuple<std::variant<int, double, short, unsigned>>>));
+        } catch (int) {
+            EXPECT_EQ(os.str(), R"(error: '-a' may not be used with '--branch'
+
+usage:  prog [-h] [-a A] [-b {1,2,3}] [-e {1,2,3}] [-f {1,2,3}]
+
+A program.
+
+optional arguments:
+  -h, --help    Print this help message and exit
+  -a, --apple   Number of apples (may not be used with 'branch', 'e' or 'f')
+  -b, --branch  Number of branchs (may not be used with 'apple', 'e' or 'f')
+  -e            Number of e's (may not be used with 'apple', 'branch' or 'f')
+  -f            Number of f's (may not be used with 'apple', 'branch' or 'e')
+
+response files:
+  Write '@file' to load a file containing command line arguments.
+)");
+        }
     }
 }
 
@@ -124,6 +177,44 @@ TEST(groups, group)
             EXPECT_EQ(std::any_cast<int>(result["apple"]), 55);
             EXPECT_EQ(std::any_cast<double>(result["branch"]), 2.0);
             EXPECT_EQ(std::any_cast<short>(result["e"]), 3);
+        }
+
+        std::vector<std::string_view> bad_args{"prog", "7", "11", "3"};
+
+        {
+            std::ostringstream os;
+            try {
+                auto result =
+                    po2::parse_command_line(bad_args, "A program.", os, group);
+                BOOST_MPL_ASSERT((is_same<
+                                  decltype(result),
+                                  tuple<
+                                      float,
+                                      std::string,
+                                      opt<int>,
+                                      opt<double>,
+                                      opt<short>>>));
+            } catch (int) {
+            }
+            EXPECT_EQ(os.str(), R"(error: unrecognized argument '3'
+
+usage:  prog [-h] CATS Doggo-name [-a A] [-b {1,2,3}] [-e {1,2,3}]
+
+A program.
+
+positional arguments:
+  cats          Number of cats
+  Doggo-name    Name of dog
+
+optional arguments:
+  -h, --help    Print this help message and exit
+  -a, --apple   Number of apples
+  -b, --branch  Number of branchs
+  -e            Number of e's
+
+response files:
+  Write '@file' to load a file containing command line arguments.
+)");
         }
     }
     {

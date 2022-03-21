@@ -22,7 +22,7 @@ namespace boost { namespace program_options_2 {
 
     namespace detail {
         template<typename Option>
-        struct contains_exclusive_option_impl
+        struct contains_wrong_group_option_impl
         {
             constexpr bool operator()() { return false; }
         };
@@ -31,29 +31,36 @@ namespace boost { namespace program_options_2 {
             exclusive_t MutuallyExclusive,
             subcommand_t Subcommand,
             required_t Required,
+            named_group_t NamedGroup,
             typename... Options>
-        struct contains_exclusive_option_impl<detail::option_group<
+        struct contains_wrong_group_option_impl<detail::option_group<
             MutuallyExclusive,
             Subcommand,
             Required,
+            NamedGroup,
             Options...>>
         {
             constexpr bool operator()()
             {
                 if constexpr (MutuallyExclusive == exclusive_t::yes) {
                     return true;
+                } else if constexpr (Subcommand == subcommand_t::yes) {
+                    return true;
+                } else if constexpr (NamedGroup == named_group_t::yes) {
+                    return true;
                 } else {
                     return (
-                        detail::contains_exclusive_option_impl<Options>{}() ||
+                        detail::contains_wrong_group_option_impl<Options>{}() ||
                         ...);
                 }
             }
         };
 
         template<typename... Options>
-        constexpr bool contains_exclusive_option()
+        constexpr bool contains_wrong_group_option()
         {
-            return (detail::contains_exclusive_option_impl<Options>{}() || ...);
+            return (
+                detail::contains_wrong_group_option_impl<Options>{}() || ...);
         }
 
         template<typename Option>
@@ -66,11 +73,13 @@ namespace boost { namespace program_options_2 {
             exclusive_t MutuallyExclusive,
             subcommand_t Subcommand,
             required_t Required,
+            named_group_t NamedGroup,
             typename... Options>
         struct contains_positional_option_impl<detail::option_group<
             MutuallyExclusive,
             Subcommand,
             Required,
+            NamedGroup,
             Options...>>
         {
             constexpr bool operator()()
@@ -97,6 +106,7 @@ namespace boost { namespace program_options_2 {
         detail::exclusive_t::yes,
         detail::subcommand_t::no,
         detail::required_t::no,
+        detail::named_group_t::no,
         Option1,
         Option2,
         Options...>
@@ -106,8 +116,10 @@ namespace boost { namespace program_options_2 {
             !detail::contains_positional_option<Option1, Option2, Options...>(),
             "Positional options are not allowed in exclusive groups.");
         static_assert(
-            !detail::contains_exclusive_option<Option1, Option2, Options...>(),
-            "Nesting of exclusive options is not allowed.");
+            !detail::
+                contains_wrong_group_option<Option1, Option2, Options...>(),
+            "Mutually-exclusive groups may not contain other exclusive "
+            "groups, commands, or named groups.  Unnamed groups are fine.");
         return {{}, {}, {std::move(opt1), std::move(opt2), std::move(opts)...}};
     }
 
@@ -122,9 +134,15 @@ namespace boost { namespace program_options_2 {
         detail::exclusive_t::no,
         detail::subcommand_t::yes,
         detail::required_t::no,
+        detail::named_group_t::yes,
         Options...>
     command(std::string_view names, Options... opts)
     {
+        BOOST_ASSERT(
+            detail::positional(names) &&
+            "Command names must not start with dashes.");
+        BOOST_ASSERT(
+            !names.empty() && "A command with an empty name is not supported.");
         return {names, {}, {std::move(opts)...}};
     }
 
@@ -134,15 +152,23 @@ namespace boost { namespace program_options_2 {
         detail::exclusive_t::no,
         detail::subcommand_t::yes,
         detail::required_t::no,
+        detail::named_group_t::yes,
         Options...>
     command(std::string_view names, std::string_view help_text, Options... opts)
     {
+        BOOST_ASSERT(
+            detail::positional(names) &&
+            "Command names must not start with dashes.");
+        BOOST_ASSERT(
+            !names.empty() && "A command with an empty name is not supported.");
         return {names, help_text, {std::move(opts)...}};
     }
 
     // TODO: Support group names and descriptions?
 
-    /** TODO */
+    /** Creates a group of options.  The group is always flattened into the
+        other options it is with; it exists only for organizational
+        purposes. */
     template<
         option_or_group Option1,
         option_or_group Option2,
@@ -151,12 +177,45 @@ namespace boost { namespace program_options_2 {
         detail::exclusive_t::no,
         detail::subcommand_t::no,
         detail::required_t::no,
+        detail::named_group_t::no,
         Option1,
         Option2,
         Options...>
     group(Option1 opt1, Option2 opt2, Options... opts)
     {
         return {{}, {}, {std::move(opt1), std::move(opt2), std::move(opts)...}};
+    }
+
+    /** Creates a group of options that appears with the given name and
+        description in the printed help text.  The group is only significant
+        when printing help; a group is always flattened into the other options
+        it is with when not printing.  The description may be empty. */
+    template<
+        option_or_group Option1,
+        option_or_group Option2,
+        option_or_group... Options>
+    detail::option_group<
+        detail::exclusive_t::no,
+        detail::subcommand_t::no,
+        detail::required_t::no,
+        detail::named_group_t::yes,
+        Option1,
+        Option2,
+        Options...>
+    group(
+        std::string_view name,
+        std::string_view description,
+        Option1 opt1,
+        Option2 opt2,
+        Options... opts)
+    {
+        BOOST_ASSERT(
+            !name.empty() &&
+            "A named group with an empty name is not supported.");
+        return {
+            name,
+            description,
+            {std::move(opt1), std::move(opt2), std::move(opts)...}};
     }
 
 }}
