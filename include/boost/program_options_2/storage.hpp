@@ -142,12 +142,13 @@ namespace boost { namespace program_options_2 {
                 if constexpr (insertable<type>) {
                     bool first = true;
                     for (auto const & x : value) {
-                        // To use save_response_file(), all options must have
-                        // a type that can be written to file using
-                        // operator<<().
-                        static_assert(boost::is_detected<
-                                      detail::streamable,
-                                      decltype(x)>::value);
+                        static_assert(
+                            boost::is_detected<
+                                detail::streamable,
+                                decltype(x)>::value,
+                            "To use save_response_file(), all options must "
+                            "have a type that can be written to file using "
+                            "operator<<().");
                         if (!first)
                             ofs << ' ';
                         first = false;
@@ -160,10 +161,10 @@ namespace boost { namespace program_options_2 {
                         }
                     }
                 } else {
-                    // To use save_response_file(), all options must have a
-                    // type that can be written to file using operator<<().
                     static_assert(
-                        boost::is_detected<detail::streamable, type>::value);
+                        boost::is_detected<detail::streamable, type>::value,
+                        "To use save_response_file(), all options must have a "
+                        "type that can be written to file using operator<<().");
                     ofs << value;
                 }
                 ofs << '\n';
@@ -384,12 +385,13 @@ namespace boost { namespace program_options_2 {
                     bool first_arg = true;
                     ofs << " [";
                     for (auto const & x : value) {
-                        // To use save_json_file(), all options must have a
-                        // type that can be written to file using
-                        // operator<<().
-                        static_assert(boost::is_detected<
-                                      detail::streamable,
-                                      decltype(x)>::value);
+                        static_assert(
+                            boost::is_detected<
+                                detail::streamable,
+                                decltype(x)>::value,
+                            "To use save_json_file(), all options must have a "
+                            "type that can be written to file using "
+                            "operator<<().");
                         if (!first_arg)
                             ofs << ',';
                         first_arg = false;
@@ -397,10 +399,10 @@ namespace boost { namespace program_options_2 {
                     }
                     ofs << " ]";
                 } else {
-                    // To use save_json_file(), all options must have a type
-                    // that can be written to file using operator<<().
                     static_assert(
-                        boost::is_detected<detail::streamable, type>::value);
+                        boost::is_detected<detail::streamable, type>::value,
+                        "To use save_json_file(), all options must have a type "
+                        "that can be written to file using operator<<().");
                     ofs << " \"" << value << '"';
                 }
             } catch (...) {

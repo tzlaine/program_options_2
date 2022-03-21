@@ -44,17 +44,18 @@ namespace boost { namespace program_options_2 {
     // clang-format on
     {
         if constexpr (std::equality_comparable_with<DefaultType, ChoiceType>) {
-            // If there are choices specified, the default must be one of the
-            // choices.
             BOOST_ASSERT(
-                opt.choices.empty() ||
-                std::find(
-                    opt.choices.begin(), opt.choices.end(), default_value) !=
-                    opt.choices.end());
+                (opt.choices.empty() ||
+                 std::find(
+                     opt.choices.begin(), opt.choices.end(), default_value) !=
+                     opt.choices.end()) &&
+                "If there are choices specified, the default must be one "
+                "of the choices.");
         }
-        // It looks like you're trying to give a positional a default value,
-        // but that makes no sense.
-        BOOST_ASSERT(!detail::positional(opt));
+        BOOST_ASSERT(
+            !detail::positional(opt) &&
+            "It looks like you're trying to give a positional a default value, "
+            "but that makes no sense");
         return {
             opt.names,
             opt.help_text,
@@ -80,11 +81,14 @@ namespace boost { namespace program_options_2 {
             opt,
         std::string_view name)
     {
-        // A display name for a flag or other option with no arguments will
-        // never be displayed.
-        BOOST_ASSERT(opt.args != 0);
-        // A display name for an option with choices will never be displayed.
-        BOOST_ASSERT(opt.choices.size() == 0);
+        BOOST_ASSERT(
+            opt.args != 0 &&
+            "A display name for a flag or other option with no arguments will "
+            "never be displayed");
+        BOOST_ASSERT(
+            opt.choices.size() == 0 &&
+            "A display name for an option with choices will never be "
+            "displayed.");
         opt.arg_display_name = name;
         return opt;
     }
