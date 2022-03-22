@@ -96,9 +96,10 @@ namespace boost { namespace program_options_2 {
                             Options...> const & group)
             {
                 BOOST_ASSERT(
-                    !detail::contains_ws(group.names) &&
+                    (NamedGroup == named_group_t::yes ||
+                     !detail::contains_ws(group.names)) &&
                     "Whitespace characters are not allowed within the names or "
-                    "display-names of commands");
+                    "display-names of commands.");
                 return hana::unpack(group.options, *this);
             }
 

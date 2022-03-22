@@ -333,3 +333,89 @@ response files:
         }
     }
 }
+
+TEST(groups, named_group)
+{
+    {
+        auto group =
+            po2::group("A Group", "What this group is all about.", pos1, arg1);
+        static_assert(group.named_group);
+
+        auto opt_tuple = po2::detail::make_opt_tuple(group, arg2, pos2);
+        BOOST_MPL_ASSERT((is_same<
+                          decltype(opt_tuple),
+                          tuple<
+                              std::decay_t<decltype(pos1)>,
+                              std::decay_t<decltype(arg1)>,
+                              std::decay_t<decltype(arg2)>,
+                              std::decay_t<decltype(pos2)>>>));
+
+        auto result_tuple = po2::detail::make_result_tuple(group, arg2, pos2);
+        BOOST_MPL_ASSERT((is_same<
+                          decltype(result_tuple),
+                          tuple<float, opt<int>, opt<double>, std::string>>));
+
+        std::vector<std::string_view> args{
+            "prog", "7", "11", "-a", "55", "--branch", "2"};
+
+        {
+            std::ostringstream os;
+            auto result = po2::parse_command_line(
+                args, "A program.", os, group, arg2, pos2);
+            BOOST_MPL_ASSERT(
+                (is_same<
+                    decltype(result),
+                    tuple<float, opt<int>, opt<double>, std::string>>));
+
+            EXPECT_EQ(result[0_c], 7.0f);
+            EXPECT_TRUE(result[1_c]);
+            EXPECT_EQ(result[1_c], 55);
+            EXPECT_TRUE(result[2_c]);
+            EXPECT_EQ(result[2_c], 2.0);
+            EXPECT_EQ(result[3_c], "11");
+        }
+        {
+            std::ostringstream os;
+            po2::string_view_any_map result;
+            po2::parse_command_line(
+                args, result, "A program.", os, group, arg2, pos2);
+            EXPECT_EQ(std::any_cast<float>(result["cats"]), 7.0f);
+            EXPECT_EQ(std::any_cast<std::string>(result["dog"]), "11");
+            EXPECT_EQ(std::any_cast<int>(result["apple"]), 55);
+            EXPECT_EQ(std::any_cast<double>(result["branch"]), 2.0);
+        }
+
+        std::vector<std::string_view> bad_args{"prog", "7", "11", "3"};
+
+        {
+            std::ostringstream os;
+            try {
+                auto result = po2::parse_command_line(
+                    bad_args, "A program.", os, group, arg2, pos2);
+            } catch (int) {
+            }
+            EXPECT_EQ(os.str(), R"(error: unrecognized argument '3'
+
+usage:  prog [-h] CATS [-a A] [-b {1,2,3}] Doggo-name
+
+A program.
+
+positional arguments:
+  Doggo-name    Name of dog
+
+optional arguments:
+  -h, --help    Print this help message and exit
+  -b, --branch  Number of branchs
+
+A Group:
+  What this group is all about.
+
+  cats          Number of cats
+  -a, --apple   Number of apples
+
+response files:
+  Write '@file' to load a file containing command line arguments.
+)");
+        }
+    }
+}

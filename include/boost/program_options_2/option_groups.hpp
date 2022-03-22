@@ -164,8 +164,6 @@ namespace boost { namespace program_options_2 {
         return {names, help_text, {std::move(opts)...}};
     }
 
-    // TODO: Support group names and descriptions?
-
     /** Creates a group of options.  The group is always flattened into the
         other options it is with; it exists only for organizational
         purposes. */

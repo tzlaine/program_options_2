@@ -323,7 +323,10 @@ namespace boost { namespace program_options_2 { namespace detail {
         } else if constexpr (Subcommand == subcommand_t::yes) {
             // TODO
         } else { // named group
-            // TODO
+            hana::for_each(opt.options, [&](auto const & opt) {
+                current_width =
+                    detail::print_option(os, opt, first_column, current_width);
+            });
         }
         return current_width;
     }
@@ -444,62 +447,80 @@ namespace boost { namespace program_options_2 { namespace detail {
         auto const opt_tuple = detail::make_opt_tuple_for_printing(opts...);
 
         int max_option_length = 0;
-        std::vector<printed_names_and_desc> printed_positionals;
-        std::vector<printed_names_and_desc> printed_arguments;
+        std::vector<std::pair<std::string, std::vector<printed_names_and_desc>>>
+            printed_sections(2);
         hana::for_each(opt_tuple, [&](auto const & opt) {
             auto process_single_opt = [&](auto const & curr_opt,
                                           auto const & parent_opt,
-                                          int child_index) {
-                std::vector<printed_names_and_desc> & vec =
-                    detail::positional(curr_opt) ? printed_positionals
-                                                 : printed_arguments;
+                                          int child_index,
+                                          int first_column) {
+                constexpr bool no_parent = std::is_same_v<
+                    std::remove_cvref_t<decltype(parent_opt)>,
+                    no_value>;
+
+                std::vector<printed_names_and_desc> * vec_ptr =
+                    detail::positional(curr_opt) ? &printed_sections[0].second
+                                                 : &printed_sections[1].second;
+                if constexpr (!no_parent) {
+                    if constexpr (parent_opt.named_group) {
+                        vec_ptr = &printed_sections.back().second;
+                    }
+                }
+                std::vector<printed_names_and_desc> & vec = *vec_ptr;
+
                 std::ostringstream names_oss;
-                detail::print_option(names_oss, curr_opt, 0, 0, INT_MAX, true);
+                detail::print_option(
+                    names_oss, curr_opt, first_column, 0, INT_MAX, true);
                 std::ostringstream desc_oss;
                 desc_oss << curr_opt.help_text;
 
                 // Special case: Print an option from an exclusive group.
-                if constexpr (!std::is_same_v<
-                                  std::remove_cvref_t<decltype(parent_opt)>,
-                                  no_value>) {
-                    using namespace hana::literals;
-                    bool first = true;
-                    unsigned num_printed = 0;
-                    hana::fold(
-                        parent_opt.options, 0_c, [&](auto i, auto const & opt) {
-                            auto const i_plus_1 =
-                                hana::llong_c<decltype(i)::value + 1>;
-                            if (i == child_index)
+                if constexpr (!no_parent) {
+                    if constexpr (
+                        parent_opt.mutually_exclusive &&
+                        !parent_opt.subcommand) {
+                        using namespace hana::literals;
+                        bool first = true;
+                        unsigned num_printed = 0;
+                        hana::fold(
+                            parent_opt.options,
+                            0_c,
+                            [&](auto i, auto const & opt) {
+                                auto const i_plus_1 =
+                                    hana::llong_c<decltype(i)::value + 1>;
+                                if (i == child_index)
+                                    return i_plus_1;
+                                if (first) {
+                                    detail::print_placeholder_string(
+                                        desc_oss,
+                                        strings.mutually_exclusive_begin,
+                                        program_options_2::storage_name(opt),
+                                        {},
+                                        false);
+                                    first = false;
+                                } else if (
+                                    num_printed + 2 ==
+                                    hana::size(parent_opt.options)) {
+                                    detail::print_placeholder_string(
+                                        desc_oss,
+                                        strings
+                                            .mutually_exclusive_continue_final,
+                                        program_options_2::storage_name(opt),
+                                        {},
+                                        false);
+                                } else {
+                                    detail::print_placeholder_string(
+                                        desc_oss,
+                                        strings.mutually_exclusive_continue,
+                                        program_options_2::storage_name(opt),
+                                        {},
+                                        false);
+                                }
+                                ++num_printed;
                                 return i_plus_1;
-                            if (first) {
-                                detail::print_placeholder_string(
-                                    desc_oss,
-                                    strings.mutually_exclusive_begin,
-                                    program_options_2::storage_name(opt),
-                                    {},
-                                    false);
-                                first = false;
-                            } else if (
-                                num_printed + 2 ==
-                                hana::size(parent_opt.options)) {
-                                detail::print_placeholder_string(
-                                    desc_oss,
-                                    strings.mutually_exclusive_continue_final,
-                                    program_options_2::storage_name(opt),
-                                    {},
-                                    false);
-                            } else {
-                                detail::print_placeholder_string(
-                                    desc_oss,
-                                    strings.mutually_exclusive_continue,
-                                    program_options_2::storage_name(opt),
-                                    {},
-                                    false);
-                            }
-                            ++num_printed;
-                            return i_plus_1;
-                        });
-                    desc_oss << strings.mutually_exclusive_end;
+                            });
+                        desc_oss << strings.mutually_exclusive_end;
+                    }
                 }
 
                 vec.emplace_back(
@@ -518,16 +539,28 @@ namespace boost { namespace program_options_2 { namespace detail {
                     auto const sub_opts = hana::size(opt.options);
                     auto curr_opt_index = 0;
                     hana::for_each(exclusive_opts, [&](auto const & curr_opt) {
-                        process_single_opt(curr_opt, opt, curr_opt_index);
+                        process_single_opt(curr_opt, opt, curr_opt_index, 0);
                         ++curr_opt_index;
                     });
                 } else if constexpr (opt.subcommand) {
                     // TODO
                 } else { // named group
-                    // TODO
+                    std::ostringstream oss;
+                    oss << opt.names << ":";
+                    if (!opt.help_text.empty()) {
+                        oss << "\n  " << opt.help_text << '\n';
+                    }
+                    printed_sections.emplace_back(
+                        std::move(oss).str(),
+                        std::vector<printed_names_and_desc>{});
+                    auto const group_opts = detail::make_opt_tuple_for_printing(
+                        detail::to_ref_tuple(opt.options));
+                    hana::for_each(group_opts, [&](auto const & curr_opt) {
+                        process_single_opt(curr_opt, opt, 0, 2);
+                    });
                 }
             } else {
-                process_single_opt(opt, no_value{}, 0);
+                process_single_opt(opt, no_value{}, 0, 0);
             }
         });
 
@@ -536,16 +569,28 @@ namespace boost { namespace program_options_2 { namespace detail {
         int const description_column = (std::min)(
             max_option_length + min_help_column_gap, max_option_col_width);
 
+        std::vector<printed_names_and_desc> & printed_positionals =
+            printed_sections[0].second;
         if (!printed_positionals.empty()) {
             os << '\n'
                << text::as_utf8(strings.positional_section_text) << '\n';
-            print_options_and_descs(
+            detail::print_options_and_descs(
                 os, printed_positionals, description_column);
         }
 
+        std::vector<printed_names_and_desc> & printed_arguments =
+            printed_sections[1].second;
         if (!printed_arguments.empty()) {
             os << '\n' << text::as_utf8(strings.optional_section_text) << '\n';
-            print_options_and_descs(os, printed_arguments, description_column);
+            detail::print_options_and_descs(
+                os, printed_arguments, description_column);
+        }
+
+        for (auto const & [name_and_desc, printed_opts] :
+             std::ranges::drop_view{printed_sections, 2}) {
+            os << '\n' << name_and_desc << '\n';
+            detail::print_options_and_descs(
+                os, printed_opts, description_column);
         }
 
         if (!strings.response_file_description.empty() &&
