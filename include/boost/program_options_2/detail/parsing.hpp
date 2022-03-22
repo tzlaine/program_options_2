@@ -80,6 +80,12 @@ namespace boost { namespace program_options_2 { namespace detail {
     using result_map_element_t =
         std::conditional_t<std::is_same_v<T, void>, no_value, T>;
 
+    template<typename... Ts>
+    auto to_variant(hana::set<Ts...> const &)
+    {
+        return std::variant<typename Ts::type...>{};
+    }
+
     template<typename Option1, typename... Options>
     auto variant_for_tuple(hana::tuple<Option1, Options...> const & opts)
     {
@@ -90,8 +96,12 @@ namespace boost { namespace program_options_2 { namespace detail {
                        ...)) {
             return typename Option1::type{};
         } else {
-            return std::
-                variant<typename Option1::type, typename Options::type...>{};
+            auto const types = hana::transform(opts, [](auto const & opt) {
+                return hana::type_c<
+                    typename std::remove_cvref_t<decltype(opt)>::type>;
+            });
+            auto const unique_types = hana::to_set(types);
+            return detail::to_variant(unique_types);
         }
     }
 

@@ -28,13 +28,9 @@ auto const pos1 = po2::positional<float>("cats", "Number of cats");
 auto const pos2 = po2::with_display_name(
     po2::positional<std::string>("dog", "Name of dog"), "Doggo-name");
 auto const arg3 = po2::argument<short>("-e", "Number of e's", 1, 1, 2, 3);
-auto const arg4 = po2::argument<unsigned>("-f", "Number of f's", 1, 1, 2, 3);
+auto const arg4 = po2::argument<short>("-f", "Number of f's", 1, 1, 2, 3);
 
 // TODO: Test printing for all of the below (in the printing test).
-
-// TODO: Document the fat that, for exclusive groups, parsing that returns a
-// tuple requires that all the alternaties be the same type, or all be
-// different from one another.  Also, is this true for Boost.Parse, too?
 
 TEST(groups, exclusive)
 {
@@ -88,10 +84,9 @@ response files:
         try {
             auto result =
                 po2::parse_command_line(args, "A program.", os, exclusive);
-            BOOST_MPL_ASSERT(
-                (is_same<
-                    decltype(result),
-                    tuple<std::variant<int, double, short, unsigned>>>));
+            BOOST_MPL_ASSERT((is_same<
+                              decltype(result),
+                              tuple<std::variant<int, double, short>>>));
         } catch (int) {
             EXPECT_EQ(os.str(), R"(error: '-a' may not be used with '--branch'
 
