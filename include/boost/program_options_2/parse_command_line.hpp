@@ -32,6 +32,10 @@ namespace boost { namespace program_options_2 {
         Option opt,
         Options... opts)
     {
+        static_assert(
+            !detail::contains_commands(opts...),
+            "Parsing into a tuple is not supported when commands are in use.");
+
         BOOST_ASSERT(args.begin() != args.end());
         detail::check_options(opt, opts...);
 
@@ -214,7 +218,6 @@ namespace boost { namespace program_options_2 {
     }
 
 
-
 #if defined(BOOST_PROGRAM_OPTIONS_2_DOXYGEN) || defined(_MSC_VER)
 
     // tuple overloads
@@ -232,6 +235,10 @@ namespace boost { namespace program_options_2 {
         Option opt,
         Options... opts)
     {
+        static_assert(
+            !detail::contains_commands(opts...),
+            "Parsing into a tuple is not supported when commands are in use.");
+
         BOOST_ASSERT(args.begin() != args.end());
         detail::check_options(opt, opts...);
 

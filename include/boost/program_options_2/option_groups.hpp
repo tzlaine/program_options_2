@@ -14,86 +14,59 @@ namespace boost { namespace program_options_2 {
 
     // TODO: Allow automated abbreviation matching?
 
-    // TODO: Allow automated matching of short args, a la "-ub" in "git diff
-    // -ub"?
+    // TODO: Allow automated accumulation of short args, a la "-ub" in "git
+    // diff -ub"?
 
     // TODO: Support a required mutually-exclusive group, in which exactly one
     // must be provided on the command line?
 
     namespace detail {
-        template<typename Option>
-        struct contains_wrong_group_option_impl
-        {
-            constexpr bool operator()() { return false; }
-        };
+        template<typename... Options>
+        constexpr bool contains_wrong_group_option(Options const &... opts);
 
-        template<
-            exclusive_t MutuallyExclusive,
-            subcommand_t Subcommand,
-            required_t Required,
-            named_group_t NamedGroup,
-            typename... Options>
-        struct contains_wrong_group_option_impl<detail::option_group<
-            MutuallyExclusive,
-            Subcommand,
-            Required,
-            NamedGroup,
-            Options...>>
+        template<typename Option>
+        constexpr bool contains_wrong_group_option(Option const & opt)
         {
-            constexpr bool operator()()
-            {
-                if constexpr (MutuallyExclusive == exclusive_t::yes) {
+            if constexpr (group_<Option>) {
+                if constexpr (opt.mutually_exclusive) {
                     return true;
-                } else if constexpr (Subcommand == subcommand_t::yes) {
+                } else if constexpr (opt.subcommand) {
                     return true;
-                } else if constexpr (NamedGroup == named_group_t::yes) {
+                } else if constexpr (opt.named_group) {
                     return true;
                 } else {
-                    return (
-                        detail::contains_wrong_group_option_impl<Options>{}() ||
-                        ...);
+                    return hana::unpack(
+                        opt.options, detail::contains_wrong_group_option);
                 }
+            } else {
+                return false;
             }
-        };
-
-        template<typename... Options>
-        constexpr bool contains_wrong_group_option()
-        {
-            return (
-                detail::contains_wrong_group_option_impl<Options>{}() || ...);
         }
 
-        template<typename Option>
-        struct contains_positional_option_impl
+        template<typename... Options>
+        constexpr bool contains_wrong_group_option(Options const &... opts)
         {
-            constexpr bool operator()() { return Option::positional; }
-        };
-
-        template<
-            exclusive_t MutuallyExclusive,
-            subcommand_t Subcommand,
-            required_t Required,
-            named_group_t NamedGroup,
-            typename... Options>
-        struct contains_positional_option_impl<detail::option_group<
-            MutuallyExclusive,
-            Subcommand,
-            Required,
-            NamedGroup,
-            Options...>>
-        {
-            constexpr bool operator()()
-            {
-                return (
-                    detail::contains_positional_option_impl<Options>{}() ||
-                    ...);
-            }
-        };
+            return (detail::contains_wrong_group_option(opts) || ...);
+        }
 
         template<typename... Options>
-        constexpr bool contains_positional_option()
+        constexpr bool contains_positional_option(Options const &... opts);
+
+        template<typename Option>
+        constexpr bool contains_positional_option_impl(Option const & opt)
         {
-            return (detail::contains_positional_option_impl<Options>{}() || ...);
+            if constexpr (group_<Option>) {
+                return hana::unpack(
+                    opt.options, detail::contains_positional_option);
+            } else {
+                return Option::positional;
+            }
+        }
+
+        template<typename... Options>
+        constexpr bool contains_positional_option(Options const &... opts)
+        {
+            return (detail::contains_positional_option_impl(opts) || ...);
         }
     }
 
@@ -113,17 +86,14 @@ namespace boost { namespace program_options_2 {
     exclusive(Option1 opt1, Option2 opt2, Options... opts)
     {
         static_assert(
-            !detail::contains_positional_option<Option1, Option2, Options...>(),
+            !detail::contains_positional_option(opts...),
             "Positional options are not allowed in exclusive groups.");
         static_assert(
-            !detail::
-                contains_wrong_group_option<Option1, Option2, Options...>(),
+            !detail::contains_wrong_group_option(opts...),
             "Mutually-exclusive groups may not contain other exclusive "
             "groups, commands, or named groups.  Unnamed groups are fine.");
         return {{}, {}, {std::move(opt1), std::move(opt2), std::move(opts)...}};
     }
-
-    // TODO: Add a required_t::yes overload of exclusive.
 
     // TODO: Allow commands to contain a callable that can be dispatched to
     // after the parse.

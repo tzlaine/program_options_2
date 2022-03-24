@@ -50,25 +50,13 @@ namespace boost { namespace program_options_2 { namespace detail {
     template<typename Option>
     bool no_response_file_option_impl(Option const & opt)
     {
-        return opt.action != detail::action_kind::response_file;
-    }
-
-    template<
-        exclusive_t MutuallyExclusive,
-        subcommand_t Subcommand,
-        required_t Required,
-        named_group_t NamedGroup,
-        typename... Options>
-    bool no_response_file_option_impl(option_group<
-                                      MutuallyExclusive,
-                                      Subcommand,
-                                      Required,
-                                      NamedGroup,
-                                      Options...> const & group)
-    {
-        return hana::unpack(group.options, [](Options const &... opts) {
-            return detail::no_response_file_option(opts...);
-        });
+        if constexpr (group_<Option>) {
+            return hana::unpack(opt.options, [](auto const &... opts) {
+                return detail::no_response_file_option(opts...);
+            });
+        } else {
+            return opt.action != detail::action_kind::response_file;
+        }
     }
 
     template<typename... Options>
@@ -313,15 +301,13 @@ namespace boost { namespace program_options_2 { namespace detail {
         int max_width = max_col_width,
         bool brief = false)
     {
-        if constexpr (
-            MutuallyExclusive == exclusive_t::yes &&
-            Subcommand == subcommand_t::no) {
+        if constexpr (opt.subcommand) {
+            // TODO
+        } else if constexpr (opt.mutually_exclusive) {
             hana::for_each(opt.options, [&](auto const & opt) {
                 current_width =
                     detail::print_option(os, opt, first_column, current_width);
             });
-        } else if constexpr (Subcommand == subcommand_t::yes) {
-            // TODO
         } else { // named group
             hana::for_each(opt.options, [&](auto const & opt) {
                 current_width =

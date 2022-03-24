@@ -19,30 +19,42 @@
 namespace boost { namespace program_options_2 { namespace detail {
 
     template<typename... Options>
+    constexpr bool contains_commands(Options const &... opts);
+
+    template<typename Option>
+    constexpr bool contains_commands_impl(Option const & opt)
+    {
+        if constexpr (group_<Option>){
+            if constexpr (opt.subcommand) {
+                return true;
+            } else {
+                return hana::unpack(opt.options, [](auto const &... opts) {
+                    return detail::contains_commands(opts...);
+                });
+            }
+        }
+        return false;
+    }
+
+    template<typename... Options>
+    constexpr bool contains_commands(Options const &... opts)
+    {
+        return (detail::contains_commands_impl(opts) || ...);
+    }
+
+    template<typename... Options>
     bool no_help_option(Options const &... opts);
 
     template<typename Option>
     bool no_help_option_impl(Option const & opt)
     {
-        return opt.action != detail::action_kind::help;
-    }
-
-    template<
-        exclusive_t MutuallyExclusive,
-        subcommand_t Subcommand,
-        required_t Required,
-        named_group_t NamedGroup,
-        typename... Options>
-    bool no_help_option_impl(option_group<
-                             MutuallyExclusive,
-                             Subcommand,
-                             Required,
-                             NamedGroup,
-                             Options...> const & group)
-    {
-        return hana::unpack(group.options, [](Options const &... opts) {
-            return detail::no_help_option(opts...);
-        });
+        if constexpr (group_<Option>) {
+            return hana::unpack(opt.options, [](auto const &... opts) {
+                return detail::no_help_option(opts...);
+            });
+        } else {
+            return opt.action != detail::action_kind::help;
+        }
     }
 
     template<typename... Options>
@@ -482,63 +494,44 @@ namespace boost { namespace program_options_2 { namespace detail {
         parse_option_error error = parse_option_error::none;
     };
 
-    template<typename Char, typename Option>
-    bool matches_dashed_argument(
-        std::basic_string_view<Char> arg, Option const & opt)
-    {
-        auto const names = names_view(opt.names);
-        if (std::ranges::find_if(names, [arg](auto name) {
-                return std::ranges::equal(
-                    text::as_utf8(name), text::as_utf8(arg));
-            }) != names.end()) {
-            return true;
-        }
-        return false;
-    }
-
-    template<typename Char, typename... Options>
-    bool known_dashed_argument(
-        std::basic_string_view<Char> arg, Options const &... opts);
-
     template<typename Char>
     struct known_dashed_argument_impl
     {
-        std::basic_string_view<Char> arg_;
         template<typename... Options>
         bool operator()(Options const &... opts)
         {
-            return detail::known_dashed_argument(arg_, opts...);
+            if (!detail::leading_dash(arg))
+                return false;
+            return (single(opts) || ...);
         }
-    };
 
-    template<
-        typename Char,
-        exclusive_t MutuallyExclusive,
-        subcommand_t Subcommand,
-        required_t Required,
-        named_group_t NamedGroup,
-        typename... Options>
-    bool matches_dashed_argument(
-        std::basic_string_view<Char> arg,
-        option_group<
-            MutuallyExclusive,
-            Subcommand,
-            Required,
-            NamedGroup,
-            Options...> const & group)
-    {
-        return hana::unpack(
-            group.options, known_dashed_argument_impl<Char>{arg});
-    }
+        template<typename Option>
+        bool single(Option const & opt)
+        {
+            if constexpr (group_<Option>) {
+                return hana::unpack(opt.options, *this);
+            } else {
+                auto const names = names_view(opt.names);
+                if (std::ranges::find_if(names, [&](auto name) {
+                        return std::ranges::equal(
+                            text::as_utf8(name), text::as_utf8(arg));
+                    }) != names.end()) {
+                    return true;
+                }
+                return false;
+            }
+        }
+
+        std::basic_string_view<Char> arg;
+    };
 
     // TODO: This should maybe use a trie (pending perf testing, of course).
     template<typename Char, typename... Options>
     bool known_dashed_argument(
         std::basic_string_view<Char> arg, Options const &... opts)
     {
-        if (!detail::leading_dash(arg))
-            return false;
-        return (detail::matches_dashed_argument(arg, opts) || ...);
+        known_dashed_argument_impl impl{arg};
+        return impl(opts...);
     }
 
     template<typename Char>
@@ -590,7 +583,7 @@ namespace boost { namespace program_options_2 { namespace detail {
                 }
             }
 
-            if (!detail::matches_dashed_argument(*first, opt))
+            if (!detail::known_dashed_argument(*first, opt))
                 return {};
 
             if (0 <= exclusives_group) {
@@ -926,7 +919,10 @@ namespace boost { namespace program_options_2 { namespace detail {
 
                 using opt_type = std::remove_cvref_t<decltype(opt)>;
                 if constexpr (group_<opt_type>) {
-                    if constexpr (!opt.subcommand && opt.mutually_exclusive) {
+                    if (opt.subcommand) {
+                        // TODO: Parse command?
+                        // parse_leaf_opt(i, opt);
+                    } else if constexpr (opt.mutually_exclusive) {
                         auto parse_exclusive = [&]<typename... Options2>(
                             Options2 const &... opts)
                         {
@@ -951,7 +947,6 @@ namespace boost { namespace program_options_2 { namespace detail {
                         };
                         hana::unpack(opt.options, parse_exclusive);
                     } else {
-                        // TODO: Parse command?
                         parse_leaf_opt(i, opt);
                     }
                 } else {
