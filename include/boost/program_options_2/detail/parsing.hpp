@@ -987,9 +987,6 @@ namespace boost { namespace program_options_2 { namespace detail {
         bool no_help,
         Options const &... opts)
     {
-        // TODO: Check for args.begin() == args.end(), and return a suitable
-        // error.
-
         exclusives_map<Char> exclusives_seen;
 
         // This dance is here to support the case where the values returned by
