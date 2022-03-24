@@ -184,6 +184,7 @@ namespace boost { namespace program_options_2 { namespace detail {
             os << ']';
     }
 
+#if 0
     template<
         typename Stream,
         typename Char,
@@ -205,6 +206,7 @@ namespace boost { namespace program_options_2 { namespace detail {
     {
         // TODO
     }
+#endif
 
     template<typename R>
     int estimated_width(R const & r)

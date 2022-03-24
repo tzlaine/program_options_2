@@ -21,52 +21,82 @@ namespace boost { namespace program_options_2 {
     // must be provided on the command line?
 
     namespace detail {
-        template<typename... Options>
-        constexpr bool contains_wrong_group_option(Options const &... opts);
-
         template<typename Option>
-        constexpr bool contains_wrong_group_option(Option const & opt)
+        struct contains_wrong_group_option_impl
         {
-            if constexpr (group_<Option>) {
-                if constexpr (opt.mutually_exclusive) {
-                    return true;
-                } else if constexpr (opt.subcommand) {
-                    return true;
-                } else if constexpr (opt.named_group) {
+            constexpr static bool call() { return false; }
+        };
+
+        template<
+            exclusive_t MutuallyExclusive,
+            subcommand_t Subcommand,
+            required_t Required,
+            named_group_t NamedGroup,
+            typename... Options>
+        struct contains_wrong_group_option_impl<option_group<
+            MutuallyExclusive,
+            Subcommand,
+            Required,
+            NamedGroup,
+            Options...>>
+        {
+            constexpr static bool call()
+            {
+                if constexpr (
+                    MutuallyExclusive == exclusive_t::yes ||
+                    Subcommand == subcommand_t::yes ||
+                    NamedGroup == named_group_t::yes) {
                     return true;
                 } else {
-                    return hana::unpack(
-                        opt.options, detail::contains_wrong_group_option);
+                    return (
+                        detail::contains_wrong_group_option_impl<
+                            Options>::call() ||
+                        ...);
                 }
-            } else {
-                return false;
             }
-        }
+        };
 
         template<typename... Options>
-        constexpr bool contains_wrong_group_option(Options const &... opts)
+        constexpr bool contains_wrong_group_option()
         {
-            return (detail::contains_wrong_group_option(opts) || ...);
+            return (
+                detail::contains_wrong_group_option_impl<Options>::call() ||
+                ...);
         }
-
-        template<typename... Options>
-        constexpr bool contains_positional_option(Options const &... opts);
 
         template<typename Option>
-        constexpr bool contains_positional_option_impl(Option const & opt)
+        struct contains_positional_option_impl
         {
-            if constexpr (group_<Option>) {
-                return hana::unpack(
-                    opt.options, detail::contains_positional_option);
-            } else {
-                return Option::positional;
+            constexpr static bool call() { return Option::positional; }
+        };
+
+        template<
+            exclusive_t MutuallyExclusive,
+            subcommand_t Subcommand,
+            required_t Required,
+            named_group_t NamedGroup,
+            typename... Options>
+        struct contains_positional_option_impl<option_group<
+            MutuallyExclusive,
+            Subcommand,
+            Required,
+            NamedGroup,
+            Options...>>
+        {
+            constexpr static bool call()
+            {
+                return (
+                    detail::contains_positional_option_impl<Options>::call() ||
+                    ...);
             }
-        }
+        };
 
         template<typename... Options>
-        constexpr bool contains_positional_option(Options const &... opts)
+        constexpr bool contains_positional_option()
         {
-            return (detail::contains_positional_option_impl(opts) || ...);
+            return (
+                detail::contains_positional_option_impl<Options>::call() ||
+                ...);
         }
     }
 
@@ -75,6 +105,10 @@ namespace boost { namespace program_options_2 {
         option_or_group Option1,
         option_or_group Option2,
         option_or_group... Options>
+    requires(
+        !detail::contains_positional_option<Option1, Option2, Options...>() &&
+        !detail::contains_wrong_group_option<Option1, Option2, Options...>())
+        // clang-format off
     detail::option_group<
         detail::exclusive_t::yes,
         detail::subcommand_t::no,
@@ -84,14 +118,8 @@ namespace boost { namespace program_options_2 {
         Option2,
         Options...>
     exclusive(Option1 opt1, Option2 opt2, Options... opts)
+    // clang-format on
     {
-        static_assert(
-            !detail::contains_positional_option(opts...),
-            "Positional options are not allowed in exclusive groups.");
-        static_assert(
-            !detail::contains_wrong_group_option(opts...),
-            "Mutually-exclusive groups may not contain other exclusive "
-            "groups, commands, or named groups.  Unnamed groups are fine.");
         return {{}, {}, {std::move(opt1), std::move(opt2), std::move(opts)...}};
     }
 
