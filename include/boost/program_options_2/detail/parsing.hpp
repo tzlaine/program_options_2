@@ -12,6 +12,7 @@
 #include <boost/program_options_2/detail/printing.hpp>
 
 #include <boost/container/flat_map.hpp>
+#include <boost/container/small_vector.hpp>
 #include <boost/parser/parser.hpp>
 #include <boost/type_traits/is_detected.hpp>
 
@@ -503,18 +504,10 @@ namespace boost { namespace program_options_2 { namespace detail {
         template<typename Option>
         bool single(Option const & opt)
         {
-            if constexpr (group_<Option>) {
+            if constexpr (group_<Option>)
                 return hana::unpack(opt.options, *this);
-            } else {
-                auto const names = names_view(opt.names);
-                if (std::ranges::find_if(names, [&](auto name) {
-                        return std::ranges::equal(
-                            text::as_utf8(name), text::as_utf8(arg));
-                    }) != names.end()) {
-                    return true;
-                }
-                return false;
-            }
+            else
+                return detail::matches_names(arg, opt.names);
         }
 
         std::basic_string_view<Char> arg;
@@ -915,8 +908,8 @@ namespace boost { namespace program_options_2 { namespace detail {
                 using opt_type = std::remove_cvref_t<decltype(opt)>;
                 if constexpr (group_<opt_type>) {
                     if (opt.subcommand) {
-                        // TODO: Parse command?
-                        // parse_leaf_opt(i, opt);
+                        // Intentionally skipped; commands are parsed in a
+                        // pre-pass.
                     } else if constexpr (opt.mutually_exclusive) {
                         auto parse_exclusive = [&]<typename... Options2>(
                             Options2 const &... opts)
@@ -969,6 +962,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         typename Accessor,
         typename Char,
         typename Args,
+        typename OptTuple,
         typename... Options>
     parse_option_result parse_options_into(
         Accessor accessor,
@@ -980,6 +974,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         std::basic_string_view<Char> program_desc,
         std::basic_ostream<Char> & os,
         bool no_help,
+        OptTuple const & opt_tuple,
         Options const &... opts)
     {
         exclusives_map<Char> exclusives_seen;
@@ -994,8 +989,6 @@ namespace boost { namespace program_options_2 { namespace detail {
         if (skip_first)
             ++args_first;
         auto const args_last = args.end();
-
-        auto const opt_tuple = detail::make_opt_tuple(opts...);
 
         auto fail = [&](parse_option_error error,
                         std::basic_string_view<Char> cl_arg_or_opt_name,
@@ -1078,6 +1071,7 @@ namespace boost { namespace program_options_2 { namespace detail {
     {
         auto result = detail::make_result_tuple(opts...);
         int next_positional = 0;
+        auto const opt_tuple = detail::make_opt_tuple(opts...);
         detail::parse_options_into(
             [&](auto const & opt, auto i) -> decltype(auto) {
                 return result[i];
@@ -1090,6 +1084,7 @@ namespace boost { namespace program_options_2 { namespace detail {
             program_desc,
             os,
             no_help,
+            opt_tuple,
             opts...);
         return result;
     }
@@ -1138,6 +1133,23 @@ namespace boost { namespace program_options_2 { namespace detail {
         Map & m_;
     };
 
+    template<typename OptionsMap>
+    void parse_into_map_cleanup(OptionsMap & map)
+    {
+        auto it = map.begin();
+        auto prev_it = it;
+        auto const last = map.end();
+        while (it != last) {
+            if (program_options_2::any_empty(it->second)) {
+                prev_it = it;
+                ++it;
+                map.erase(prev_it);
+            } else {
+                ++it;
+            }
+        }
+    }
+
     template<
         typename OptionsMap,
         typename Char,
@@ -1155,6 +1167,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         Options const &... opts)
     {
         int next_positional = 0;
+        auto const opt_tuple = detail::make_opt_tuple(opts...);
         auto const retval = detail::parse_options_into(
             map_lookup<OptionsMap>(result),
             next_positional,
@@ -1165,20 +1178,159 @@ namespace boost { namespace program_options_2 { namespace detail {
             program_desc,
             os,
             no_help,
+            opt_tuple,
             opts...);
-        auto it = result.begin();
-        auto prev_it = it;
-        auto const last = result.end();
-        while (it != last) {
-            if (program_options_2::any_empty(it->second)) {
-                prev_it = it;
-                ++it;
-                result.erase(prev_it);
-            } else {
-                ++it;
+        detail::parse_into_map_cleanup(result);
+        return retval;
+    }
+
+    template<
+        typename Char,
+        typename Args,
+        typename ArgsIter,
+        typename OptionsMap,
+        typename... Options,
+        typename... Options2>
+    parse_option_result parse_commands_in_tuple(
+        OptionsMap & map,
+        customizable_strings const & strings,
+        ArgsIter & first,
+        ArgsIter last,
+        std::basic_string_view<Char> program_desc,
+        std::basic_ostream<Char> & os,
+        bool no_help,
+        bool skip_first,
+        hana::tuple<Options const &...> const & opt_tuple,
+        boost::container::small_vector<std::function<bool(int &)>, 8> &
+            parse_contexts,
+        std::function<void()> & func,
+        Options2 const &... opts)
+    {
+        // TODO: Seems like we're missing the top-level context in
+        // parse_contexts.
+
+        if (first == last) {
+            // TODO: Report that a command is missing.
+        }
+
+        auto const & arg = *first;
+        bool matched_command = false;
+        parse_option_result child_result;
+        hana::for_each(opt_tuple, [&]<typename Option>(Option const & opt) {
+            if (matched_command)
+                return;
+
+            if constexpr (group_<Option>) {
+                if constexpr (opt.subcommand) {
+                    if (detail::matches_names(arg, opt.names)) {
+                        matched_command = true;
+                        ++first;
+
+                        parse_contexts.push_back(
+                            [&, program_desc, no_help](int & next_positional) {
+                                return detail::parse_options_into(
+                                    map_lookup<OptionsMap>(map),
+                                    next_positional,
+                                    strings,
+                                    false,
+                                    first,
+                                    last,
+                                    true,
+                                    program_desc,
+                                    os,
+                                    no_help,
+                                    opt.options,
+                                    opts...);
+                            });
+                        if constexpr (opt.has_func) {
+                            func = [&map, f = opt.func]() { f(map); };
+                        }
+                        if (!func) {
+                            child_result = detail::parse_commands_in_tuple(
+                                map,
+                                strings,
+                                first,
+                                last,
+                                program_desc,
+                                os,
+                                no_help,
+                                skip_first,
+                                opt.options,
+                                parse_contexts,
+                                func,
+                                opts...);
+                        }
+                    }
+                }
+            }
+        });
+
+        if (!child_result)
+            return child_result;
+
+        if (!matched_command) {
+            // TODO: Report that all commands must be given before all
+            // other args.
+        }
+
+        if (!func) {
+            // TODO: Report that a command is missing.
+        }
+
+        return {};
+    }
+
+    template<
+        typename OptionsMap,
+        typename Args,
+        typename Char,
+        typename... Options>
+    parse_option_result parse_commands(
+        OptionsMap & map,
+        customizable_strings const & strings,
+        Args const & args,
+        std::basic_string_view<Char> program_desc,
+        std::basic_ostream<Char> & os,
+        bool no_help,
+        bool skip_first,
+        Options const &... opts)
+    {
+        using opts_as_tuple_type = hana::tuple<Options const &...>;
+        opts_as_tuple_type opt_tuple{opts...};
+
+        std::function<void()> func;
+        boost::container::small_vector<std::function<bool(int &)>, 8>
+            parse_contexts;
+        auto first = args.begin();
+        auto const last = args.end();
+        parse_option_result parse_result = detail::parse_commands_in_tuple(
+            map,
+            strings,
+            first,
+            last,
+            program_desc,
+            os,
+            no_help,
+            skip_first,
+            opt_tuple,
+            parse_contexts,
+            func,
+            opts...);
+        if (!parse_result)
+            return parse_result;
+
+        int next_positional = 0;
+        for (auto & ctx : parse_contexts) {
+            parse_result = ctx(next_positional);
+            if (!parse_result) {
+                // TODO: Report error, if necessary.
+                return parse_result;
             }
         }
-        return retval;
+
+        detail::parse_into_map_cleanup(map);
+        if (parse_result)
+            func();
     }
 
 }}}

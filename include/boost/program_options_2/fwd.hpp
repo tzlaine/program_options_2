@@ -227,6 +227,7 @@ namespace boost { namespace program_options_2 {
             using value_type = no_value;
             using choice_type = no_value;
             using validator_type = no_value;
+            using func_type = Func;
 
             std::string_view names;
             std::string_view help_text;
@@ -242,6 +243,8 @@ namespace boost { namespace program_options_2 {
             constexpr static bool positional = false;
             constexpr static bool required = Required == required_t::yes;
             constexpr static int num_choices = 0;
+            constexpr static bool has_func =
+                !std::is_same_v<func_type, no_func>;
 
             constexpr static bool flatten_during_printing =
                 !mutually_exclusive && !subcommand && !named_group;

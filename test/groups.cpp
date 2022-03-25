@@ -123,7 +123,6 @@ TEST(groups, command)
         std::vector<std::string_view> args{
             "prog", "cmd", "-a", "55", "--branch", "2", "-e", "3"};
 
-#if 0
         try {
             std::ostringstream os;
             std::map<std::string_view, std::any> result;
@@ -131,7 +130,6 @@ TEST(groups, command)
         } catch (int) {
             // TODO: Remove this try once parsing is implemented.
         }
-#endif
     }
 
     // TODO: Multiple commands

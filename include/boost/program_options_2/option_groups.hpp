@@ -174,7 +174,7 @@ namespace boost { namespace program_options_2 {
     }
 
     /** TODO */
-    template<typename Func, option_or_group... Options>
+    template<std::copy_constructible Func, option_or_group... Options>
     requires(!detail::contains_commands<Options...>())
         // clang-format off
     detail::option_group<
@@ -196,7 +196,7 @@ namespace boost { namespace program_options_2 {
     }
 
     /** TODO */
-    template<typename Func, option_or_group... Options>
+    template<std::copy_constructible Func, option_or_group... Options>
     requires(!detail::contains_commands<Options...>())
         // clang-format off
     detail::option_group<
