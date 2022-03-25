@@ -108,11 +108,10 @@ response files:
     }
 }
 
-#if 1
 TEST(groups, command)
 {
     {
-        auto command = po2::command("cmd", arg1, arg2, arg3);
+        auto command = po2::command([](auto) {}, "cmd", arg1, arg2, arg3);
         auto group = po2::group(command, pos1);
 
         EXPECT_TRUE(po2::detail::contains_commands<decltype(command)>());
@@ -120,15 +119,15 @@ TEST(groups, command)
     }
 
     {
-        auto command = po2::command("cmd", arg1, arg2, arg3);
+        auto command = po2::command([](auto) {}, "cmd", arg1, arg2, arg3);
         std::vector<std::string_view> args{
             "prog", "cmd", "-a", "55", "--branch", "2", "-e", "3"};
 
 #if 0
         try {
             std::ostringstream os;
-            auto result =
-                po2::parse_command_line(args, "A program.", os, command);
+            std::map<std::string_view, std::any> result;
+            po2::parse_command_line(args, result, "A program.", os, command);
         } catch (int) {
             // TODO: Remove this try once parsing is implemented.
         }
@@ -141,7 +140,6 @@ TEST(groups, command)
 
     // TODO: Named groups of commands
 }
-#endif
 
 TEST(groups, group)
 {

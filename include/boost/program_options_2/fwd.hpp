@@ -207,11 +207,19 @@ namespace boost { namespace program_options_2 {
         enum class subcommand_t { yes, no };
         enum class named_group_t { yes, no };
 
+        struct no_func
+        {
+            template<typename T>
+            void operator()(T &&)
+            {}
+        };
+
         template<
             exclusive_t MutuallyExclusive,
             subcommand_t Subcommand,
             required_t Required,
             named_group_t NamedGroup,
+            typename Func,
             typename... Options>
         struct option_group
         {
@@ -223,6 +231,7 @@ namespace boost { namespace program_options_2 {
             std::string_view names;
             std::string_view help_text;
             hana::tuple<Options...> options;
+            Func func;
             action_kind action = action_kind::none;
 
             constexpr static bool mutually_exclusive =
@@ -246,12 +255,14 @@ namespace boost { namespace program_options_2 {
             subcommand_t Subcommand,
             required_t Required,
             named_group_t NamedGroup,
+            typename Func,
             typename... Options>
         struct is_group<option_group<
             MutuallyExclusive,
             Subcommand,
             Required,
             NamedGroup,
+            Func,
             Options...>> : std::true_type
         {};
 
@@ -309,12 +320,14 @@ namespace boost { namespace program_options_2 {
             subcommand_t Subcommand,
             required_t Required,
             named_group_t NamedGroup,
+            typename Func,
             typename... Options>
         bool positional(option_group<
                         MutuallyExclusive,
                         Subcommand,
                         Required,
                         NamedGroup,
+                        Func,
                         Options...> const &)
         {
             return false;

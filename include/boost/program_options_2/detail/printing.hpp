@@ -192,6 +192,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         subcommand_t Subcommand,
         required_t Required,
         named_group_t NamedGroup,
+        typename Func,
         typename... Options>
     void print_args(
         Stream & os,
@@ -201,6 +202,7 @@ namespace boost { namespace program_options_2 { namespace detail {
             Subcommand,
             Required,
             NamedGroup,
+            Func,
             Options...> const & group,
         bool print_leading_space)
     {
@@ -289,6 +291,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         subcommand_t Subcommand,
         required_t Required,
         named_group_t NamedGroup,
+        typename Func,
         typename... Options>
     int print_option(
         Stream & os,
@@ -297,6 +300,7 @@ namespace boost { namespace program_options_2 { namespace detail {
             Subcommand,
             Required,
             NamedGroup,
+            Func,
             Options...> const & opt,
         int first_column,
         int current_width,

@@ -244,6 +244,41 @@ namespace boost { namespace program_options_2 { namespace detail {
         return detail::make_opt_tuple(opts_as_tuple_type{opts...});
     }
 
+    template<typename Option>
+    struct contains_commands_impl
+    {
+        constexpr static bool call() { return false; }
+    };
+
+    template<
+        exclusive_t MutuallyExclusive,
+        subcommand_t Subcommand,
+        required_t Required,
+        named_group_t NamedGroup,
+        typename Func,
+        typename... Options>
+    struct contains_commands_impl<option_group<
+        MutuallyExclusive,
+        Subcommand,
+        Required,
+        NamedGroup,
+        Func,
+        Options...>>
+    {
+        constexpr static bool call()
+        {
+            if constexpr (Subcommand == subcommand_t::yes)
+                return true;
+            return (detail::contains_commands_impl<Options>::call() || ...);
+        }
+    };
+
+    template<typename... Options>
+    constexpr bool contains_commands()
+    {
+        return (detail::contains_commands_impl<Options>::call() || ...);
+    }
+
 }}}
 
 #endif

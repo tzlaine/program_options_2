@@ -18,39 +18,6 @@
 
 namespace boost { namespace program_options_2 { namespace detail {
 
-    template<typename Option>
-    struct contains_commands_impl
-    {
-        constexpr static bool call() { return false; }
-    };
-
-    template<
-        exclusive_t MutuallyExclusive,
-        subcommand_t Subcommand,
-        required_t Required,
-        named_group_t NamedGroup,
-        typename... Options>
-    struct contains_commands_impl<option_group<
-        MutuallyExclusive,
-        Subcommand,
-        Required,
-        NamedGroup,
-        Options...>>
-    {
-        constexpr static bool call()
-        {
-            if constexpr (Subcommand == subcommand_t::yes)
-                return true;
-            return (detail::contains_commands_impl<Options>::call() || ...);
-        }
-    };
-
-    template<typename... Options>
-    constexpr bool contains_commands()
-    {
-        return (detail::contains_commands_impl<Options>::call() || ...);
-    }
-
     template<typename... Options>
     bool no_help_option(Options const &... opts);
 

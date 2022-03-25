@@ -151,17 +151,21 @@ namespace boost { namespace program_options_2 {
                 opts...);
         }
 
-        detail::parse_options_into_map(
-            map,
-            strings,
-            false,
-            args,
-            program_desc,
-            os,
-            no_help,
-            true,
-            opt,
-            opts...);
+        if constexpr (detail::contains_commands<Option, Options...>()) {
+            // TODO
+        } else {
+            detail::parse_options_into_map(
+                map,
+                strings,
+                false,
+                args,
+                program_desc,
+                os,
+                no_help,
+                true,
+                opt,
+                opts...);
+        }
     }
 
     /** TODO */

@@ -8,6 +8,7 @@
 
 #include <boost/program_options_2/options.hpp>
 #include <boost/program_options_2/concepts.hpp>
+#include <boost/program_options_2/detail/utility.hpp>
 
 
 namespace boost { namespace program_options_2 {
@@ -32,12 +33,14 @@ namespace boost { namespace program_options_2 {
             subcommand_t Subcommand,
             required_t Required,
             named_group_t NamedGroup,
+            typename Func,
             typename... Options>
         struct contains_wrong_group_option_impl<option_group<
             MutuallyExclusive,
             Subcommand,
             Required,
             NamedGroup,
+            Func,
             Options...>>
         {
             constexpr static bool call()
@@ -75,12 +78,14 @@ namespace boost { namespace program_options_2 {
             subcommand_t Subcommand,
             required_t Required,
             named_group_t NamedGroup,
+            typename Func,
             typename... Options>
         struct contains_positional_option_impl<option_group<
             MutuallyExclusive,
             Subcommand,
             Required,
             NamedGroup,
+            Func,
             Options...>>
         {
             constexpr static bool call()
@@ -114,6 +119,7 @@ namespace boost { namespace program_options_2 {
         detail::subcommand_t::no,
         detail::required_t::no,
         detail::named_group_t::no,
+        detail::no_func,
         Option1,
         Option2,
         Options...>
@@ -123,18 +129,19 @@ namespace boost { namespace program_options_2 {
         return {{}, {}, {std::move(opt1), std::move(opt2), std::move(opts)...}};
     }
 
-    // TODO: Allow commands to contain a callable that can be dispatched to
-    // after the parse.
-
     /** TODO */
     template<option_or_group... Options>
+    requires(detail::contains_commands<Options...>())
+        // clang-format off
     detail::option_group<
         detail::exclusive_t::no,
         detail::subcommand_t::yes,
         detail::required_t::no,
         detail::named_group_t::yes,
+        detail::no_func,
         Options...>
     command(std::string_view names, Options... opts)
+    // clang-format on
     {
         BOOST_ASSERT(
             detail::positional(names) &&
@@ -146,13 +153,17 @@ namespace boost { namespace program_options_2 {
 
     /** TODO */
     template<option_or_group... Options>
+    requires(detail::contains_commands<Options...>())
+        // clang-format off
     detail::option_group<
         detail::exclusive_t::no,
         detail::subcommand_t::yes,
         detail::required_t::no,
         detail::named_group_t::yes,
+        detail::no_func,
         Options...>
     command(std::string_view names, std::string_view help_text, Options... opts)
+    // clang-format on
     {
         BOOST_ASSERT(
             detail::positional(names) &&
@@ -160,6 +171,54 @@ namespace boost { namespace program_options_2 {
         BOOST_ASSERT(
             !names.empty() && "A command with an empty name is not supported.");
         return {names, help_text, {std::move(opts)...}};
+    }
+
+    /** TODO */
+    template<typename Func, option_or_group... Options>
+    requires(!detail::contains_commands<Options...>())
+        // clang-format off
+    detail::option_group<
+        detail::exclusive_t::no,
+        detail::subcommand_t::yes,
+        detail::required_t::no,
+        detail::named_group_t::yes,
+        std::remove_cvref_t<Func>,
+        Options...>
+    command(Func && func, std::string_view names, Options... opts)
+    // clang-format on
+    {
+        BOOST_ASSERT(
+            detail::positional(names) &&
+            "Command names must not start with dashes.");
+        BOOST_ASSERT(
+            !names.empty() && "A command with an empty name is not supported.");
+        return {names, {}, {std::move(opts)...}, (Func &&) func};
+    }
+
+    /** TODO */
+    template<typename Func, option_or_group... Options>
+    requires(!detail::contains_commands<Options...>())
+        // clang-format off
+    detail::option_group<
+        detail::exclusive_t::no,
+        detail::subcommand_t::yes,
+        detail::required_t::no,
+        detail::named_group_t::yes,
+        std::remove_cvref_t<Func>,
+        Options...>
+    command(
+        Func && func,
+        std::string_view names,
+        std::string_view help_text,
+        Options... opts)
+    // clang-format on
+    {
+        BOOST_ASSERT(
+            detail::positional(names) &&
+            "Command names must not start with dashes.");
+        BOOST_ASSERT(
+            !names.empty() && "A command with an empty name is not supported.");
+        return {names, help_text, {std::move(opts)...}, (Func &&) func};
     }
 
     /** Creates a group of options.  The group is always flattened into the
@@ -174,6 +233,7 @@ namespace boost { namespace program_options_2 {
         detail::subcommand_t::no,
         detail::required_t::no,
         detail::named_group_t::no,
+        detail::no_func,
         Option1,
         Option2,
         Options...>
@@ -195,6 +255,7 @@ namespace boost { namespace program_options_2 {
         detail::subcommand_t::no,
         detail::required_t::no,
         detail::named_group_t::yes,
+        detail::no_func,
         Option1,
         Option2,
         Options...>
