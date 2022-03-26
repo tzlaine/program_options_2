@@ -32,6 +32,7 @@ auto const arg4 = po2::argument<short>("-f", "Number of f's", 1, 1, 2, 3);
 
 // TODO: Test printing for all of the below (in the printing test).
 
+#if 0
 TEST(groups, exclusive)
 {
     auto exclusive = po2::exclusive(arg1, arg2, arg3);
@@ -107,6 +108,7 @@ response files:
         }
     }
 }
+#endif
 
 TEST(groups, command)
 {
@@ -123,12 +125,15 @@ TEST(groups, command)
         std::vector<std::string_view> args{
             "prog", "cmd", "-a", "55", "--branch", "2", "-e", "3"};
 
+        std::ostringstream os;
+        std::map<std::string_view, std::any> result;
         try {
-            std::ostringstream os;
-            std::map<std::string_view, std::any> result;
             po2::parse_command_line(args, result, "A program.", os, command);
         } catch (int) {
             // TODO: Remove this try once parsing is implemented.
+            std::cout
+                << "command line parse with commands failed; os.str() sez:\n"
+                << os.str() << "\n";
         }
     }
 
@@ -139,6 +144,7 @@ TEST(groups, command)
     // TODO: Named groups of commands
 }
 
+#if 0
 TEST(groups, group)
 {
     {
@@ -435,3 +441,4 @@ response files:
         }
     }
 }
+#endif

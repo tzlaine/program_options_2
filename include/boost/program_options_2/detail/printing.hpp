@@ -184,32 +184,6 @@ namespace boost { namespace program_options_2 { namespace detail {
             os << ']';
     }
 
-#if 0
-    template<
-        typename Stream,
-        typename Char,
-        exclusive_t MutuallyExclusive,
-        subcommand_t Subcommand,
-        required_t Required,
-        named_group_t NamedGroup,
-        typename Func,
-        typename... Options>
-    void print_args(
-        Stream & os,
-        std::basic_string_view<Char> name,
-        option_group<
-            MutuallyExclusive,
-            Subcommand,
-            Required,
-            NamedGroup,
-            Func,
-            Options...> const & group,
-        bool print_leading_space)
-    {
-        // TODO
-    }
-#endif
-
     template<typename R>
     int estimated_width(R const & r)
     {
@@ -309,6 +283,9 @@ namespace boost { namespace program_options_2 { namespace detail {
     {
         if constexpr (opt.subcommand) {
             // TODO
+            os << "COMMAND " << opt.names << "\n";
+//            current_width =
+//                detail::print_command(os, opt, first_column, current_width);
         } else if constexpr (opt.mutually_exclusive) {
             hana::for_each(opt.options, [&](auto const & opt) {
                 current_width =
