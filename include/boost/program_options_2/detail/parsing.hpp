@@ -46,7 +46,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         auto const names = names_view(strings.help_names);
         for (auto arg : args) {
             for (auto name : names) {
-                if (std::ranges::equal(arg, name))
+                if (std::ranges::equal(text::as_utf8(arg), text::as_utf8(name)))
                     return true;
             }
         }
