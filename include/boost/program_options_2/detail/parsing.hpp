@@ -1010,7 +1010,7 @@ namespace boost { namespace program_options_2 { namespace detail {
             fail,
             exclusives_seen,
             -1,
-            opts...);
+            opts...); // TODO: Wrong!  This should be opt_tuple, opts....
         if (!impl_result)
             return impl_result;
 
@@ -1037,14 +1037,16 @@ namespace boost { namespace program_options_2 { namespace detail {
         hana::fold(opt_tuple, 0_c, [&](auto i, auto const & opt) {
             auto const i_plus_1 = hana::llong_c<decltype(i)::value + 1>;
             using opt_type = std::remove_cvref_t<decltype(opt)>;
-            auto & result_i = accessor(opt, i);
-            using result_type = std::remove_cvref_t<decltype(result_i)>;
-            if constexpr (
-                !opt_type::required && detail::has_default<opt_type>() &&
-                !std::is_same_v<result_type, no_value>) {
-                if (empty(result_i)) {
-                    detail::assign_or_insert<opt_type>(
-                        result_i, opt.default_value);
+            if constexpr (!is_command<opt_type>::value) {
+                auto & result_i = accessor(opt, i);
+                using result_type = std::remove_cvref_t<decltype(result_i)>;
+                if constexpr (
+                    !opt_type::required && detail::has_default<opt_type>() &&
+                    !std::is_same_v<result_type, no_value>) {
+                    if (empty(result_i)) {
+                        detail::assign_or_insert<opt_type>(
+                            result_i, opt.default_value);
+                    }
                 }
             }
             return i_plus_1;
@@ -1229,9 +1231,6 @@ namespace boost { namespace program_options_2 { namespace detail {
         std::function<void()> & func,
         Options2 const &... opts)
     {
-        // TODO: Seems like we're missing the top-level context in
-        // parse_contexts.
-
         if (first == last) {
             // TODO: Report that a command is missing.
         }
@@ -1342,8 +1341,6 @@ namespace boost { namespace program_options_2 { namespace detail {
         using opts_as_tuple_type = hana::tuple<Options const &...>;
         opts_as_tuple_type opt_tuple{opts...};
 
-        std::function<void()> func;
-        boost::container::small_vector<cmd_parse_ctx<Char>, 8> parse_contexts;
         auto first = args.begin();
         auto const last = args.end();
 
@@ -1354,6 +1351,28 @@ namespace boost { namespace program_options_2 { namespace detail {
 
         if (skip_first)
             ++first;
+
+        std::function<void()> func;
+        boost::container::small_vector<cmd_parse_ctx<Char>, 8> parse_contexts;
+        // This is the top-level context, outsided any commands.
+        parse_contexts.push_back(
+            {std::basic_string<Char>{},
+             [&, argv0, last, program_desc, no_help](int & next_positional) {
+                 return detail::parse_options_into(
+                     map_lookup<OptionsMap>(map),
+                     next_positional,
+                     strings,
+                     false,
+                     argv0,
+                     first,
+                     last,
+                     false,
+                     program_desc,
+                     os,
+                     no_help,
+                     opt_tuple,
+                     opts...);
+             }});
 
         parse_option_result parse_result = detail::parse_commands_in_tuple(
             map,

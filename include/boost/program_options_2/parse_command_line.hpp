@@ -152,7 +152,6 @@ namespace boost { namespace program_options_2 {
         }
 
         if constexpr (detail::contains_commands<Option, Options...>()) {
-#if 1
             detail::parse_commands(
                 map,
                 strings,
@@ -163,7 +162,6 @@ namespace boost { namespace program_options_2 {
                 true,
                 opt,
                 opts...);
-#endif
         } else {
             detail::parse_options_into_map(
                 map,
