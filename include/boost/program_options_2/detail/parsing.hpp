@@ -471,6 +471,25 @@ namespace boost { namespace program_options_2 { namespace detail {
     };
 
     template<typename Char>
+    bool matches_view(std::basic_string_view<Char> arg, names_view names)
+    {
+        if (std::ranges::find_if(names, [&](auto name) {
+                return std::ranges::equal(
+                    text::as_utf8(arg), text::as_utf8(name));
+            }) != names.end()) {
+            return true;
+        }
+        return false;
+    }
+
+    template<typename Char>
+    bool matches_names(std::basic_string_view<Char> arg, std::string_view str)
+    {
+        auto const names = names_view(str);
+        return detail::matches_view(arg, names);
+    }
+
+    template<typename Char>
     struct known_dashed_argument_impl
     {
         template<typename... Options>
