@@ -981,12 +981,8 @@ namespace boost { namespace program_options_2 { namespace detail {
     {
         exclusives_map<Char> exclusives_seen;
 
-        if (first == last)
-            return {};
         if (skip_first)
             ++first;
-        if (first == last)
-            return {};
 
         auto fail = [&](parse_option_error error,
                         std::basic_string_view<Char> cl_arg_or_opt_name,
@@ -1206,6 +1202,13 @@ namespace boost { namespace program_options_2 { namespace detail {
 
 #define BOOST_PROGRAM_OPTIONS_2_INSTRUMENT_COMMAND_PARSING 1
 
+    template<typename Char>
+    struct cmd_parse_ctx
+    {
+        std::basic_string<Char> name_used_;
+        std::function<parse_option_result(int &)> parse_;
+    };
+
     template<
         typename Char,
         typename ArgsIter,
@@ -1222,9 +1225,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         std::basic_ostream<Char> & os,
         bool no_help,
         hana::tuple<Options...> const & opt_tuple,
-        boost::container::small_vector<
-            std::function<parse_option_result(int &)>,
-            8> & parse_contexts,
+        boost::container::small_vector<cmd_parse_ctx<Char>, 8> & parse_contexts,
         std::function<void()> & func,
         Options2 const &... opts)
     {
@@ -1262,23 +1263,24 @@ namespace boost { namespace program_options_2 { namespace detail {
 #endif
 
                         parse_contexts.push_back(
-                            [&, argv0, last, program_desc, no_help](
-                                int & next_positional) {
-                                return detail::parse_options_into(
-                                    map_lookup<OptionsMap>(map),
-                                    next_positional,
-                                    strings,
-                                    false,
-                                    argv0,
-                                    first,
-                                    last,
-                                    false,
-                                    program_desc,
-                                    os,
-                                    no_help,
-                                    opt.options,
-                                    opts...);
-                            });
+                            {std::basic_string<Char>(arg),
+                             [&, argv0, last, program_desc, no_help](
+                                 int & next_positional) {
+                                 return detail::parse_options_into(
+                                     map_lookup<OptionsMap>(map),
+                                     next_positional,
+                                     strings,
+                                     false,
+                                     argv0,
+                                     first,
+                                     last,
+                                     false,
+                                     program_desc,
+                                     os,
+                                     no_help,
+                                     opt.options,
+                                     opts...);
+                             }});
                         if constexpr (opt.has_func) {
                             func = [&map, f = opt.func]() { f(map); };
                         }
@@ -1341,9 +1343,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         opts_as_tuple_type opt_tuple{opts...};
 
         std::function<void()> func;
-        boost::container::
-            small_vector<std::function<parse_option_result(int &)>, 8>
-                parse_contexts;
+        boost::container::small_vector<cmd_parse_ctx<Char>, 8> parse_contexts;
         auto first = args.begin();
         auto const last = args.end();
 
@@ -1372,8 +1372,8 @@ namespace boost { namespace program_options_2 { namespace detail {
             return parse_result;
 
         int next_positional = 0;
-        for (auto & ctx : parse_contexts) {
-            parse_result = ctx(next_positional);
+        for (auto & [name, parse] : parse_contexts) {
+            parse_result = parse(next_positional);
             if (!parse_result) {
                 // TODO: Report error, if necessary.
                 return parse_result;
