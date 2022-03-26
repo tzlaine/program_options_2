@@ -757,6 +757,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         typename Char,
         typename ArgsIter,
         typename FailFunc,
+        typename OptTuple,
         typename... Options>
     parse_option_result parse_options_into_impl(
         Accessor accessor,
@@ -772,6 +773,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         FailFunc const & fail,
         exclusives_map<Char> & exclusives_seen,
         int exclusives_group,
+        OptTuple const & opt_tuple,
         Options const &... opts)
     {
         auto parse_option_ =
@@ -817,13 +819,12 @@ namespace boost { namespace program_options_2 { namespace detail {
                 fail,
                 exclusives_seen,
                 -1,
+                opt_tuple,
                 opts...);
             ++sv_it;
         };
 
         using namespace hana::literals;
-
-        auto const opt_tuple = detail::make_opt_tuple(opts...);
 
         while (first != last) {
             // Special case: an arg starting with @ names a response file.
@@ -931,6 +932,7 @@ namespace boost { namespace program_options_2 { namespace detail {
                                 fail,
                                 exclusives_seen,
                                 (int)i,
+                                opt_tuple,
                                 opts...);
                         };
                         hana::unpack(opt.options, parse_exclusive);
@@ -1010,7 +1012,8 @@ namespace boost { namespace program_options_2 { namespace detail {
             fail,
             exclusives_seen,
             -1,
-            opts...); // TODO: Wrong!  This should be opt_tuple, opts....
+            opt_tuple,
+            opts...);
         if (!impl_result)
             return impl_result;
 
