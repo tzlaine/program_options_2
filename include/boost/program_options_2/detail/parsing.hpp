@@ -20,24 +20,43 @@
 namespace boost { namespace program_options_2 { namespace detail {
 
     template<typename... Options>
-    bool no_help_option(Options const &... opts);
+    void get_help_option(
+        std::optional<names_view> & retval, Options const &... opts);
 
     template<typename Option>
-    bool no_help_option_impl(Option const & opt)
+    void
+    get_help_option_impl(std::optional<names_view> & retval, Option const & opt)
     {
         if constexpr (group_<Option>) {
-            return hana::unpack(opt.options, [](auto const &... opts) {
-                return detail::no_help_option(opts...);
+            return hana::unpack(opt.options, [&](auto const &... opts) {
+                return detail::get_help_option(retval, opts...);
             });
         } else {
-            return opt.action != detail::action_kind::help;
+            if (opt.action == detail::action_kind::help)
+                retval = names_view(opt.names);
         }
+    }
+
+    template<typename... Options>
+    void
+    get_help_option(std::optional<names_view> & retval, Options const &... opts)
+    {
+        auto dummy = (detail::get_help_option_impl(retval, opts), ..., 0);
+        (void)dummy;
+    }
+
+    template<typename... Options>
+    std::optional<names_view> help_option(Options const &... opts)
+    {
+        std::optional<names_view> retval;
+        detail::get_help_option(retval, opts...);
+        return retval;
     }
 
     template<typename... Options>
     bool no_help_option(Options const &... opts)
     {
-        return (detail::no_help_option_impl(opts) && ...);
+        return !detail::help_option(opts...);
     }
 
     template<typename Args>
@@ -1223,6 +1242,7 @@ namespace boost { namespace program_options_2 { namespace detail {
     parse_option_result parse_commands_in_tuple(
         OptionsMap & map,
         customizable_strings const & strings,
+        names_view help_names_view,
         std::basic_string_view<Char> argv0,
         ArgsIter & first,
         ArgsIter last,
@@ -1290,6 +1310,7 @@ namespace boost { namespace program_options_2 { namespace detail {
                             child_result = detail::parse_commands_in_tuple(
                                 map,
                                 strings,
+                                help_names_view,
                                 argv0,
                                 first,
                                 last,
@@ -1337,12 +1358,17 @@ namespace boost { namespace program_options_2 { namespace detail {
         Args const & args,
         std::basic_string_view<Char> program_desc,
         std::basic_ostream<Char> & os,
-        bool no_help,
         bool skip_first,
         Options const &... opts)
     {
         using opts_as_tuple_type = hana::tuple<Options const &...>;
         opts_as_tuple_type opt_tuple{opts...};
+
+        auto const default_help_names_view = names_view(strings.help_names);
+        auto const opt_names_view = detail::help_option(opts...);
+        auto const help_names_view =
+            opt_names_view ? *opt_names_view : default_help_names_view;
+        bool const no_help = !opt_names_view;
 
         auto first = args.begin();
         auto const last = args.end();
@@ -1380,6 +1406,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         parse_option_result parse_result = detail::parse_commands_in_tuple(
             map,
             strings,
+            help_names_view,
             argv0,
             first,
             last,
