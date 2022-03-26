@@ -13,6 +13,8 @@
 
 namespace boost { namespace program_options_2 {
 
+    // TODO: Try again to make these all constexpr.
+
     namespace detail {
         template<typename R>
         bool contains_ws(R const & r)
