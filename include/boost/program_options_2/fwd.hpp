@@ -45,13 +45,20 @@ namespace boost { namespace program_options_2 {
     struct customizable_strings
     {
         std::string_view usage_text = "usage: ";
+        std::string_view top_subcommand_placeholder_text = "COMMAND [...]";
+        std::string_view next_subcommand_placeholder_text = "SUB-COMMAND [...]";
         std::string_view positional_section_text = "positional arguments:";
         std::string_view optional_section_text = "optional arguments:";
-        std::string_view help_names = "-h,--help";
+        std::string_view commands_section_text = "commands:";
+        std::string_view default_help_names = "-h,--help";
         std::string_view help_description = "Print this help message and exit";
-        std::string_view response_file_description =
-            "response files:\n  Write '@file' to load a file containing "
+        std::string_view command_help_note =
+            "\nUse '{} CMD {}' for help on command CMD.";
+        std::string_view response_file_note =
+            "response files:\n  Use '@file' to load a file containing "
             "command line arguments.";
+        // TODO: use the epilog in printing.
+        std::string_view epilog = "";
 
         std::string_view mutually_exclusive_begin = " (may not be used with '{}'";
         std::string_view mutually_exclusive_continue = ", '{}'";

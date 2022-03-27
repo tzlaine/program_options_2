@@ -61,7 +61,7 @@ optional arguments:
   -e            Number of e's (may not be used with 'apple' or 'branch')
 
 response files:
-  Write '@file' to load a file containing command line arguments.
+  Use '@file' to load a file containing command line arguments.
 )");
         }
     }
@@ -103,7 +103,7 @@ optional arguments:
   -f            Number of f's (may not be used with 'apple', 'branch' or 'e')
 
 response files:
-  Write '@file' to load a file containing command line arguments.
+  Use '@file' to load a file containing command line arguments.
 )");
         }
     }
@@ -112,12 +112,116 @@ response files:
 
 TEST(groups, command)
 {
+    // TODO: Move to printing.cpp?
+    // printing
     {
-        auto command = po2::command([](auto) {}, "cmd", arg1, arg2, arg3);
+
+        auto command =
+            po2::command([](auto) {}, "cmd", "A command.", arg1, arg2, arg3);
         auto group = po2::group(command, pos1);
 
         EXPECT_TRUE(po2::detail::contains_commands<decltype(command)>());
         EXPECT_TRUE(po2::detail::contains_commands<decltype(group)>());
+
+        {
+            std::vector<std::string_view> args{"prog", "-h"};
+            std::ostringstream os;
+            std::map<std::string_view, std::any> result;
+            try {
+                po2::parse_command_line(
+                    args, result, "A program.", os, command);
+            } catch (int) {
+                // TODO: Remove this try once parsing is implemented.
+                std::cout << "command line parse with commands failed; "
+                             "os.str() sez:\n"
+                          << os.str() << "\n";
+            }
+        }
+
+        {
+            auto command_with_subcommand = po2::command(
+                "cmd",
+                "A top-level command.",
+                pos1,
+                po2::command(
+                    [](auto) {},
+                    "subcmd",
+                    "Sub-command for cmd.",
+                    arg1,
+                    arg2,
+                    arg3));
+            {
+                std::vector<std::string_view> args{"prog", "-h"};
+                std::ostringstream os;
+                std::map<std::string_view, std::any> result;
+                try {
+                    po2::parse_command_line(
+                        args,
+                        result,
+                        "A program.",
+                        os,
+                        command_with_subcommand);
+                } catch (int) {
+                    // TODO: Remove this try once parsing is implemented.
+                    std::cout << "command line parse with commands failed; "
+                                 "os.str() sez:\n"
+                              << os.str() << "\n";
+                }
+            }
+            {
+                std::vector<std::string_view> args{"prog", "cmd", "-h"};
+                std::ostringstream os;
+                std::map<std::string_view, std::any> result;
+                try {
+                    po2::parse_command_line(
+                        args,
+                        result,
+                        "A program.",
+                        os,
+                        command_with_subcommand);
+                } catch (int) {
+                    // TODO: Remove this try once parsing is implemented.
+                    std::cout << "command line parse with commands failed; "
+                                 "os.str() sez:\n"
+                              << os.str() << "\n";
+                }
+            }
+            {
+                std::vector<std::string_view> args{
+                    "prog", "cmd", "subcmd", "-h"};
+                std::ostringstream os;
+                std::map<std::string_view, std::any> result;
+                try {
+                    po2::parse_command_line(
+                        args,
+                        result,
+                        "A program.",
+                        os,
+                        command_with_subcommand);
+                } catch (int) {
+                    // TODO: Remove this try once parsing is implemented.
+                    std::cout << "command line parse with commands failed; "
+                                 "os.str() sez:\n"
+                              << os.str() << "\n";
+                }
+            }
+        }
+    }
+
+    {
+        auto command = po2::command([](auto) {}, "cmd", arg1, arg2, arg3);
+        std::vector<std::string_view> args{"prog", "-h"};
+
+        std::ostringstream os;
+        std::map<std::string_view, std::any> result;
+        try {
+            po2::parse_command_line(args, result, "A program.", os, command);
+        } catch (int) {
+            // TODO: Remove this try once parsing is implemented.
+            std::cout
+                << "command line parse with commands failed; os.str() sez:\n"
+                << os.str() << "\n";
+        }
     }
 
     {
@@ -230,7 +334,7 @@ optional arguments:
   -e            Number of e's
 
 response files:
-  Write '@file' to load a file containing command line arguments.
+  Use '@file' to load a file containing command line arguments.
 )");
         }
     }
@@ -436,7 +540,7 @@ A Group:
   -a, --apple   Number of apples
 
 response files:
-  Write '@file' to load a file containing command line arguments.
+  Use '@file' to load a file containing command line arguments.
 )");
         }
     }

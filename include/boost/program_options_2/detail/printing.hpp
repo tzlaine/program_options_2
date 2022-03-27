@@ -83,7 +83,10 @@ namespace boost { namespace program_options_2 { namespace detail {
     default_help(customizable_strings const & strings)
     {
         return {
-            strings.help_names, strings.help_description, action_kind::help, 0};
+            strings.default_help_names,
+            strings.help_description,
+            action_kind::help,
+            0};
     }
 
     constexpr inline int max_col_width = 80;
@@ -190,25 +193,47 @@ namespace boost { namespace program_options_2 { namespace detail {
         return text::estimated_width_of_graphemes(text::as_utf32(r));
     }
 
-    // brief=true is used to print the comma-delimited names in the
-    // desciptions.
+    template<typename Stream>
+    int print_option_final(
+        Stream & os,
+        int first_column,
+        int current_width,
+        int max_width,
+        std::ostringstream && local_os)
+    {
+        std::string const str(std::move(local_os).str());
+        auto const str_width = detail::estimated_width(str);
+        if (max_width < current_width + str_width) {
+            os << '\n';
+            for (int i = 0; i < first_column; ++i) {
+                os << ' ';
+            }
+            current_width = first_column;
+        } else {
+            current_width += str_width;
+        }
+        os << text::as_utf8(str);
+        return current_width;
+    }
+
     template<typename Stream, typename Option>
     int print_option(
+        customizable_strings const & strings,
         Stream & os,
         Option const & opt,
         int first_column,
         int current_width,
         int max_width = max_col_width,
-        bool brief = false)
+        bool for_post_synopsis = false)
     {
         std::ostringstream oss;
 
         oss << ' ';
 
-        if ((!opt.required || detail::flag<Option>()) && !brief)
+        if ((!opt.required || detail::flag<Option>()) && !for_post_synopsis)
             oss << '[';
 
-        if (brief) {
+        if (for_post_synopsis) {
             // This, plus the leading space in the first name printed
             // below, gives us a 2-space indent.
             oss << ' ';
@@ -239,24 +264,11 @@ namespace boost { namespace program_options_2 { namespace detail {
                 oss, detail::trim_leading_dashes(shortest_name), opt, true);
         }
 
-        if ((!opt.required || detail::flag<Option>()) && !brief)
+        if ((!opt.required || detail::flag<Option>()) && !for_post_synopsis)
             oss << ']';
 
-        std::string const str(std::move(oss).str());
-        auto const str_width = detail::estimated_width(str);
-        if (max_width < current_width + str_width) {
-            os << '\n';
-            for (int i = 0; i < first_column; ++i) {
-                os << ' ';
-            }
-            current_width = first_column;
-        } else {
-            current_width += str_width;
-        }
-
-        os << text::as_utf8(str);
-
-        return current_width;
+        return detail::print_option_final(
+            os, first_column, current_width, max_width, std::move(oss));
     }
 
     template<
@@ -268,6 +280,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         typename Func,
         typename... Options>
     int print_option(
+        customizable_strings const & strings,
         Stream & os,
         option_group<
             MutuallyExclusive,
@@ -279,25 +292,53 @@ namespace boost { namespace program_options_2 { namespace detail {
         int first_column,
         int current_width,
         int max_width = max_col_width,
-        bool brief = false)
+        bool for_post_synopsis = false)
     {
         if constexpr (opt.subcommand) {
-            // TODO
-            os << "COMMAND " << opt.names << "\n";
-//            current_width =
-//                detail::print_command(os, opt, first_column, current_width);
+            std::ostringstream oss;
+            oss << ' ';
+            if (for_post_synopsis) {
+                // This, plus the leading space in the first name printed
+                // below, gives us a 2-space indent.
+                oss << ' ';
+                bool print_separator = false;
+                for (auto name : detail::names_view(opt.names)) {
+                    if (print_separator)
+                        oss << ',' << ' ';
+                    print_separator = true;
+                    oss << text::as_utf8(name);
+                }
+            } else {
+                oss << strings.top_subcommand_placeholder_text;
+                if constexpr ((is_command<Options>::value || ...)) {
+                    oss << ' ' << strings.next_subcommand_placeholder_text;
+                }
+            }
+            return detail::print_option_final(
+                os, first_column, current_width, max_width, std::move(oss));
         } else if constexpr (opt.mutually_exclusive) {
             hana::for_each(opt.options, [&](auto const & opt) {
-                current_width =
-                    detail::print_option(os, opt, first_column, current_width);
+                current_width = detail::print_option(
+                    os,
+                    opt,
+                    first_column,
+                    current_width,
+                    max_width,
+                    for_post_synopsis);
             });
+            return current_width;
         } else { // named group
             hana::for_each(opt.options, [&](auto const & opt) {
-                current_width =
-                    detail::print_option(os, opt, first_column, current_width);
+                current_width = detail::print_option(
+                    os,
+                    opt,
+                    first_column,
+                    current_width,
+                    max_width,
+                    for_post_synopsis);
             });
+            return current_width;
         }
-        return current_width;
     }
 
     template<typename Stream, typename Char, typename... Options>
@@ -323,8 +364,8 @@ namespace boost { namespace program_options_2 { namespace detail {
         int current_width = first_column;
 
         auto print_opt = [&](auto const & opt) {
-            current_width =
-                detail::print_option(os, opt, first_column, current_width);
+            current_width = detail::print_option(
+                strings, os, opt, first_column, current_width);
         };
 
         hana::for_each(opt_tuple, print_opt);
@@ -333,11 +374,6 @@ namespace boost { namespace program_options_2 { namespace detail {
             os << '\n';
         else
             os << '\n' << '\n' << text::as_utf8(prog_desc) << '\n';
-
-        // TODO: When there are one or more subcommands in use, print
-        // all the non-subcommand options, as above, but then end with
-        // "COMMAND [COMMAND-ARGS]".  That string should of course be
-        // user-configurable.
     }
 
     struct printed_names_and_desc
@@ -407,14 +443,18 @@ namespace boost { namespace program_options_2 { namespace detail {
         }
     }
 
+    constexpr std::string_view cmd_sec_name = "__COMMANDS__unlikely_name_345__!";
+
     template<typename Stream, typename... Options>
     void print_help_post_synopsis(
+        std::string_view argv0,
         customizable_strings const & strings,
         Stream & os,
         Options const &... opts)
     {
         auto const opt_tuple = detail::make_opt_tuple_for_printing(opts...);
 
+        bool commands_in_use = false;
         int max_option_length = 0;
         std::vector<std::pair<std::string, std::vector<printed_names_and_desc>>>
             printed_sections(2);
@@ -434,12 +474,28 @@ namespace boost { namespace program_options_2 { namespace detail {
                     if constexpr (parent_opt.named_group) {
                         vec_ptr = &printed_sections.back().second;
                     }
+                } else if constexpr (is_command<std::remove_cvref_t<
+                                         decltype(curr_opt)>>::value) {
+                    if (printed_sections.size() < 3u ||
+                        printed_sections[2].first != cmd_sec_name) {
+                        printed_sections.insert(
+                            printed_sections.begin() + 2,
+                            {std::string(cmd_sec_name), {}});
+                    }
+                    vec_ptr = &printed_sections[2].second;
+                    commands_in_use = true;
                 }
                 std::vector<printed_names_and_desc> & vec = *vec_ptr;
 
                 std::ostringstream names_oss;
                 detail::print_option(
-                    names_oss, curr_opt, first_column, 0, INT_MAX, true);
+                    strings,
+                    names_oss,
+                    curr_opt,
+                    first_column,
+                    0,
+                    INT_MAX,
+                    true);
                 std::ostringstream desc_oss;
                 desc_oss << curr_opt.help_text;
 
@@ -501,7 +557,9 @@ namespace boost { namespace program_options_2 { namespace detail {
             };
 
             if constexpr (group_<std::remove_cvref_t<decltype(opt)>>) {
-                if constexpr (opt.mutually_exclusive && !opt.subcommand) {
+                if constexpr (opt.subcommand) {
+                    process_single_opt(opt, no_value{}, 0, 0);
+                } else if constexpr (opt.mutually_exclusive) {
                     auto const exclusive_opts =
                         detail::make_opt_tuple_for_printing(
                             detail::to_ref_tuple(opt.options));
@@ -511,8 +569,6 @@ namespace boost { namespace program_options_2 { namespace detail {
                         process_single_opt(curr_opt, opt, curr_opt_index, 0);
                         ++curr_opt_index;
                     });
-                } else if constexpr (opt.subcommand) {
-                    // TODO
                 } else { // named group
                     std::ostringstream oss;
                     oss << opt.names << ":";
@@ -538,34 +594,53 @@ namespace boost { namespace program_options_2 { namespace detail {
         int const description_column = (std::min)(
             max_option_length + min_help_column_gap, max_option_col_width);
 
-        std::vector<printed_names_and_desc> & printed_positionals =
-            printed_sections[0].second;
-        if (!printed_positionals.empty()) {
-            os << '\n'
-               << text::as_utf8(strings.positional_section_text) << '\n';
+        if (commands_in_use) {
+            std::vector<printed_names_and_desc> & printed_commands =
+                printed_sections[2].second;
+            os << '\n' << text::as_utf8(strings.commands_section_text) << '\n';
             detail::print_options_and_descs(
-                os, printed_positionals, description_column);
-        }
+                os, printed_commands, description_column);
 
-        std::vector<printed_names_and_desc> & printed_arguments =
-            printed_sections[1].second;
-        if (!printed_arguments.empty()) {
-            os << '\n' << text::as_utf8(strings.optional_section_text) << '\n';
-            detail::print_options_and_descs(
-                os, printed_arguments, description_column);
+            auto const help = detail::help_option(opts...);
+            detail::print_placeholder_string(
+                os,
+                strings.command_help_note,
+                argv0,
+                help ? *help->begin()
+                     : detail::first_short_name(strings.default_help_names),
+                true);
+        } else {
+            std::vector<printed_names_and_desc> & printed_positionals =
+                printed_sections[0].second;
+            if (!printed_positionals.empty()) {
+                os << '\n'
+                   << text::as_utf8(strings.positional_section_text) << '\n';
+                detail::print_options_and_descs(
+                    os, printed_positionals, description_column);
+            }
+
+            std::vector<printed_names_and_desc> & printed_arguments =
+                printed_sections[1].second;
+            if (!printed_arguments.empty()) {
+                os << '\n'
+                   << text::as_utf8(strings.optional_section_text) << '\n';
+                detail::print_options_and_descs(
+                    os, printed_arguments, description_column);
+            }
         }
 
         for (auto const & [name_and_desc, printed_opts] :
              std::ranges::drop_view{printed_sections, 2}) {
+            if (name_and_desc == cmd_sec_name)
+                continue;
             os << '\n' << name_and_desc << '\n';
             detail::print_options_and_descs(
                 os, printed_opts, description_column);
         }
 
-        if (!strings.response_file_description.empty() &&
+        if (!strings.response_file_note.empty() &&
             detail::no_response_file_option(opts...)) {
-            os << '\n'
-               << text::as_utf8(strings.response_file_description) << '\n';
+            os << '\n' << text::as_utf8(strings.response_file_note) << '\n';
         }
     }
 
@@ -580,7 +655,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         std::basic_ostringstream<Char> oss;
         print_help_synopsis(
             strings, oss, detail::program_name(argv0), desc, opts...);
-        print_help_post_synopsis(strings, oss, opts...);
+        print_help_post_synopsis(argv0, strings, oss, opts...);
         auto const str = std::move(oss).str();
         for (auto const & range :
              text::bidirectional_subranges(text::as_utf32(str))) {

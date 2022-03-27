@@ -20,40 +20,6 @@
 namespace boost { namespace program_options_2 { namespace detail {
 
     template<typename... Options>
-    void get_help_option(
-        std::optional<names_view> & retval, Options const &... opts);
-
-    template<typename Option>
-    void
-    get_help_option_impl(std::optional<names_view> & retval, Option const & opt)
-    {
-        if constexpr (group_<Option>) {
-            return hana::unpack(opt.options, [&](auto const &... opts) {
-                return detail::get_help_option(retval, opts...);
-            });
-        } else {
-            if (opt.action == detail::action_kind::help)
-                retval = names_view(opt.names);
-        }
-    }
-
-    template<typename... Options>
-    void
-    get_help_option(std::optional<names_view> & retval, Options const &... opts)
-    {
-        auto dummy = (detail::get_help_option_impl(retval, opts), ..., 0);
-        (void)dummy;
-    }
-
-    template<typename... Options>
-    std::optional<names_view> help_option(Options const &... opts)
-    {
-        std::optional<names_view> retval;
-        detail::get_help_option(retval, opts...);
-        return retval;
-    }
-
-    template<typename... Options>
     bool no_help_option(Options const &... opts)
     {
         return !detail::help_option(opts...);
@@ -63,7 +29,7 @@ namespace boost { namespace program_options_2 { namespace detail {
     bool argv_contains_default_help_flag(
         customizable_strings const & strings, Args const & args)
     {
-        auto const names = names_view(strings.help_names);
+        auto const names = names_view(strings.default_help_names);
         for (auto arg : args) {
             for (auto name : names) {
                 if (std::ranges::equal(text::as_utf8(arg), text::as_utf8(name)))
@@ -847,7 +813,7 @@ namespace boost { namespace program_options_2 { namespace detail {
 
         while (first != last) {
             // Special case: an arg starting with @ names a response file.
-            if (!strings.response_file_description.empty() && !first->empty() &&
+            if (!strings.response_file_note.empty() && !first->empty() &&
                 first->front() == '@') {
                 auto const response_file_opt =
                     program_options_2::response_file("-d", "Dummy.", strings);
@@ -1379,7 +1345,8 @@ namespace boost { namespace program_options_2 { namespace detail {
         using opts_as_tuple_type = hana::tuple<Options const &...>;
         opts_as_tuple_type opt_tuple{opts...};
 
-        auto const default_help_names_view = names_view(strings.help_names);
+        auto const default_help_names_view =
+            names_view(strings.default_help_names);
         auto const opt_names_view = detail::help_option(opts...);
         auto const help_names_view =
             opt_names_view ? *opt_names_view : default_help_names_view;
