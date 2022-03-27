@@ -34,6 +34,7 @@ add_test_executable(printing)
 add_test_executable(parse_command_line)
 add_test_executable(storage)
 add_test_executable(groups)
+add_test_executable(commands)
 
 function(add_compile_fail_test name)
     try_compile(

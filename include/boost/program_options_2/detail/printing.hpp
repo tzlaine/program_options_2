@@ -662,11 +662,6 @@ namespace boost { namespace program_options_2 { namespace detail {
                 detail::print_options_and_descs(
                     os, printed_arguments, description_column);
             }
-
-            if (!strings.response_file_note.empty() &&
-                detail::no_response_file_option(opts...)) {
-                os << '\n' << text::as_utf8(strings.response_file_note) << '\n';
-            }
         }
 
         // TODO: Printing groups of commands needs a test!
@@ -689,6 +684,10 @@ namespace boost { namespace program_options_2 { namespace detail {
                 help ? *help->begin()
                      : detail::first_short_name(strings.default_help_names),
                 true);
+        } else if (
+            !strings.response_file_note.empty() &&
+            detail::no_response_file_option(opts...)) {
+            os << '\n' << text::as_utf8(strings.response_file_note) << '\n';
         }
     }
 
