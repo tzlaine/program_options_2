@@ -47,8 +47,8 @@ namespace boost { namespace program_options_2 {
     struct customizable_strings
     {
         std::string_view usage_text = "usage: ";
-        std::string_view top_subcommand_placeholder_text = "COMMAND [...]";
-        std::string_view next_subcommand_placeholder_text = "SUB-COMMAND [...]";
+        std::string_view top_subcommand_placeholder_text = "COMMAND";
+        std::string_view next_subcommand_placeholder_text = "SUB-COMMAND";
         std::string_view positional_section_text = "positional arguments:";
         std::string_view optional_section_text = "optional arguments:";
         std::string_view commands_section_text = "commands:";

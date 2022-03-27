@@ -221,6 +221,7 @@ namespace boost { namespace program_options_2 { namespace detail {
     int print_option(
         customizable_strings const & strings,
         Stream & os,
+        int parse_contexts_size,
         Option const & opt,
         int first_column,
         int current_width,
@@ -244,7 +245,7 @@ namespace boost { namespace program_options_2 { namespace detail {
                 bool print_separator = false;
                 for (auto name : detail::names_view(opt.names)) {
                     if (print_separator)
-                        oss << ',' << ' ';
+                        oss << ", ";
                     print_separator = true;
                     oss << text::as_utf8(name);
                 }
@@ -283,6 +284,7 @@ namespace boost { namespace program_options_2 { namespace detail {
     int print_option(
         customizable_strings const & strings,
         Stream & os,
+        int parse_contexts_size,
         option_group<
             MutuallyExclusive,
             Subcommand,
@@ -305,22 +307,34 @@ namespace boost { namespace program_options_2 { namespace detail {
                 bool print_separator = false;
                 for (auto name : detail::names_view(opt.names)) {
                     if (print_separator)
-                        oss << ',' << ' ';
+                        oss << ", ";
                     print_separator = true;
                     oss << text::as_utf8(name);
                 }
             } else {
-                oss << strings.top_subcommand_placeholder_text;
-                if constexpr ((is_command<Options>::value || ...)) {
-                    oss << ' ' << strings.next_subcommand_placeholder_text;
+                bool printed_something = false;
+                if (parse_contexts_size < 2) {
+                    oss << strings.top_subcommand_placeholder_text;
+                    printed_something = true;
                 }
+                if (parse_contexts_size < 3 &&
+                    (is_command<Options>::value || ...)) {
+                    if (printed_something)
+                        oss << ' ';
+                    oss << strings.next_subcommand_placeholder_text;
+                    printed_something = true;
+                }
+                if (printed_something)
+                    oss << " [...]";
             }
             return detail::print_option_final(
                 os, first_column, current_width, max_width, std::move(oss));
         } else if constexpr (opt.mutually_exclusive) {
             hana::for_each(opt.options, [&](auto const & opt) {
                 current_width = detail::print_option(
+                    strings,
                     os,
+                    parse_contexts_size,
                     opt,
                     first_column,
                     current_width,
@@ -331,7 +345,9 @@ namespace boost { namespace program_options_2 { namespace detail {
         } else { // named group
             hana::for_each(opt.options, [&](auto const & opt) {
                 current_width = detail::print_option(
+                    strings,
                     os,
+                    parse_contexts_size,
                     opt,
                     first_column,
                     current_width,
@@ -385,7 +401,12 @@ namespace boost { namespace program_options_2 { namespace detail {
 
         auto print_opt = [&](auto const & opt) {
             current_width = detail::print_option(
-                strings, os, opt, first_column, current_width);
+                strings,
+                os,
+                parse_contexts.size(),
+                opt,
+                first_column,
+                current_width);
         };
 
         hana::for_each(opt_tuple, print_opt);
@@ -466,11 +487,12 @@ namespace boost { namespace program_options_2 { namespace detail {
     constexpr std::string_view cmd_sec_name =
         "__COMMANDS__unlikely_name_345__!";
 
-    template<typename Stream, typename... Options>
+    template<typename Char, typename Stream, typename... Options>
     void print_help_post_synopsis(
         std::string_view argv0,
         customizable_strings const & strings,
         Stream & os,
+        parse_contexts_vec<Char> const & parse_contexts,
         Options const &... opts)
     {
         auto const opt_tuple = detail::make_opt_tuple_for_printing(opts...);
@@ -512,6 +534,7 @@ namespace boost { namespace program_options_2 { namespace detail {
                 detail::print_option(
                     strings,
                     names_oss,
+                    parse_contexts.size(),
                     curr_opt,
                     first_column,
                     0,
@@ -686,7 +709,7 @@ namespace boost { namespace program_options_2 { namespace detail {
             desc,
             parse_contexts,
             opts...);
-        print_help_post_synopsis(argv0, strings, oss, opts...);
+        print_help_post_synopsis(argv0, strings, oss, parse_contexts, opts...);
         auto const str = std::move(oss).str();
         for (auto const & range :
              text::bidirectional_subranges(text::as_utf32(str))) {
