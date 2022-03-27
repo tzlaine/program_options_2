@@ -12,7 +12,6 @@
 #include <boost/program_options_2/detail/printing.hpp>
 
 #include <boost/container/flat_map.hpp>
-#include <boost/container/small_vector.hpp>
 #include <boost/parser/parser.hpp>
 #include <boost/type_traits/is_detected.hpp>
 
@@ -293,22 +292,6 @@ namespace boost { namespace program_options_2 { namespace detail {
         }
     }
 
-    enum struct parse_option_error {
-        none,
-
-        unknown_arg,
-        wrong_number_of_args,
-        cannot_parse_arg,
-        no_such_choice,
-        extra_positional,
-        missing_positional,
-        too_many_mutally_exclusives,
-
-        // This one must come last, to match
-        // customizable_strings::parse_errors.
-        validation_error
-    };
-
     template<typename Char>
     void print_parse_error(
         customizable_strings const & strings,
@@ -397,8 +380,16 @@ namespace boost { namespace program_options_2 { namespace detail {
 #endif
             std::exit(0);
         } else {
+            parse_contexts_vec<Char> const parse_contexts;
             detail::print_help_and_exit(
-                0, strings, argv0, program_desc, os, no_help, opts...);
+                0,
+                strings,
+                argv0,
+                program_desc,
+                os,
+                no_help,
+                parse_contexts,
+                opts...);
         }
     }
 
@@ -428,6 +419,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         std::basic_ostream<Char> & os,
         bool no_help,
         std::basic_string_view<Char> error,
+        parse_contexts_vec<Char> const & parse_contexts,
         Options const &... opts)
     {
         if (deserializing)
@@ -435,26 +427,15 @@ namespace boost { namespace program_options_2 { namespace detail {
         os << text::as_utf8(error);
         os << '\n';
         detail::print_help_and_exit(
-            1, strings, argv0, program_desc, os, no_help, opts...);
+            1,
+            strings,
+            argv0,
+            program_desc,
+            os,
+            no_help,
+            parse_contexts,
+            opts...);
     }
-
-    struct parse_option_result
-    {
-        enum next_t {
-            match_keep_parsing,
-            no_match_keep_parsing,
-            stop_parsing,
-
-            // In this one case, the current arg is the response file.  That
-            // is, it is not consumed within parse_option().
-            response_file
-        };
-
-        explicit operator bool() const { return next != stop_parsing; }
-
-        next_t next = no_match_keep_parsing;
-        parse_option_error error = parse_option_error::none;
-    };
 
     template<typename Char>
     bool matches_view(std::basic_string_view<Char> arg, names_view names)
@@ -531,6 +512,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         int & next_positional,
         exclusives_map<Char> & exclusives_seen,
         int exclusives_group,
+        parse_contexts_vec<Char> const & parse_contexts,
         Options const &... opts)
     {
         if (first == last)
@@ -646,6 +628,7 @@ namespace boost { namespace program_options_2 { namespace detail {
                     os,
                     no_help,
                     validation_error,
+                    parse_contexts,
                     opts...);
             };
 
@@ -759,6 +742,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         exclusives_map<Char> & exclusives_seen,
         int exclusives_group,
         OptTuple const & opt_tuple,
+        parse_contexts_vec<Char> const & parse_contexts,
         Options const &... opts)
     {
         auto parse_option_ =
@@ -777,6 +761,7 @@ namespace boost { namespace program_options_2 { namespace detail {
                     next_positional,
                     exclusives_seen,
                     exclusives_group,
+                    parse_contexts,
                     opts...);
             };
 
@@ -805,6 +790,7 @@ namespace boost { namespace program_options_2 { namespace detail {
                 exclusives_seen,
                 -1,
                 opt_tuple,
+                parse_contexts,
                 opts...);
             ++sv_it;
         };
@@ -828,6 +814,7 @@ namespace boost { namespace program_options_2 { namespace detail {
                         os,
                         no_help,
                         validation.error,
+                        parse_contexts,
                         opts...);
                     return {
                         parse_option_result::stop_parsing,
@@ -918,6 +905,7 @@ namespace boost { namespace program_options_2 { namespace detail {
                                 exclusives_seen,
                                 (int)i,
                                 opt_tuple,
+                                parse_contexts,
                                 opts...);
                         };
                         hana::unpack(opt.options, parse_exclusive);
@@ -964,6 +952,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         std::basic_ostream<Char> & os,
         bool no_help,
         OptTuple const & opt_tuple,
+        parse_contexts_vec<Char> const & parse_contexts,
         Options const &... opts)
     {
         exclusives_map<Char> exclusives_seen;
@@ -980,7 +969,14 @@ namespace boost { namespace program_options_2 { namespace detail {
                 strings, os, error, cl_arg_or_opt_name, opt_name);
             os << '\n';
             detail::print_help_and_exit(
-                1, strings, argv0, program_desc, os, no_help, opts...);
+                1,
+                strings,
+                argv0,
+                program_desc,
+                os,
+                no_help,
+                parse_contexts,
+                opts...);
         };
 
         auto const impl_result = detail::parse_options_into_impl(
@@ -998,6 +994,7 @@ namespace boost { namespace program_options_2 { namespace detail {
             exclusives_seen,
             -1,
             opt_tuple,
+            parse_contexts,
             opts...);
         if (!impl_result)
             return impl_result;
@@ -1065,6 +1062,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         std::basic_string<Char> const argv0_str(first->begin(), first->end());
         std::basic_string_view<Char> argv0 = argv0_str;
 
+        parse_contexts_vec<Char> const parse_contexts;
         detail::parse_options_into(
             [&](auto const & opt, auto i) -> decltype(auto) {
                 return result[i];
@@ -1080,6 +1078,7 @@ namespace boost { namespace program_options_2 { namespace detail {
             os,
             no_help,
             opt_tuple,
+            parse_contexts,
             opts...);
         return result;
     }
@@ -1172,6 +1171,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         std::basic_string<Char> const argv0_str(first->begin(), first->end());
         std::basic_string_view<Char> argv0 = argv0_str;
 
+        parse_contexts_vec<Char> const parse_contexts;
         auto const retval = detail::parse_options_into(
             map_lookup<OptionsMap>(result),
             next_positional,
@@ -1185,22 +1185,13 @@ namespace boost { namespace program_options_2 { namespace detail {
             os,
             no_help,
             opt_tuple,
+            parse_contexts,
             opts...);
         detail::parse_into_map_cleanup(result);
         return retval;
     }
 
 #define BOOST_PROGRAM_OPTIONS_2_INSTRUMENT_COMMAND_PARSING 1
-
-    template<typename Char>
-    struct cmd_parse_ctx
-    {
-        std::basic_string<Char> name_used_;
-        std::function<parse_option_result(int &)> parse_;
-    };
-    template<typename Char>
-    using parse_contexts_vec =
-        boost::container::small_vector<cmd_parse_ctx<Char>, 8>;
 
     template<
         typename Char,
@@ -1235,13 +1226,19 @@ namespace boost { namespace program_options_2 { namespace detail {
         auto const & arg = *first;
 
         if (detail::matches_view(arg, help_names_view)) {
-            detail::print_help_for_command_and_exit(
-                parse_contexts,
+#if BOOST_PROGRAM_OPTIONS_2_INSTRUMENT_COMMAND_PARSING
+            std::cout << "parse_commands_in_tuple(): "
+                         "detail::print_help_for_command_and_exit()"
+                      << std::endl;
+#endif
+            detail::print_help_and_exit(
+                0,
                 strings,
                 argv0,
                 program_desc,
                 os,
                 no_help,
+                parse_contexts,
                 opts...);
         }
 
@@ -1282,8 +1279,14 @@ namespace boost { namespace program_options_2 { namespace detail {
                                      os,
                                      no_help,
                                      opt.options,
+                                     parse_contexts,
                                      opts...);
                              }});
+#if BOOST_PROGRAM_OPTIONS_2_INSTRUMENT_COMMAND_PARSING
+                        std::cout << "parse_commands_in_tuple(): "
+                                     "parse_contexts.size()="
+                                  << parse_contexts.size() << std::endl;
+#endif
                         if constexpr (opt.has_func) {
                             func = [&map, f = opt.func]() { f(map); };
                         }
@@ -1382,6 +1385,7 @@ namespace boost { namespace program_options_2 { namespace detail {
                      os,
                      no_help,
                      opt_tuple,
+                     parse_contexts,
                      opts...);
              }});
 

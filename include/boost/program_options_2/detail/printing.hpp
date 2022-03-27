@@ -119,8 +119,9 @@ namespace boost { namespace program_options_2 { namespace detail {
     struct is_printable<
         Stream,
         T,
-        hana::when_valid<decltype(
-            std::declval<Stream &>() << std::declval<T>())>> : std::true_type
+        hana::when_valid<
+            decltype(std::declval<Stream &>() << std::declval<T>())>>
+        : std::true_type
     {};
 
     template<typename Stream, typename Option>
@@ -341,21 +342,40 @@ namespace boost { namespace program_options_2 { namespace detail {
         }
     }
 
+    template<typename Stream, typename Char>
+    int print_prog_and_commands(
+        Stream & os,
+        std::basic_string_view<Char> prog,
+        parse_contexts_vec<Char> const & parse_contexts)
+    {
+        int retval = detail::estimated_width(prog);
+        os << text::as_utf8(prog);
+        if (parse_contexts.empty())
+            return retval;
+        for (auto const & [name, parse_func] :
+             std::ranges::drop_view{parse_contexts, 1}) {
+            os << ' ' << name;
+            retval += 1 + detail::estimated_width(name);
+        }
+        return retval;
+    }
+
     template<typename Stream, typename Char, typename... Options>
     void print_help_synopsis(
         customizable_strings const & strings,
         Stream & os,
         std::basic_string_view<Char> prog,
         std::basic_string_view<Char> prog_desc,
+        parse_contexts_vec<Char> const & parse_contexts,
         Options const &... opts)
     {
         auto const opt_tuple = detail::make_opt_tuple_for_printing(opts...);
 
-        os << text::as_utf8(strings.usage_text) << ' ' << text::as_utf8(prog);
-
+        os << text::as_utf8(strings.usage_text) << ' ';
         int const usage_colon_width =
             detail::estimated_width(strings.usage_text);
-        int const prog_width = detail::estimated_width(prog);
+        int const prog_width =
+            detail::print_prog_and_commands(os, prog, parse_contexts);
 
         int first_column = usage_colon_width + 1 + prog_width;
         if (detail::max_col_width / 2 < first_column)
@@ -443,7 +463,8 @@ namespace boost { namespace program_options_2 { namespace detail {
         }
     }
 
-    constexpr std::string_view cmd_sec_name = "__COMMANDS__unlikely_name_345__!";
+    constexpr std::string_view cmd_sec_name =
+        "__COMMANDS__unlikely_name_345__!";
 
     template<typename Stream, typename... Options>
     void print_help_post_synopsis(
@@ -600,15 +621,6 @@ namespace boost { namespace program_options_2 { namespace detail {
             os << '\n' << text::as_utf8(strings.commands_section_text) << '\n';
             detail::print_options_and_descs(
                 os, printed_commands, description_column);
-
-            auto const help = detail::help_option(opts...);
-            detail::print_placeholder_string(
-                os,
-                strings.command_help_note,
-                argv0,
-                help ? *help->begin()
-                     : detail::first_short_name(strings.default_help_names),
-                true);
         } else {
             std::vector<printed_names_and_desc> & printed_positionals =
                 printed_sections[0].second;
@@ -627,8 +639,15 @@ namespace boost { namespace program_options_2 { namespace detail {
                 detail::print_options_and_descs(
                     os, printed_arguments, description_column);
             }
+
+            if (!strings.response_file_note.empty() &&
+                detail::no_response_file_option(opts...)) {
+                os << '\n' << text::as_utf8(strings.response_file_note) << '\n';
+            }
         }
 
+        // TODO: Printing groups of commands needs a test!
+        // Prints either groups of options or groups of commands.
         for (auto const & [name_and_desc, printed_opts] :
              std::ranges::drop_view{printed_sections, 2}) {
             if (name_and_desc == cmd_sec_name)
@@ -638,9 +657,15 @@ namespace boost { namespace program_options_2 { namespace detail {
                 os, printed_opts, description_column);
         }
 
-        if (!strings.response_file_note.empty() &&
-            detail::no_response_file_option(opts...)) {
-            os << '\n' << text::as_utf8(strings.response_file_note) << '\n';
+        if (commands_in_use) {
+            auto const help = detail::help_option(opts...);
+            detail::print_placeholder_string(
+                os,
+                strings.command_help_note,
+                argv0,
+                help ? *help->begin()
+                     : detail::first_short_name(strings.default_help_names),
+                true);
         }
     }
 
@@ -650,11 +675,17 @@ namespace boost { namespace program_options_2 { namespace detail {
         std::basic_ostream<Char> & os,
         std::basic_string_view<Char> argv0,
         std::basic_string_view<Char> desc,
+        parse_contexts_vec<Char> const & parse_contexts,
         Options const &... opts)
     {
         std::basic_ostringstream<Char> oss;
-        print_help_synopsis(
-            strings, oss, detail::program_name(argv0), desc, opts...);
+        detail::print_help_synopsis(
+            strings,
+            oss,
+            detail::program_name(argv0),
+            desc,
+            parse_contexts,
+            opts...);
         print_help_post_synopsis(argv0, strings, oss, opts...);
         auto const str = std::move(oss).str();
         for (auto const & range :
@@ -671,7 +702,8 @@ namespace boost { namespace program_options_2 { namespace detail {
         std::basic_string_view<Char> program_desc,
         std::basic_ostream<Char> & os,
         bool no_help,
-        Options... opts)
+        parse_contexts_vec<Char> const & parse_contexts,
+        Options const &... opts)
     {
         if (no_help) {
             detail::print_help(
@@ -679,10 +711,12 @@ namespace boost { namespace program_options_2 { namespace detail {
                 os,
                 argv0,
                 program_desc,
+                parse_contexts,
                 detail::default_help(strings),
                 opts...);
         } else {
-            detail::print_help(strings, os, argv0, program_desc, opts...);
+            detail::print_help(
+                strings, os, argv0, program_desc, parse_contexts, opts...);
         }
 #ifdef BOOST_PROGRAM_OPTIONS_2_TESTING
         throw 0;
@@ -690,28 +724,8 @@ namespace boost { namespace program_options_2 { namespace detail {
         std::exit(exit_code);
     }
 
-    template<typename Char, typename ParseContextsVec, typename... Options>
-    void print_help_for_command_and_exit(
-        ParseContextsVec const & parse_contexts,
-        customizable_strings const & strings,
-        std::basic_string_view<Char> argv0,
-        std::basic_string_view<Char> program_desc,
-        std::basic_ostream<Char> & os,
-        bool no_help,
-        Options... opts)
-    {
-        if (parse_contexts.size() == 1u) {
-            detail::print_help_and_exit(
-                0, strings, argv0, program_desc, os, no_help, opts...);
-        } else {
-            // TODO
-#ifdef BOOST_PROGRAM_OPTIONS_2_TESTING
-            throw 0;
-#endif
-            std::exit(0);
-        }
-    }
-
+    // TODO: I think the as_utf8() calls below imply that the Char types here
+    // can (must?) all be different and this will still work.
     template<typename Char>
     void print_placeholder_string(
         std::basic_ostream<Char> & os,

@@ -355,6 +355,8 @@ TEST(printing, detail_print_help_synopsis)
 {
     std::string const exe = std::string("foo") + po2::detail::fs_sep + "bar";
 
+    po2::detail::parse_contexts_vec<char> const parse_contexts;
+
     {
         std::ostringstream os;
         po2::detail::print_help_synopsis(
@@ -362,6 +364,7 @@ TEST(printing, detail_print_help_synopsis)
             os,
             sv(exe),
             sv("A program that does things."),
+            parse_contexts,
             po2::positional<int>("foo", ""));
         EXPECT_EQ(os.str(), R"(usage:  foo/bar FOO
 
@@ -376,6 +379,7 @@ A program that does things.
             os,
             sv(exe),
             sv("A program that does things."),
+            parse_contexts,
             po2::positional<std::vector<int>>("foo", "", 30));
         EXPECT_EQ(os.str(), R"(usage:  foo/bar
                 FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO
@@ -393,6 +397,7 @@ A program that does things.
             os,
             sv(long_exe),
             sv("A program that does things."),
+            parse_contexts,
             po2::positional<std::vector<int>>("foo", "", 30));
         EXPECT_EQ(
             os.str(), R"(usage:  foo/barrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr
@@ -409,7 +414,7 @@ po2::customizable_strings user_strings()
     retval.usage_text = "USAGE: ";
     retval.positional_section_text = "POSITIONAL arguments:";
     retval.optional_section_text = "OPTIONAL arguments:";
-    retval.help_names = "-r,--redacted";
+    retval.default_help_names = "-r,--redacted";
     retval.help_description = "Nothing to see here.";
     return retval;
 }
@@ -629,7 +634,7 @@ response files:
     }
     {
         po2::customizable_strings strings;
-        strings.response_file_description = "";
+        strings.response_file_note = "";
 
         std::ostringstream os;
         try {

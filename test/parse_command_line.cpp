@@ -35,7 +35,7 @@ po2::customizable_strings user_strings()
     retval.usage_text = "USAGE: ";
     retval.positional_section_text = "POSITIONAL arguments:";
     retval.optional_section_text = "OPTIONAL arguments:";
-    retval.help_names = "-r,--redacted";
+    retval.default_help_names = "-r,--redacted";
     retval.help_description = "Nothing to see here.";
     return retval;
 }
@@ -1971,7 +1971,7 @@ TEST(parse_command_line, response_files)
 
     {
         po2::customizable_strings strings;
-        strings.response_file_description = "";
+        strings.response_file_note = "";
 
         std::ostringstream os;
         try {

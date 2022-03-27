@@ -150,6 +150,7 @@ TEST(groups, command)
                     arg1,
                     arg2,
                     arg3));
+
             {
                 std::vector<std::string_view> args{"prog", "-h"};
                 std::ostringstream os;

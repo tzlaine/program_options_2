@@ -9,6 +9,8 @@
 #include <boost/program_options_2/config.hpp>
 #include <boost/program_options_2/tag_invoke.hpp>
 
+#include <boost/container/small_vector.hpp>
+
 #include <boost/any.hpp>
 
 // Silence very verbose warnings about std::is_pod being deprecated.  TODO:
@@ -390,6 +392,50 @@ namespace boost { namespace program_options_2 {
         {
             return opt.args == zero_or_more || opt.args == one_or_more;
         }
+
+        enum struct parse_option_error {
+            none,
+
+            unknown_arg,
+            wrong_number_of_args,
+            cannot_parse_arg,
+            no_such_choice,
+            extra_positional,
+            missing_positional,
+            too_many_mutally_exclusives,
+
+            // This one must come last, to match
+            // customizable_strings::parse_errors.
+            validation_error
+        };
+
+        struct parse_option_result
+        {
+            enum next_t {
+                match_keep_parsing,
+                no_match_keep_parsing,
+                stop_parsing,
+
+                // In this one case, the current arg is the response file.  That
+                // is, it is not consumed within parse_option().
+                response_file
+            };
+
+            explicit operator bool() const { return next != stop_parsing; }
+
+            next_t next = no_match_keep_parsing;
+            parse_option_error error = parse_option_error::none;
+        };
+
+        template<typename Char>
+        struct cmd_parse_ctx
+        {
+            std::basic_string<Char> name_used_;
+            std::function<parse_option_result(int &)> parse_;
+        };
+        template<typename Char>
+        using parse_contexts_vec =
+            boost::container::small_vector<cmd_parse_ctx<Char>, 8>;
     }
 
     /** TODO */
