@@ -1232,6 +1232,9 @@ namespace boost { namespace program_options_2 { namespace detail {
         std::basic_string<Char> name_used_;
         std::function<parse_option_result(int &)> parse_;
     };
+    template<typename Char>
+    using parse_contexts_vec =
+        boost::container::small_vector<cmd_parse_ctx<Char>, 8>;
 
     template<
         typename Char,
@@ -1250,7 +1253,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         std::basic_ostream<Char> & os,
         bool no_help,
         hana::tuple<Options...> const & opt_tuple,
-        boost::container::small_vector<cmd_parse_ctx<Char>, 8> & parse_contexts,
+        parse_contexts_vec<Char> & parse_contexts,
         std::function<void()> & func,
         Options2 const &... opts)
     {
@@ -1264,6 +1267,18 @@ namespace boost { namespace program_options_2 { namespace detail {
 #endif
 
         auto const & arg = *first;
+
+        if (detail::matches_view(arg, help_names_view)) {
+            detail::print_help_for_command_and_exit(
+                parse_contexts,
+                strings,
+                argv0,
+                program_desc,
+                os,
+                no_help,
+                opts...);
+        }
+
         bool matched_command = false;
         parse_option_result child_result;
         hana::for_each(opt_tuple, [&]<typename Option>(Option const & opt) {
@@ -1382,7 +1397,7 @@ namespace boost { namespace program_options_2 { namespace detail {
             ++first;
 
         std::function<void()> func;
-        boost::container::small_vector<cmd_parse_ctx<Char>, 8> parse_contexts;
+        parse_contexts_vec<Char> parse_contexts;
         // This is the top-level context, outsided any commands.
         parse_contexts.push_back(
             {std::basic_string<Char>{},

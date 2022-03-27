@@ -615,6 +615,28 @@ namespace boost { namespace program_options_2 { namespace detail {
         std::exit(exit_code);
     }
 
+    template<typename Char, typename ParseContextsVec, typename... Options>
+    void print_help_for_command_and_exit(
+        ParseContextsVec const & parse_contexts,
+        customizable_strings const & strings,
+        std::basic_string_view<Char> argv0,
+        std::basic_string_view<Char> program_desc,
+        std::basic_ostream<Char> & os,
+        bool no_help,
+        Options... opts)
+    {
+        if (parse_contexts.size() == 1u) {
+            detail::print_help_and_exit(
+                0, strings, argv0, program_desc, os, no_help, opts...);
+        } else {
+            // TODO
+#ifdef BOOST_PROGRAM_OPTIONS_2_TESTING
+            throw 0;
+#endif
+            std::exit(0);
+        }
+    }
+
     template<typename Char>
     void print_placeholder_string(
         std::basic_ostream<Char> & os,
