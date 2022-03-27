@@ -249,7 +249,6 @@ TEST(groups, command)
     // TODO: Named groups of commands
 }
 
-#if 0
 TEST(groups, group)
 {
     {
@@ -546,4 +545,3 @@ response files:
         }
     }
 }
-#endif
