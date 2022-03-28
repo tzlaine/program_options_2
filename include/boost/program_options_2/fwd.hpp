@@ -427,15 +427,16 @@ namespace boost { namespace program_options_2 {
             parse_option_error error = parse_option_error::none;
         };
 
-        template<typename Char>
         struct cmd_parse_ctx
         {
-            std::basic_string<Char> name_used_;
+            std::string name_used_;
             std::function<parse_option_result(int &)> parse_;
+            std::string commands_synopsis_text_;
+            bool has_subcommands_ = false;
         };
-        template<typename Char>
+
         using parse_contexts_vec =
-            boost::container::small_vector<cmd_parse_ctx<Char>, 8>;
+            boost::container::small_vector<cmd_parse_ctx, 8>;
     }
 
     /** TODO */

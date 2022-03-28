@@ -380,7 +380,7 @@ namespace boost { namespace program_options_2 { namespace detail {
 #endif
             std::exit(0);
         } else {
-            parse_contexts_vec<Char> const parse_contexts;
+            parse_contexts_vec const parse_contexts;
             detail::print_help_and_exit(
                 0,
                 strings,
@@ -419,7 +419,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         std::basic_ostream<Char> & os,
         bool no_help,
         std::basic_string_view<Char> error,
-        parse_contexts_vec<Char> const & parse_contexts,
+        parse_contexts_vec const & parse_contexts,
         Options const &... opts)
     {
         if (deserializing)
@@ -512,7 +512,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         int & next_positional,
         exclusives_map<Char> & exclusives_seen,
         int exclusives_group,
-        parse_contexts_vec<Char> const & parse_contexts,
+        parse_contexts_vec const & parse_contexts,
         Options const &... opts)
     {
         if (first == last)
@@ -742,7 +742,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         exclusives_map<Char> & exclusives_seen,
         int exclusives_group,
         OptTuple const & opt_tuple,
-        parse_contexts_vec<Char> const & parse_contexts,
+        parse_contexts_vec const & parse_contexts,
         Options const &... opts)
     {
         auto parse_option_ =
@@ -952,7 +952,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         std::basic_ostream<Char> & os,
         bool no_help,
         OptTuple const & opt_tuple,
-        parse_contexts_vec<Char> const & parse_contexts,
+        parse_contexts_vec const & parse_contexts,
         Options const &... opts)
     {
         exclusives_map<Char> exclusives_seen;
@@ -1062,7 +1062,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         std::basic_string<Char> const argv0_str(first->begin(), first->end());
         std::basic_string_view<Char> argv0 = argv0_str;
 
-        parse_contexts_vec<Char> const parse_contexts;
+        parse_contexts_vec const parse_contexts;
         detail::parse_options_into(
             [&](auto const & opt, auto i) -> decltype(auto) {
                 return result[i];
@@ -1171,7 +1171,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         std::basic_string<Char> const argv0_str(first->begin(), first->end());
         std::basic_string_view<Char> argv0 = argv0_str;
 
-        parse_contexts_vec<Char> const parse_contexts;
+        parse_contexts_vec const parse_contexts;
         auto const retval = detail::parse_options_into(
             map_lookup<OptionsMap>(result),
             next_positional,
@@ -1210,7 +1210,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         std::basic_ostream<Char> & os,
         bool no_help,
         hana::tuple<Options...> const & opt_tuple,
-        parse_contexts_vec<Char> & parse_contexts,
+        parse_contexts_vec & parse_contexts,
         std::function<void()> & func,
         Options2 const &... opts)
     {
@@ -1262,15 +1262,17 @@ namespace boost { namespace program_options_2 { namespace detail {
                                   << std::endl;
 #endif
 
+                        auto options_tuple = hana::unpack(
+                            opt.options, [](auto const &... opts2) {
+                                return detail::make_opt_tuple(opts2...);
+                            });
+                        bool const has_subcommands =
+                            (is_command<Options>::value || ...);
+                        auto const utf_arg = text::as_utf8(arg);
                         parse_contexts.push_back(
-                            {std::basic_string<Char>(arg),
+                            {std::string(utf_arg.begin(), utf_arg.end()),
                              [&, argv0, last, program_desc, no_help](
                                  int & next_positional) {
-                                 auto opt_tuple = hana::unpack(
-                                     opt.options, [](auto const &... opts2) {
-                                         return detail::make_opt_tuple(
-                                             opts2...);
-                                     });
                                  return detail::parse_options_into(
                                      map_lookup<OptionsMap>(map),
                                      next_positional,
@@ -1283,10 +1285,23 @@ namespace boost { namespace program_options_2 { namespace detail {
                                      program_desc,
                                      os,
                                      no_help,
-                                     opt_tuple,
+                                     options_tuple,
                                      parse_contexts,
                                      opts...);
-                             }});
+                             },
+                             has_subcommands
+                                 ? std::string(
+                                       strings.next_subcommand_placeholder_text)
+                                 : std::string(),
+                             has_subcommands});
+                        if (parse_contexts.size() == 2u) {
+                            // To understand this, see the KLUDGE note in
+                            // parse_commands() below.
+                            parse_contexts[0].commands_synopsis_text_ += ' ';
+                            parse_contexts[0].commands_synopsis_text_ +=
+                                strings.next_subcommand_placeholder_text;
+                            parse_contexts[0].has_subcommands_ = true;
+                        }
 #if BOOST_PROGRAM_OPTIONS_2_INSTRUMENT_COMMAND_PARSING
                         std::cout << "parse_commands_in_tuple(): "
                                      "parse_contexts.size()="
@@ -1375,10 +1390,10 @@ namespace boost { namespace program_options_2 { namespace detail {
             ++first;
 
         std::function<void()> func;
-        parse_contexts_vec<Char> parse_contexts;
+        parse_contexts_vec parse_contexts;
         // This is the top-level context, outsided any commands.
         parse_contexts.push_back(
-            {std::basic_string<Char>{},
+            {std::string{},
              [&, argv0, last, program_desc, no_help](int & next_positional) {
                  return detail::parse_options_into(
                      map_lookup<OptionsMap>(map),
@@ -1395,7 +1410,13 @@ namespace boost { namespace program_options_2 { namespace detail {
                      opt_tuple,
                      parse_contexts,
                      opts...);
-             }});
+             },
+             std::string(strings.top_subcommand_placeholder_text),
+             // KLUDGE: This false is here to indicate that we have not yet
+             // appended strings.next_subcommand_placeholder_text above.  If we
+             // find ourselves deep enough in subcommands, we will, and we'll
+             // also set this false to true.
+             false});
 
         parse_option_result parse_result = detail::parse_commands_in_tuple(
             map,
@@ -1415,7 +1436,7 @@ namespace boost { namespace program_options_2 { namespace detail {
             return parse_result;
 
         int next_positional = 0;
-        for (auto & [name, parse] : parse_contexts) {
+        for (auto & [name, parse, dont, care] : parse_contexts) {
             parse_result = parse(next_positional);
             if (!parse_result) {
                 // TODO: Report error, if necessary.

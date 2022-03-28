@@ -41,7 +41,7 @@ namespace boost { namespace program_options_2 {
         bool const no_help = detail::no_help_option(opt, opts...);
 
         if (no_help && detail::argv_contains_default_help_flag(strings, args)) {
-            detail::parse_contexts_vec<char> const parse_contexts;
+            detail::parse_contexts_vec const parse_contexts;
             detail::print_help_and_exit(
                 0,
                 strings,
@@ -145,7 +145,7 @@ namespace boost { namespace program_options_2 {
         } else {
             bool const no_help = detail::no_help_option(opt, opts...);
 
-            detail::parse_contexts_vec<char> const parse_contexts;
+            detail::parse_contexts_vec const parse_contexts;
             if (no_help &&
                 detail::argv_contains_default_help_flag(strings, args)) {
                 detail::print_help_and_exit(

@@ -362,13 +362,13 @@ namespace boost { namespace program_options_2 { namespace detail {
     int print_prog_and_commands(
         Stream & os,
         std::basic_string_view<Char> prog,
-        parse_contexts_vec<Char> const & parse_contexts)
+        parse_contexts_vec const & parse_contexts)
     {
         int retval = detail::estimated_width(prog);
         os << text::as_utf8(prog);
         if (parse_contexts.empty())
             return retval;
-        for (auto const & [name, parse_func] :
+        for (auto const & [name, parse_func, dont, care] :
              std::ranges::drop_view{parse_contexts, 1}) {
             os << ' ' << name;
             retval += 1 + detail::estimated_width(name);
@@ -382,7 +382,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         Stream & os,
         std::basic_string_view<Char> prog,
         std::basic_string_view<Char> prog_desc,
-        parse_contexts_vec<Char> const & parse_contexts,
+        parse_contexts_vec const & parse_contexts,
         Options const &... opts)
     {
         auto const opt_tuple = detail::make_opt_tuple_for_printing(opts...);
@@ -487,12 +487,12 @@ namespace boost { namespace program_options_2 { namespace detail {
     constexpr std::string_view cmd_sec_name =
         "__COMMANDS__unlikely_name_345__!";
 
-    template<typename Char, typename Stream, typename... Options>
+    template<typename Stream, typename... Options>
     void print_help_post_synopsis(
         std::string_view argv0,
         customizable_strings const & strings,
         Stream & os,
-        parse_contexts_vec<Char> const & parse_contexts,
+        parse_contexts_vec const & parse_contexts,
         Options const &... opts)
     {
         auto const opt_tuple = detail::make_opt_tuple_for_printing(opts...);
@@ -697,7 +697,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         std::basic_ostream<Char> & os,
         std::basic_string_view<Char> argv0,
         std::basic_string_view<Char> desc,
-        parse_contexts_vec<Char> const & parse_contexts,
+        parse_contexts_vec const & parse_contexts,
         Options const &... opts)
     {
         std::basic_ostringstream<Char> oss;
@@ -724,7 +724,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         std::basic_string_view<Char> program_desc,
         std::basic_ostream<Char> & os,
         bool no_help,
-        parse_contexts_vec<Char> const & parse_contexts,
+        parse_contexts_vec const & parse_contexts,
         Options const &... opts)
     {
         if (no_help) {

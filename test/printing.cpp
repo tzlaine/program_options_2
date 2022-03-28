@@ -355,7 +355,7 @@ TEST(printing, detail_print_help_synopsis)
 {
     std::string const exe = std::string("foo") + po2::detail::fs_sep + "bar";
 
-    po2::detail::parse_contexts_vec<char> const parse_contexts;
+    po2::detail::parse_contexts_vec const parse_contexts;
 
     {
         std::ostringstream os;
