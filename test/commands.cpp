@@ -41,7 +41,7 @@ TEST(commands, command)
 
         auto command =
             po2::command([](auto) {}, "cmd", "A command.", arg1, arg2, arg3);
-        auto group = po2::group(command, pos1);
+        auto group = po2::group(pos1, command);
 
         EXPECT_TRUE(po2::detail::contains_commands<decltype(command)>());
         EXPECT_TRUE(po2::detail::contains_commands<decltype(group)>());
@@ -52,7 +52,7 @@ TEST(commands, command)
             std::map<std::string_view, std::any> result;
             try {
                 po2::parse_command_line(
-                    args, result, "A program.", os, command);
+                    args, result, "A program.", os, group);
             } catch (int) {
                 // TODO: Remove this try once parsing is implemented.
                 std::cout << "command line parse with commands failed; "

@@ -1266,6 +1266,11 @@ namespace boost { namespace program_options_2 { namespace detail {
                             {std::basic_string<Char>(arg),
                              [&, argv0, last, program_desc, no_help](
                                  int & next_positional) {
+                                 auto opt_tuple = hana::unpack(
+                                     opt.options, [](auto const &... opts2) {
+                                         return detail::make_opt_tuple(
+                                             opts2...);
+                                     });
                                  return detail::parse_options_into(
                                      map_lookup<OptionsMap>(map),
                                      next_positional,
@@ -1278,7 +1283,7 @@ namespace boost { namespace program_options_2 { namespace detail {
                                      program_desc,
                                      os,
                                      no_help,
-                                     opt.options,
+                                     opt_tuple,
                                      parse_contexts,
                                      opts...);
                              }});
@@ -1291,6 +1296,10 @@ namespace boost { namespace program_options_2 { namespace detail {
                             func = [&map, f = opt.func]() { f(map); };
                         }
                         if (!func) {
+                            auto opt_tuple = hana::unpack(
+                                opt.options, [](auto const &... opts2) {
+                                    return detail::make_opt_tuple(opts2...);
+                                });
                             child_result = detail::parse_commands_in_tuple(
                                 map,
                                 strings,
@@ -1301,7 +1310,7 @@ namespace boost { namespace program_options_2 { namespace detail {
                                 program_desc,
                                 os,
                                 no_help,
-                                opt.options,
+                                opt_tuple,
                                 parse_contexts,
                                 func,
                                 opts...);
@@ -1345,8 +1354,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         bool skip_first,
         Options const &... opts)
     {
-        using opts_as_tuple_type = hana::tuple<Options const &...>;
-        opts_as_tuple_type opt_tuple{opts...};
+        auto opt_tuple = detail::make_opt_tuple(opts...);
 
         auto const default_help_names_view =
             names_view(strings.default_help_names);
