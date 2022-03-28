@@ -427,6 +427,28 @@ namespace boost { namespace program_options_2 {
             parse_option_error error = parse_option_error::none;
         };
 
+        struct printed_names_and_desc
+        {
+            printed_names_and_desc() = default;
+            printed_names_and_desc(
+                std::string printed_names,
+                std::string desc,
+                int estimated_width) :
+                printed_names(std::move(printed_names)),
+                desc(desc),
+                estimated_width(estimated_width)
+            {}
+            std::string printed_names;
+            std::string desc;
+            int estimated_width;
+        };
+
+        using printed_section_vec =
+            boost::container::small_vector<printed_names_and_desc, 32>;
+
+        using all_printed_sections = boost::container::
+            small_vector<std::pair<std::string, printed_section_vec>, 4>;
+
         struct cmd_parse_ctx
         {
             std::string name_used_;
