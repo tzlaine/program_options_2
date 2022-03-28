@@ -13,6 +13,7 @@
 
 #include <boost/container/flat_map.hpp>
 #include <boost/parser/parser.hpp>
+#include <boost/text/string_utility.hpp>
 #include <boost/type_traits/is_detected.hpp>
 
 
@@ -1270,7 +1271,7 @@ namespace boost { namespace program_options_2 { namespace detail {
                             (is_command<Options>::value || ...);
                         auto const utf_arg = text::as_utf8(arg);
                         parse_contexts.push_back(
-                            {std::string(utf_arg.begin(), utf_arg.end()),
+                            {text::to_string(text::as_utf32(arg)),
                              [&, argv0, last, program_desc, no_help](
                                  int & next_positional) {
                                  return detail::parse_options_into(

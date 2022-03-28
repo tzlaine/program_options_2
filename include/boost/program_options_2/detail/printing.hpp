@@ -221,7 +221,6 @@ namespace boost { namespace program_options_2 { namespace detail {
     int print_option(
         customizable_strings const & strings,
         Stream & os,
-        int parse_contexts_size,
         Option const & opt,
         int first_column,
         int current_width,
@@ -284,7 +283,6 @@ namespace boost { namespace program_options_2 { namespace detail {
     int print_option(
         customizable_strings const & strings,
         Stream & os,
-        int parse_contexts_size,
         option_group<
             MutuallyExclusive,
             Subcommand,
@@ -298,12 +296,9 @@ namespace boost { namespace program_options_2 { namespace detail {
         bool for_post_synopsis = false)
     {
         if constexpr (opt.subcommand) {
-            std::ostringstream oss;
-            oss << ' ';
             if (for_post_synopsis) {
-                // This, plus the leading space in the first name printed
-                // below, gives us a 2-space indent.
-                oss << ' ';
+                std::ostringstream oss;
+                oss << "  ";
                 bool print_separator = false;
                 for (auto name : detail::names_view(opt.names)) {
                     if (print_separator)
@@ -311,30 +306,17 @@ namespace boost { namespace program_options_2 { namespace detail {
                     print_separator = true;
                     oss << text::as_utf8(name);
                 }
+                return detail::print_option_final(
+                    os, first_column, current_width, max_width, std::move(oss));
             } else {
-                bool printed_something = false;
-                if (parse_contexts_size < 2) {
-                    oss << strings.top_subcommand_placeholder_text;
-                    printed_something = true;
-                }
-                if (parse_contexts_size < 3 &&
-                    (is_command<Options>::value || ...)) {
-                    if (printed_something)
-                        oss << ' ';
-                    oss << strings.next_subcommand_placeholder_text;
-                    printed_something = true;
-                }
-                if (printed_something)
-                    oss << " [...]";
+                // Commands intentionally skipped.
+                return current_width;
             }
-            return detail::print_option_final(
-                os, first_column, current_width, max_width, std::move(oss));
         } else if constexpr (opt.mutually_exclusive) {
             hana::for_each(opt.options, [&](auto const & opt) {
                 current_width = detail::print_option(
                     strings,
                     os,
-                    parse_contexts_size,
                     opt,
                     first_column,
                     current_width,
@@ -347,7 +329,6 @@ namespace boost { namespace program_options_2 { namespace detail {
                 current_width = detail::print_option(
                     strings,
                     os,
-                    parse_contexts_size,
                     opt,
                     first_column,
                     current_width,
@@ -382,6 +363,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         Stream & os,
         std::basic_string_view<Char> prog,
         std::basic_string_view<Char> prog_desc,
+        bool no_help,
         parse_contexts_vec const & parse_contexts,
         Options const &... opts)
     {
@@ -401,15 +383,29 @@ namespace boost { namespace program_options_2 { namespace detail {
 
         auto print_opt = [&](auto const & opt) {
             current_width = detail::print_option(
-                strings,
-                os,
-                parse_contexts.size(),
-                opt,
-                first_column,
-                current_width);
+                strings, os, opt, first_column, current_width);
         };
 
-        hana::for_each(opt_tuple, print_opt);
+        if (parse_contexts.empty()) {
+            hana::for_each(opt_tuple, print_opt);
+        } else { // command synopsis case
+            std::ostringstream oss;
+
+            if (no_help)
+                print_opt(detail::default_help(strings));
+
+            if (!parse_contexts.back().commands_synopsis_text_.empty())
+                oss << ' ';
+            oss << parse_contexts.back().commands_synopsis_text_;
+
+            bool const last_command = !parse_contexts.back().has_subcommands_;
+            if (last_command) {
+                // TODO: Print option synopsis.
+            }
+
+            current_width = detail::print_option_final(
+                os, 0, current_width, max_col_width, std::move(oss));
+        }
 
         if (prog_desc.empty())
             os << '\n';
@@ -534,7 +530,6 @@ namespace boost { namespace program_options_2 { namespace detail {
                 detail::print_option(
                     strings,
                     names_oss,
-                    parse_contexts.size(),
                     curr_opt,
                     first_column,
                     0,
@@ -697,6 +692,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         std::basic_ostream<Char> & os,
         std::basic_string_view<Char> argv0,
         std::basic_string_view<Char> desc,
+        bool no_help,
         parse_contexts_vec const & parse_contexts,
         Options const &... opts)
     {
@@ -706,6 +702,7 @@ namespace boost { namespace program_options_2 { namespace detail {
             oss,
             detail::program_name(argv0),
             desc,
+            no_help,
             parse_contexts,
             opts...);
         print_help_post_synopsis(argv0, strings, oss, parse_contexts, opts...);
@@ -733,12 +730,19 @@ namespace boost { namespace program_options_2 { namespace detail {
                 os,
                 argv0,
                 program_desc,
+                no_help,
                 parse_contexts,
                 detail::default_help(strings),
                 opts...);
         } else {
             detail::print_help(
-                strings, os, argv0, program_desc, parse_contexts, opts...);
+                strings,
+                os,
+                argv0,
+                program_desc,
+                no_help,
+                parse_contexts,
+                opts...);
         }
 #ifdef BOOST_PROGRAM_OPTIONS_2_TESTING
         throw 0;
