@@ -431,12 +431,49 @@ namespace boost { namespace program_options_2 {
         {
             std::string name_used_;
             std::function<parse_option_result(int &)> parse_;
+            std::function<int(std::ostringstream &, int, int)> print_synopsis_;
             std::string commands_synopsis_text_;
             bool has_subcommands_ = false;
         };
 
         using parse_contexts_vec =
             boost::container::small_vector<cmd_parse_ctx, 8>;
+
+        constexpr inline int max_col_width = 80;
+        constexpr inline int max_option_col_width = 24;
+
+        template<typename Stream, typename Option>
+        int print_option(
+            customizable_strings const & strings,
+            Stream & os,
+            Option const & opt,
+            int first_column,
+            int current_width,
+            int max_width = max_col_width,
+            bool for_post_synopsis = false);
+
+        template<
+            typename Stream,
+            exclusive_t MutuallyExclusive,
+            subcommand_t Subcommand,
+            required_t Required,
+            named_group_t NamedGroup,
+            typename Func,
+            typename... Options>
+        int print_option(
+            customizable_strings const & strings,
+            Stream & os,
+            option_group<
+                MutuallyExclusive,
+                Subcommand,
+                Required,
+                NamedGroup,
+                Func,
+                Options...> const & opt,
+            int first_column,
+            int current_width,
+            int max_width = max_col_width,
+            bool for_post_synopsis = false);
     }
 
     /** TODO */

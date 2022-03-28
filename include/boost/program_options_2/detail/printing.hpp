@@ -89,9 +89,6 @@ namespace boost { namespace program_options_2 { namespace detail {
             0};
     }
 
-    constexpr inline int max_col_width = 80;
-    constexpr inline int max_option_col_width = 24;
-
     template<typename Stream, typename Char>
     void print_uppercase(Stream & os, std::basic_string_view<Char> str)
     {
@@ -224,8 +221,8 @@ namespace boost { namespace program_options_2 { namespace detail {
         Option const & opt,
         int first_column,
         int current_width,
-        int max_width = max_col_width,
-        bool for_post_synopsis = false)
+        int max_width,
+        bool for_post_synopsis)
     {
         std::ostringstream oss;
 
@@ -292,8 +289,8 @@ namespace boost { namespace program_options_2 { namespace detail {
             Options...> const & opt,
         int first_column,
         int current_width,
-        int max_width = max_col_width,
-        bool for_post_synopsis = false)
+        int max_width,
+        bool for_post_synopsis)
     {
         if constexpr (opt.subcommand) {
             if (for_post_synopsis) {
@@ -349,10 +346,9 @@ namespace boost { namespace program_options_2 { namespace detail {
         os << text::as_utf8(prog);
         if (parse_contexts.empty())
             return retval;
-        for (auto const & [name, parse_func, dont, care] :
-             std::ranges::drop_view{parse_contexts, 1}) {
-            os << ' ' << name;
-            retval += 1 + detail::estimated_width(name);
+        for (auto const & ctx : std::ranges::drop_view{parse_contexts, 1}) {
+            os << ' ' << ctx.name_used_;
+            retval += 1 + detail::estimated_width(ctx.name_used_);
         }
         return retval;
     }
@@ -400,7 +396,10 @@ namespace boost { namespace program_options_2 { namespace detail {
 
             bool const last_command = !parse_contexts.back().has_subcommands_;
             if (last_command) {
-                // TODO: Print option synopsis.
+                for (auto const & ctx : parse_contexts) {
+                    current_width =
+                        ctx.print_synopsis_(oss, first_column, current_width);
+                }
             }
 
             current_width = detail::print_option_final(

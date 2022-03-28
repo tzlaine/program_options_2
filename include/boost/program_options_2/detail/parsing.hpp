@@ -1272,8 +1272,12 @@ namespace boost { namespace program_options_2 { namespace detail {
                         auto const utf_arg = text::as_utf8(arg);
                         parse_contexts.push_back(
                             {text::to_string(text::as_utf32(arg)),
-                             [&, argv0, last, program_desc, no_help](
-                                 int & next_positional) {
+                             [&,
+                              argv0,
+                              last,
+                              program_desc,
+                              no_help,
+                              options_tuple](int & next_positional) {
                                  return detail::parse_options_into(
                                      map_lookup<OptionsMap>(map),
                                      next_positional,
@@ -1289,6 +1293,21 @@ namespace boost { namespace program_options_2 { namespace detail {
                                      options_tuple,
                                      parse_contexts,
                                      opts...);
+                             },
+                             [&strings, options_tuple](
+                                 std::ostringstream & oss,
+                                 int first_column,
+                                 int current_width) {
+                                 hana::for_each(
+                                     options_tuple, [&](auto const & opt) {
+                                         current_width = detail::print_option(
+                                             strings,
+                                             oss,
+                                             opt,
+                                             first_column,
+                                             current_width);
+                                     });
+                                 return current_width;
                              },
                              has_subcommands
                                  ? std::string(
@@ -1412,6 +1431,16 @@ namespace boost { namespace program_options_2 { namespace detail {
                      parse_contexts,
                      opts...);
              },
+             [&strings, &opt_tuple](
+                 std::ostringstream & oss,
+                 int first_column,
+                 int current_width) {
+                 hana::for_each(opt_tuple, [&](auto const & opt) {
+                     current_width = detail::print_option(
+                         strings, oss, opt, first_column, current_width);
+                 });
+                 return current_width;
+             },
              std::string(strings.top_subcommand_placeholder_text),
              // KLUDGE: This false is here to indicate that we have not yet
              // appended strings.next_subcommand_placeholder_text above.  If we
@@ -1437,8 +1466,8 @@ namespace boost { namespace program_options_2 { namespace detail {
             return parse_result;
 
         int next_positional = 0;
-        for (auto & [name, parse, dont, care] : parse_contexts) {
-            parse_result = parse(next_positional);
+        for (auto const & ctx : parse_contexts) {
+            parse_result = ctx.parse_(next_positional);
             if (!parse_result) {
                 // TODO: Report error, if necessary.
                 return parse_result;
