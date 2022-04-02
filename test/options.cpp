@@ -290,7 +290,7 @@ optional arguments:
   --non-pos-2       A second non-positional argument.
 
 response files:
-  Write '@file' to load a file containing command line arguments.
+  Use '@file' to load a file containing command line arguments.
 )");
     }
 

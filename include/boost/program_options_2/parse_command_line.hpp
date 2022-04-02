@@ -41,6 +41,7 @@ namespace boost { namespace program_options_2 {
         bool const no_help = detail::no_help_option(opt, opts...);
 
         if (no_help && detail::argv_contains_default_help_flag(strings, args)) {
+            detail::parse_contexts_vec const parse_contexts;
             detail::print_help_and_exit(
                 0,
                 strings,
@@ -48,6 +49,7 @@ namespace boost { namespace program_options_2 {
                 program_desc,
                 os,
                 true,
+                parse_contexts,
                 opt,
                 opts...);
         }
@@ -137,23 +139,27 @@ namespace boost { namespace program_options_2 {
         BOOST_ASSERT(args.begin() != args.end());
         detail::check_options(opt, opts...);
 
-        bool const no_help = detail::no_help_option(opt, opts...);
-
-        if (no_help && detail::argv_contains_default_help_flag(strings, args)) {
-            detail::print_help_and_exit(
-                0,
-                strings,
-                *args.begin(),
-                program_desc,
-                os,
-                true,
-                opt,
-                opts...);
-        }
-
         if constexpr (detail::contains_commands<Option, Options...>()) {
-            // TODO
+            detail::parse_commands(
+                map, strings, args, program_desc, os, true, opt, opts...);
         } else {
+            bool const no_help = detail::no_help_option(opt, opts...);
+
+            detail::parse_contexts_vec const parse_contexts;
+            if (no_help &&
+                detail::argv_contains_default_help_flag(strings, args)) {
+                detail::print_help_and_exit(
+                    0,
+                    strings,
+                    *args.begin(),
+                    program_desc,
+                    os,
+                    true,
+                    parse_contexts,
+                    opt,
+                    opts...);
+            }
+
             detail::parse_options_into_map(
                 map,
                 strings,

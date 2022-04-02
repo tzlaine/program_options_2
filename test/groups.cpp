@@ -60,10 +60,11 @@ optional arguments:
   -e            Number of e's (may not be used with 'apple' or 'branch')
 
 response files:
-  Write '@file' to load a file containing command line arguments.
+  Use '@file' to load a file containing command line arguments.
 )");
         }
     }
+
     {
         std::ostringstream os;
         std::vector<std::string_view> args{"prog", "-e", "3"};
@@ -102,43 +103,10 @@ optional arguments:
   -f            Number of f's (may not be used with 'apple', 'branch' or 'e')
 
 response files:
-  Write '@file' to load a file containing command line arguments.
+  Use '@file' to load a file containing command line arguments.
 )");
         }
     }
-}
-
-TEST(groups, command)
-{
-    {
-        auto command = po2::command([](auto) {}, "cmd", arg1, arg2, arg3);
-        auto group = po2::group(command, pos1);
-
-        EXPECT_TRUE(po2::detail::contains_commands<decltype(command)>());
-        EXPECT_TRUE(po2::detail::contains_commands<decltype(group)>());
-    }
-
-    {
-        auto command = po2::command([](auto) {}, "cmd", arg1, arg2, arg3);
-        std::vector<std::string_view> args{
-            "prog", "cmd", "-a", "55", "--branch", "2", "-e", "3"};
-
-#if 0
-        try {
-            std::ostringstream os;
-            std::map<std::string_view, std::any> result;
-            po2::parse_command_line(args, result, "A program.", os, command);
-        } catch (int) {
-            // TODO: Remove this try once parsing is implemented.
-        }
-#endif
-    }
-
-    // TODO: Multiple commands
-
-    // TODO: Subcommands (3 deep)
-
-    // TODO: Named groups of commands
 }
 
 TEST(groups, group)
@@ -226,7 +194,7 @@ optional arguments:
   -e            Number of e's
 
 response files:
-  Write '@file' to load a file containing command line arguments.
+  Use '@file' to load a file containing command line arguments.
 )");
         }
     }
@@ -432,7 +400,7 @@ A Group:
   -a, --apple   Number of apples
 
 response files:
-  Write '@file' to load a file containing command line arguments.
+  Use '@file' to load a file containing command line arguments.
 )");
         }
     }

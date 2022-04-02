@@ -153,6 +153,40 @@ namespace boost { namespace program_options_2 { namespace detail {
         iterator last_;
     };
 
+    template<typename... Options>
+    void get_help_option(
+        std::optional<names_view> & retval, Options const &... opts);
+
+    template<typename Option>
+    void
+    get_help_option_impl(std::optional<names_view> & retval, Option const & opt)
+    {
+        if constexpr (group_<Option>) {
+            return hana::unpack(opt.options, [&](auto const &... opts) {
+                return detail::get_help_option(retval, opts...);
+            });
+        } else {
+            if (opt.action == detail::action_kind::help)
+                retval = names_view(opt.names);
+        }
+    }
+
+    template<typename... Options>
+    void
+    get_help_option(std::optional<names_view> & retval, Options const &... opts)
+    {
+        auto dummy = (detail::get_help_option_impl(retval, opts), ..., 0);
+        (void)dummy;
+    }
+
+    template<typename... Options>
+    std::optional<names_view> help_option(Options const &... opts)
+    {
+        std::optional<names_view> retval;
+        detail::get_help_option(retval, opts...);
+        return retval;
+    }
+
     inline bool positional(std::string_view name)
     {
         for (auto name : detail::names_view(name)) {

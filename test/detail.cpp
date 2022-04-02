@@ -55,7 +55,7 @@ TEST(detail, names_view)
 po2::customizable_strings user_strings()
 {
     po2::customizable_strings retval;
-    retval.help_names = "-r,--redacted";
+    retval.default_help_names = "-r,--redacted";
     return retval;
 }
 

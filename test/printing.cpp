@@ -99,38 +99,40 @@ struct my_int
 
 TEST(printing, print_option_arguments)
 {
+    po2::customizable_strings const strings;
+
     // no defaults
     {
         auto const arg = po2::argument<int>("-b,--blah", "");
         std::ostringstream os;
-        po2::detail::print_option(os, arg, 8, 8);
+        po2::detail::print_option(strings, os, arg, 8, 8);
         EXPECT_EQ(os.str(), " [-b B]");
     }
     {
         auto const arg = po2::argument<std::vector<int>>("-b,--blah", "", 2);
         std::ostringstream os;
-        po2::detail::print_option(os, arg, 8, 8);
+        po2::detail::print_option(strings, os, arg, 8, 8);
         EXPECT_EQ(os.str(), " [-b B B]");
     }
     {
         auto const arg =
             po2::argument<std::optional<int>>("--blah", "", po2::zero_or_one);
         std::ostringstream os;
-        po2::detail::print_option(os, arg, 8, 8);
+        po2::detail::print_option(strings, os, arg, 8, 8);
         EXPECT_EQ(os.str(), " [--blah [BLAH]]");
     }
     {
         auto const arg =
             po2::argument<std::vector<int>>("-b,--blah", "", po2::zero_or_more);
         std::ostringstream os;
-        po2::detail::print_option(os, arg, 8, 8);
+        po2::detail::print_option(strings, os, arg, 8, 8);
         EXPECT_EQ(os.str(), " [-b [B ...]]");
     }
     {
         auto const arg =
             po2::argument<std::vector<int>>("-b,--blah", "", po2::one_or_more);
         std::ostringstream os;
-        po2::detail::print_option(os, arg, 8, 8);
+        po2::detail::print_option(strings, os, arg, 8, 8);
         EXPECT_EQ(os.str(), " [-b B ...]");
     }
 
@@ -139,49 +141,49 @@ TEST(printing, print_option_arguments)
         auto const arg = po2::argument<my_int>(
             "-b,--blah", "", 1, my_int{1}, my_int{2}, my_int{3});
         std::ostringstream os;
-        po2::detail::print_option(os, arg, 8, 8);
+        po2::detail::print_option(strings, os, arg, 8, 8);
         EXPECT_EQ(os.str(), " [-b B]");
     }
     // printable choices
     {
         auto const arg = po2::argument<int>("-b,--blah", "", 1, 1, 2, 3);
         std::ostringstream os;
-        po2::detail::print_option(os, arg, 8, 8);
+        po2::detail::print_option(strings, os, arg, 8, 8);
         EXPECT_EQ(os.str(), " [-b {1,2,3}]");
     }
     {
         auto const arg =
             po2::argument<std::vector<int>>("-b,--blah", "", 2, 1, 2, 3);
         std::ostringstream os;
-        po2::detail::print_option(os, arg, 8, 8);
+        po2::detail::print_option(strings, os, arg, 8, 8);
         EXPECT_EQ(os.str(), " [-b {1,2,3} {1,2,3}]");
     }
     {
         auto const arg = po2::argument<std::optional<int>>(
             "-b,--blah", "", po2::zero_or_one, 1, 2, 3);
         std::ostringstream os;
-        po2::detail::print_option(os, arg, 8, 8);
+        po2::detail::print_option(strings, os, arg, 8, 8);
         EXPECT_EQ(os.str(), " [-b [{1,2,3}]]");
     }
     {
         auto const arg = po2::argument<std::vector<int>>(
             "-b,--blah", "", po2::zero_or_more, 1, 2, 3);
         std::ostringstream os;
-        po2::detail::print_option(os, arg, 8, 8);
+        po2::detail::print_option(strings, os, arg, 8, 8);
         EXPECT_EQ(os.str(), " [-b [{1,2,3} ...]]");
     }
     {
         auto const arg = po2::argument<std::vector<int>>(
             "-b,--blah", "", po2::one_or_more, 1, 2, 3);
         std::ostringstream os;
-        po2::detail::print_option(os, arg, 8, 8);
+        po2::detail::print_option(strings, os, arg, 8, 8);
         EXPECT_EQ(os.str(), " [-b {1,2,3} ...]");
     }
     {
         auto const arg = po2::argument<std::vector<int>>(
             "-b,--blah", "", po2::zero_or_more, 1, 2, 3);
         std::ostringstream os;
-        po2::detail::print_option(os, arg, 8, 8);
+        po2::detail::print_option(strings, os, arg, 8, 8);
         EXPECT_EQ(os.str(), " [-b [{1,2,3} ...]]");
     }
 
@@ -190,7 +192,7 @@ TEST(printing, print_option_arguments)
         auto const arg =
             po2::with_default(po2::argument<int>("-b,--blah", ""), 42);
         std::ostringstream os;
-        po2::detail::print_option(os, arg, 8, 8);
+        po2::detail::print_option(strings, os, arg, 8, 8);
         EXPECT_EQ(os.str(), " [-b B]");
     }
     {
@@ -199,7 +201,7 @@ TEST(printing, print_option_arguments)
                 "-b,--blah", "", po2::zero_or_one),
             42);
         std::ostringstream os;
-        po2::detail::print_option(os, arg, 8, 8);
+        po2::detail::print_option(strings, os, arg, 8, 8);
         EXPECT_EQ(os.str(), " [-b [B]]");
     }
     {
@@ -207,21 +209,21 @@ TEST(printing, print_option_arguments)
             po2::argument<std::vector<int>>("-b,--blah", "", 2),
             std::vector<int>({42}));
         std::ostringstream os;
-        po2::detail::print_option(os, arg, 8, 8);
+        po2::detail::print_option(strings, os, arg, 8, 8);
         EXPECT_EQ(os.str(), " [-b B B]");
     }
     {
         auto const arg = po2::with_default(
             po2::argument<std::vector<int>>("-b,--blah", "", 2), 42);
         std::ostringstream os;
-        po2::detail::print_option(os, arg, 8, 8);
+        po2::detail::print_option(strings, os, arg, 8, 8);
         EXPECT_EQ(os.str(), " [-b B B]");
     }
     {
         auto const arg = po2::with_default(
             po2::argument<int>("-b,--blah", "", 1, 1, 2, 3), 3);
         std::ostringstream os;
-        po2::detail::print_option(os, arg, 8, 8);
+        po2::detail::print_option(strings, os, arg, 8, 8);
         EXPECT_EQ(os.str(), " [-b {1,2,3}]");
     }
 
@@ -230,37 +232,39 @@ TEST(printing, print_option_arguments)
         auto const arg = po2::with_display_name(
             po2::argument<int>("-b,--blah", ""), "blerg");
         std::ostringstream os;
-        po2::detail::print_option(os, arg, 8, 8);
+        po2::detail::print_option(strings, os, arg, 8, 8);
         EXPECT_EQ(os.str(), " [-b blerg]");
     }
 }
 
 TEST(printing, print_option_positionals)
 {
+    po2::customizable_strings const strings;
+
     // no defaults
     {
         auto const arg = po2::positional<int>("blah", "");
         std::ostringstream os;
-        po2::detail::print_option(os, arg, 8, 8);
+        po2::detail::print_option(strings, os, arg, 8, 8);
         EXPECT_EQ(os.str(), " BLAH");
     }
     {
         auto const arg = po2::positional<std::vector<int>>("blah", "", 2);
         std::ostringstream os;
-        po2::detail::print_option(os, arg, 8, 8);
+        po2::detail::print_option(strings, os, arg, 8, 8);
         EXPECT_EQ(os.str(), " BLAH BLAH");
     }
     {
         auto const arg =
             po2::positional<std::vector<int>>("blah", "", po2::one_or_more);
         std::ostringstream os;
-        po2::detail::print_option(os, arg, 8, 8);
+        po2::detail::print_option(strings, os, arg, 8, 8);
         EXPECT_EQ(os.str(), " BLAH ...");
     }
     {
         auto const arg = po2::remainder<std::vector<int>>("blah", "");
         std::ostringstream os;
-        po2::detail::print_option(os, arg, 8, 8);
+        po2::detail::print_option(strings, os, arg, 8, 8);
         EXPECT_EQ(os.str(), " [BLAH ...]");
     }
 
@@ -269,28 +273,28 @@ TEST(printing, print_option_positionals)
         auto const arg = po2::positional<my_int>(
             "blah", "", 1, my_int{1}, my_int{2}, my_int{3});
         std::ostringstream os;
-        po2::detail::print_option(os, arg, 8, 8);
+        po2::detail::print_option(strings, os, arg, 8, 8);
         EXPECT_EQ(os.str(), " BLAH");
     }
     // printable choices
     {
         auto const arg = po2::positional<int>("blah", "", 1, 1, 2, 3);
         std::ostringstream os;
-        po2::detail::print_option(os, arg, 8, 8);
+        po2::detail::print_option(strings, os, arg, 8, 8);
         EXPECT_EQ(os.str(), " {1,2,3}");
     }
     {
         auto const arg =
             po2::positional<std::vector<int>>("blah", "", 2, 1, 2, 3);
         std::ostringstream os;
-        po2::detail::print_option(os, arg, 8, 8);
+        po2::detail::print_option(strings, os, arg, 8, 8);
         EXPECT_EQ(os.str(), " {1,2,3} {1,2,3}");
     }
     {
         auto const arg = po2::positional<std::vector<int>>(
             "blah", "", po2::one_or_more, 1, 2, 3);
         std::ostringstream os;
-        po2::detail::print_option(os, arg, 8, 8);
+        po2::detail::print_option(strings, os, arg, 8, 8);
         EXPECT_EQ(os.str(), " {1,2,3} ...");
     }
 
@@ -299,48 +303,50 @@ TEST(printing, print_option_positionals)
         auto const arg =
             po2::with_display_name(po2::positional<int>("blah", ""), "blerg");
         std::ostringstream os;
-        po2::detail::print_option(os, arg, 8, 8);
+        po2::detail::print_option(strings, os, arg, 8, 8);
         EXPECT_EQ(os.str(), " blerg");
     }
 }
 
 TEST(printing, print_option_other)
 {
+    po2::customizable_strings const strings;
+
     {
         auto const arg = po2::flag("--foo", "");
         std::ostringstream os;
-        po2::detail::print_option(os, arg, 8, 8);
+        po2::detail::print_option(strings, os, arg, 8, 8);
         EXPECT_EQ(os.str(), " [--foo]");
     }
     {
         auto const arg = po2::inverted_flag("--foo", "");
         std::ostringstream os;
-        po2::detail::print_option(os, arg, 8, 8);
+        po2::detail::print_option(strings, os, arg, 8, 8);
         EXPECT_EQ(os.str(), " [--foo]");
     }
     {
         auto const arg = po2::counted_flag("--foo,-f", "");
         std::ostringstream os;
-        po2::detail::print_option(os, arg, 8, 8);
+        po2::detail::print_option(strings, os, arg, 8, 8);
         EXPECT_EQ(os.str(), " [-f[f...]]");
     }
     {
         auto const arg = po2::version("3.2.1");
         std::ostringstream os;
-        po2::detail::print_option(os, arg, 8, 8);
+        po2::detail::print_option(strings, os, arg, 8, 8);
         EXPECT_EQ(os.str(), " [-v]");
     }
     {
         auto const arg = po2::help("-a,--ayuda", "");
         std::ostringstream os;
-        po2::detail::print_option(os, arg, 8, 8);
+        po2::detail::print_option(strings, os, arg, 8, 8);
         EXPECT_EQ(os.str(), " [-a]");
     }
     {
         auto help_str = [] { return sv("Help message goes here.", ""); };
         auto const arg = po2::help(help_str);
         std::ostringstream os;
-        po2::detail::print_option(os, arg, 8, 8);
+        po2::detail::print_option(strings, os, arg, 8, 8);
         EXPECT_EQ(os.str(), " [-h]");
     }
 }
@@ -349,6 +355,8 @@ TEST(printing, detail_print_help_synopsis)
 {
     std::string const exe = std::string("foo") + po2::detail::fs_sep + "bar";
 
+    po2::detail::parse_contexts_vec const parse_contexts;
+
     {
         std::ostringstream os;
         po2::detail::print_help_synopsis(
@@ -356,6 +364,8 @@ TEST(printing, detail_print_help_synopsis)
             os,
             sv(exe),
             sv("A program that does things."),
+            false,
+            parse_contexts,
             po2::positional<int>("foo", ""));
         EXPECT_EQ(os.str(), R"(usage:  foo/bar FOO
 
@@ -370,6 +380,8 @@ A program that does things.
             os,
             sv(exe),
             sv("A program that does things."),
+            false,
+            parse_contexts,
             po2::positional<std::vector<int>>("foo", "", 30));
         EXPECT_EQ(os.str(), R"(usage:  foo/bar
                 FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO FOO
@@ -387,6 +399,8 @@ A program that does things.
             os,
             sv(long_exe),
             sv("A program that does things."),
+            false,
+            parse_contexts,
             po2::positional<std::vector<int>>("foo", "", 30));
         EXPECT_EQ(
             os.str(), R"(usage:  foo/barrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr
@@ -403,7 +417,7 @@ po2::customizable_strings user_strings()
     retval.usage_text = "USAGE: ";
     retval.positional_section_text = "POSITIONAL arguments:";
     retval.optional_section_text = "OPTIONAL arguments:";
-    retval.help_names = "-r,--redacted";
+    retval.default_help_names = "-r,--redacted";
     retval.help_description = "Nothing to see here.";
     return retval;
 }
@@ -454,7 +468,7 @@ optional arguments:
   --non-pos-2           A second non-positional argument.
 
 response files:
-  Write '@file' to load a file containing command line arguments.
+  Use '@file' to load a file containing command line arguments.
 )");
     }
 
@@ -500,7 +514,7 @@ optional arguments:
                         the column-wrapping looks like.
 
 response files:
-  Write '@file' to load a file containing command line arguments.
+  Use '@file' to load a file containing command line arguments.
 )");
     }
 
@@ -556,7 +570,7 @@ OPTIONAL arguments:
                         the column-wrapping looks like.
 
 response files:
-  Write '@file' to load a file containing command line arguments.
+  Use '@file' to load a file containing command line arguments.
 )");
     }
 }
@@ -618,12 +632,12 @@ optional arguments:
   -h, --help  Print this help message and exit
 
 response files:
-  Write '@file' to load a file containing command line arguments.
+  Use '@file' to load a file containing command line arguments.
 )");
     }
     {
         po2::customizable_strings strings;
-        strings.response_file_description = "";
+        strings.response_file_note = "";
 
         std::ostringstream os;
         try {

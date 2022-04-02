@@ -35,7 +35,7 @@ po2::customizable_strings user_strings()
     retval.usage_text = "USAGE: ";
     retval.positional_section_text = "POSITIONAL arguments:";
     retval.optional_section_text = "OPTIONAL arguments:";
-    retval.help_names = "-r,--redacted";
+    retval.default_help_names = "-r,--redacted";
     retval.help_description = "Nothing to see here.";
     return retval;
 }
@@ -404,7 +404,7 @@ optional arguments:
   -a          Arg.
 
 response files:
-  Write '@file' to load a file containing command line arguments.
+  Use '@file' to load a file containing command line arguments.
 )");
     }
 
@@ -431,7 +431,7 @@ optional arguments:
   -a          Arg.
 
 response files:
-  Write '@file' to load a file containing command line arguments.
+  Use '@file' to load a file containing command line arguments.
 )");
     }
 
@@ -458,7 +458,7 @@ optional arguments:
   -a          Arg.
 
 response files:
-  Write '@file' to load a file containing command line arguments.
+  Use '@file' to load a file containing command line arguments.
 )");
     }
 
@@ -485,7 +485,7 @@ optional arguments:
   -a          Arg.
 
 response files:
-  Write '@file' to load a file containing command line arguments.
+  Use '@file' to load a file containing command line arguments.
 )");
     }
 
@@ -512,7 +512,7 @@ optional arguments:
   -a          Arg.
 
 response files:
-  Write '@file' to load a file containing command line arguments.
+  Use '@file' to load a file containing command line arguments.
 )");
     }
 
@@ -541,7 +541,7 @@ optional arguments:
   -h, --help  Print this help message and exit
 
 response files:
-  Write '@file' to load a file containing command line arguments.
+  Use '@file' to load a file containing command line arguments.
 )");
     }
 }
@@ -863,7 +863,7 @@ optional arguments:
   -a          Arg.
 
 response files:
-  Write '@file' to load a file containing command line arguments.
+  Use '@file' to load a file containing command line arguments.
 )");
     }
 
@@ -891,7 +891,7 @@ optional arguments:
   -a          Arg.
 
 response files:
-  Write '@file' to load a file containing command line arguments.
+  Use '@file' to load a file containing command line arguments.
 )");
     }
 
@@ -916,7 +916,7 @@ optional arguments:
   -a          Arg.
 
 response files:
-  Write '@file' to load a file containing command line arguments.
+  Use '@file' to load a file containing command line arguments.
 )");
     }
 
@@ -943,7 +943,7 @@ optional arguments:
   -a          Arg.
 
 response files:
-  Write '@file' to load a file containing command line arguments.
+  Use '@file' to load a file containing command line arguments.
 )");
     }
 #if defined(UNIX_BUILD)
@@ -969,7 +969,7 @@ optional arguments:
   -a          Arg.
 
 response files:
-  Write '@file' to load a file containing command line arguments.
+  Use '@file' to load a file containing command line arguments.
 )");
     }
     {
@@ -994,7 +994,7 @@ optional arguments:
   -a          Arg.
 
 response files:
-  Write '@file' to load a file containing command line arguments.
+  Use '@file' to load a file containing command line arguments.
 )");
     }
     {
@@ -1019,7 +1019,7 @@ optional arguments:
   -a          Arg.
 
 response files:
-  Write '@file' to load a file containing command line arguments.
+  Use '@file' to load a file containing command line arguments.
 )");
     }
 #endif
@@ -1044,7 +1044,7 @@ optional arguments:
   -a          Arg.
 
 response files:
-  Write '@file' to load a file containing command line arguments.
+  Use '@file' to load a file containing command line arguments.
 )");
     }
 }
@@ -1272,7 +1272,7 @@ optional arguments:
   -o, --one-plus    One is fine; so is more.
 
 response files:
-  Write '@file' to load a file containing command line arguments.
+  Use '@file' to load a file containing command line arguments.
 )");
     }
 }
@@ -1440,7 +1440,7 @@ optional arguments:
   -o, --one-plus    One is fine; so is more.
 
 response files:
-  Write '@file' to load a file containing command line arguments.
+  Use '@file' to load a file containing command line arguments.
 )");
     }
 }
@@ -1971,7 +1971,7 @@ TEST(parse_command_line, response_files)
 
     {
         po2::customizable_strings strings;
-        strings.response_file_description = "";
+        strings.response_file_note = "";
 
         std::ostringstream os;
         try {

@@ -9,6 +9,8 @@
 #include <boost/program_options_2/config.hpp>
 #include <boost/program_options_2/tag_invoke.hpp>
 
+#include <boost/container/small_vector.hpp>
+
 #include <boost/any.hpp>
 
 // Silence very verbose warnings about std::is_pod being deprecated.  TODO:
@@ -45,13 +47,20 @@ namespace boost { namespace program_options_2 {
     struct customizable_strings
     {
         std::string_view usage_text = "usage: ";
+        std::string_view top_subcommand_placeholder_text = "COMMAND";
+        std::string_view next_subcommand_placeholder_text = "SUB-COMMAND";
         std::string_view positional_section_text = "positional arguments:";
         std::string_view optional_section_text = "optional arguments:";
-        std::string_view help_names = "-h,--help";
+        std::string_view commands_section_text = "commands:";
+        std::string_view default_help_names = "-h,--help";
         std::string_view help_description = "Print this help message and exit";
-        std::string_view response_file_description =
-            "response files:\n  Write '@file' to load a file containing "
+        std::string_view command_help_note =
+            "\nUse '{} CMD {}' for help on command CMD.";
+        std::string_view response_file_note =
+            "response files:\n  Use '@file' to load a file containing "
             "command line arguments.";
+        // TODO: use the epilog in printing.
+        std::string_view epilog = "";
 
         std::string_view mutually_exclusive_begin = " (may not be used with '{}'";
         std::string_view mutually_exclusive_continue = ", '{}'";
@@ -227,6 +236,7 @@ namespace boost { namespace program_options_2 {
             using value_type = no_value;
             using choice_type = no_value;
             using validator_type = no_value;
+            using func_type = Func;
 
             std::string_view names;
             std::string_view help_text;
@@ -242,6 +252,8 @@ namespace boost { namespace program_options_2 {
             constexpr static bool positional = false;
             constexpr static bool required = Required == required_t::yes;
             constexpr static int num_choices = 0;
+            constexpr static bool has_func =
+                !std::is_same_v<func_type, no_func>;
 
             constexpr static bool flatten_during_printing =
                 !mutually_exclusive && !subcommand && !named_group;
@@ -380,6 +392,110 @@ namespace boost { namespace program_options_2 {
         {
             return opt.args == zero_or_more || opt.args == one_or_more;
         }
+
+        enum struct parse_option_error {
+            none,
+
+            unknown_arg,
+            wrong_number_of_args,
+            cannot_parse_arg,
+            no_such_choice,
+            extra_positional,
+            missing_positional,
+            too_many_mutally_exclusives,
+
+            // This one must come last, to match
+            // customizable_strings::parse_errors.
+            validation_error
+        };
+
+        struct parse_option_result
+        {
+            enum next_t {
+                match_keep_parsing,
+                no_match_keep_parsing,
+                stop_parsing,
+
+                // In this one case, the current arg is the response file.  That
+                // is, it is not consumed within parse_option().
+                response_file
+            };
+
+            explicit operator bool() const { return next != stop_parsing; }
+
+            next_t next = no_match_keep_parsing;
+            parse_option_error error = parse_option_error::none;
+        };
+
+        struct printed_names_and_desc
+        {
+            printed_names_and_desc() = default;
+            printed_names_and_desc(
+                std::string printed_names,
+                std::string desc,
+                int estimated_width) :
+                printed_names(std::move(printed_names)),
+                desc(desc),
+                estimated_width(estimated_width)
+            {}
+            std::string printed_names;
+            std::string desc;
+            int estimated_width;
+        };
+
+        using printed_section_vec =
+            boost::container::small_vector<printed_names_and_desc, 32>;
+
+        using all_printed_sections = boost::container::
+            small_vector<std::pair<std::string, printed_section_vec>, 4>;
+
+        struct cmd_parse_ctx
+        {
+            std::string name_used_;
+            std::function<parse_option_result(int &)> parse_;
+            std::function<int(std::ostringstream &, int, int)> print_synopsis_;
+            std::string commands_synopsis_text_;
+            bool has_subcommands_ = false;
+        };
+
+        using parse_contexts_vec =
+            boost::container::small_vector<cmd_parse_ctx, 8>;
+
+        constexpr inline int max_col_width = 80;
+        constexpr inline int max_option_col_width = 24;
+
+        template<typename Stream, typename Option>
+        int print_option(
+            customizable_strings const & strings,
+            Stream & os,
+            Option const & opt,
+            int first_column,
+            int current_width,
+            int max_width = max_col_width,
+            bool for_post_synopsis = false);
+
+        template<
+            typename Stream,
+            exclusive_t MutuallyExclusive,
+            subcommand_t Subcommand,
+            required_t Required,
+            named_group_t NamedGroup,
+            typename Func,
+            typename... Options>
+        int print_option(
+            customizable_strings const & strings,
+            Stream & os,
+            option_group<
+                MutuallyExclusive,
+                Subcommand,
+                Required,
+                NamedGroup,
+                Func,
+                Options...> const & opt,
+            int first_column,
+            int current_width,
+            int max_width = max_col_width,
+            bool for_post_synopsis = false);
     }
 
     /** TODO */
