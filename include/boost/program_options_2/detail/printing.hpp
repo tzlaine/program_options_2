@@ -386,13 +386,13 @@ namespace boost { namespace program_options_2 { namespace detail {
                 strings, os, opt, first_column, current_width);
         };
 
+        if (no_help)
+            print_opt(detail::default_help(strings));
+
         if (parse_contexts.empty()) {
             hana::for_each(opt_tuple, print_opt);
         } else { // command synopsis case
             std::ostringstream oss;
-
-            if (no_help)
-                print_opt(detail::default_help(strings));
 
             if (!parse_contexts.back().commands_synopsis_text_.empty())
                 oss << ' ';
@@ -476,9 +476,8 @@ namespace boost { namespace program_options_2 { namespace detail {
     void print_post_synopsis_option(
         std::string_view argv0,
         customizable_strings const & strings,
-        std::ostringstream & os,
-        parse_contexts_vec const & parse_contexts,
         Option const & opt,
+        bool print_commands,
         all_printed_sections & printed_sections,
         int & max_option_length,
         bool & commands_printed)
@@ -499,14 +498,16 @@ namespace boost { namespace program_options_2 { namespace detail {
                 }
             } else if constexpr (is_command<std::remove_cvref_t<
                                      decltype(curr_opt)>>::value) {
-                if (printed_sections.size() < 3u ||
-                    printed_sections[2].first != cmd_sec_name) {
-                    printed_sections.insert(
-                        printed_sections.begin() + 2,
-                        {std::string(cmd_sec_name), {}});
+                if (print_commands) {
+                    if (printed_sections.size() < 3u ||
+                        printed_sections[2].first != cmd_sec_name) {
+                        printed_sections.insert(
+                            printed_sections.begin() + 2,
+                            {std::string(cmd_sec_name), {}});
+                    }
+                    vec_ptr = &printed_sections[2].second;
+                    commands_printed = true;
                 }
-                vec_ptr = &printed_sections[2].second;
-                commands_printed = true;
             }
             printed_section_vec & vec = *vec_ptr;
 
@@ -571,7 +572,8 @@ namespace boost { namespace program_options_2 { namespace detail {
 
         if constexpr (group_<std::remove_cvref_t<decltype(opt)>>) {
             if constexpr (opt.subcommand) {
-                process_single_opt(opt, no_value{}, 0, 0);
+                if (print_commands)
+                    process_single_opt(opt, no_value{}, 0, 0);
             } else if constexpr (opt.mutually_exclusive) {
                 auto const exclusive_opts = detail::make_opt_tuple_for_printing(
                     detail::to_ref_tuple(opt.options));
@@ -600,30 +602,54 @@ namespace boost { namespace program_options_2 { namespace detail {
         }
     }
 
-    template<typename Stream, typename... Options>
+    template<typename... Options>
     void print_help_post_synopsis(
         std::string_view argv0,
         customizable_strings const & strings,
-        Stream & os,
+        std::ostringstream & os,
+        bool no_help,
         parse_contexts_vec const & parse_contexts,
         Options const &... opts)
     {
-        auto const opt_tuple = detail::make_opt_tuple_for_printing(opts...);
-
         bool commands_printed = false;
         int max_option_length = 0;
         all_printed_sections printed_sections(2);
-        hana::for_each(opt_tuple, [&](auto const & opt) {
+
+        if (no_help) {
             detail::print_post_synopsis_option(
                 argv0,
                 strings,
-                os,
-                parse_contexts,
-                opt,
+                detail::default_help(strings),
+                true,
                 printed_sections,
                 max_option_length,
                 commands_printed);
-        });
+        }
+
+        if (parse_contexts.empty()) {
+            auto const opt_tuple = detail::make_opt_tuple_for_printing(opts...);
+            hana::for_each(opt_tuple, [&](auto const & opt) {
+                detail::print_post_synopsis_option(
+                    argv0,
+                    strings,
+                    opt,
+                    true,
+                    printed_sections,
+                    max_option_length,
+                    commands_printed);
+            });
+        } else if (parse_contexts.back().has_subcommands_) {
+            parse_contexts.back().print_post_synopsis_(
+                true, printed_sections, max_option_length, commands_printed);
+        } else {
+            for (auto const & ctx : parse_contexts) {
+                ctx.print_post_synopsis_(
+                    false,
+                    printed_sections,
+                    max_option_length,
+                    commands_printed);
+            }
+        }
 
         // max_option_length includes a 2-space initial sequence, which
         // acts as an indent.
@@ -693,7 +719,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         parse_contexts_vec const & parse_contexts,
         Options const &... opts)
     {
-        std::basic_ostringstream<Char> oss;
+        std::ostringstream oss;
         detail::print_help_synopsis(
             strings,
             oss,
@@ -702,7 +728,8 @@ namespace boost { namespace program_options_2 { namespace detail {
             no_help,
             parse_contexts,
             opts...);
-        print_help_post_synopsis(argv0, strings, oss, parse_contexts, opts...);
+        detail::print_help_post_synopsis(
+            argv0, strings, oss, no_help, parse_contexts, opts...);
         auto const str = std::move(oss).str();
         for (auto const & range :
              text::bidirectional_subranges(text::as_utf32(str))) {
@@ -721,26 +748,8 @@ namespace boost { namespace program_options_2 { namespace detail {
         parse_contexts_vec const & parse_contexts,
         Options const &... opts)
     {
-        if (no_help) {
-            detail::print_help(
-                strings,
-                os,
-                argv0,
-                program_desc,
-                no_help,
-                parse_contexts,
-                detail::default_help(strings),
-                opts...);
-        } else {
-            detail::print_help(
-                strings,
-                os,
-                argv0,
-                program_desc,
-                no_help,
-                parse_contexts,
-                opts...);
-        }
+        detail::print_help(
+            strings, os, argv0, program_desc, no_help, parse_contexts, opts...);
 #ifdef BOOST_PROGRAM_OPTIONS_2_TESTING
         throw 0;
 #endif

@@ -454,6 +454,8 @@ namespace boost { namespace program_options_2 {
             std::string name_used_;
             std::function<parse_option_result(int &)> parse_;
             std::function<int(std::ostringstream &, int, int)> print_synopsis_;
+            std::function<void(bool, all_printed_sections &, int &, bool &)>
+                print_post_synopsis_;
             std::string commands_synopsis_text_;
             bool has_subcommands_ = false;
         };

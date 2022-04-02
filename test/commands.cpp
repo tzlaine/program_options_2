@@ -38,7 +38,6 @@ TEST(commands, command)
     // TODO: Move to printing.cpp?
     // printing
     {
-
         auto command =
             po2::command([](auto) {}, "cmd", "A command.", arg1, arg2, arg3);
         auto group = po2::group(pos1, command);

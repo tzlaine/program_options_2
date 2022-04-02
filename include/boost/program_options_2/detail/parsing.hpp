@@ -1187,7 +1187,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         return retval;
     }
 
-#define BOOST_PROGRAM_OPTIONS_2_INSTRUMENT_COMMAND_PARSING 1
+#define BOOST_PROGRAM_OPTIONS_2_INSTRUMENT_COMMAND_PARSING 0
 
     template<
         typename Char,
@@ -1262,8 +1262,13 @@ namespace boost { namespace program_options_2 { namespace detail {
                             opt.options, [](auto const &... opts2) {
                                 return detail::make_opt_tuple(opts2...);
                             });
-                        bool const has_subcommands =
-                            (is_command<Options>::value || ...);
+                        auto printing_options_tuple = hana::unpack(
+                            opt.options, [](auto const &... opts2) {
+                                return detail::make_opt_tuple_for_printing(
+                                    opts2...);
+                            });
+                        bool const has_subcommands_ =
+                            detail::contains_commands(options_tuple);
                         auto const utf_arg = text::as_utf8(arg);
                         parse_contexts.push_back(
                             {text::to_string(text::as_utf32(arg)),
@@ -1304,18 +1309,39 @@ namespace boost { namespace program_options_2 { namespace detail {
                                      });
                                  return current_width;
                              },
-                             has_subcommands
+                             [argv0,
+                              &strings,
+                              opt_tuple = printing_options_tuple](
+                                 bool print_commands,
+                                 all_printed_sections & printed_sections,
+                                 int & max_option_length,
+                                 bool & commands_printed) {
+                                 hana::for_each(
+                                     opt_tuple, [&](auto const & opt) {
+                                         detail::print_post_synopsis_option(
+                                             argv0,
+                                             strings,
+                                             opt,
+                                             print_commands,
+                                             printed_sections,
+                                             max_option_length,
+                                             commands_printed);
+                                     });
+                             },
+                             has_subcommands_
                                  ? std::string(
                                        strings.next_subcommand_placeholder_text)
                                  : std::string(),
-                             has_subcommands});
-                        if (parse_contexts.size() == 2u) {
-                            // To understand this, see the KLUDGE note in
-                            // parse_commands() below.
+                             has_subcommands_});
+                        if (parse_contexts.size() == 2u && has_subcommands_) {
+                            // To prevent the top-level context from needed to
+                            // recurse into the first-level commands to
+                            // determine if there are second-level commands,
+                            // we wait until now to use that knowledge to
+                            // adjust the COMMAND... text
                             parse_contexts[0].commands_synopsis_text_ += ' ';
                             parse_contexts[0].commands_synopsis_text_ +=
                                 strings.next_subcommand_placeholder_text;
-                            parse_contexts[0].has_subcommands_ = true;
                         }
 #if BOOST_PROGRAM_OPTIONS_2_INSTRUMENT_COMMAND_PARSING
                         std::cout << "parse_commands_in_tuple(): "
@@ -1406,6 +1432,10 @@ namespace boost { namespace program_options_2 { namespace detail {
 
         std::function<void()> func;
         parse_contexts_vec parse_contexts;
+
+        auto printing_options_tuple =
+            detail::make_opt_tuple_for_printing(opts...);
+
         // This is the top-level context, outsided any commands.
         parse_contexts.push_back(
             {std::string{},
@@ -1436,12 +1466,24 @@ namespace boost { namespace program_options_2 { namespace detail {
                  });
                  return current_width;
              },
+             [argv0, &strings, &opt_tuple = printing_options_tuple](
+                 bool print_commands,
+                 all_printed_sections & printed_sections,
+                 int & max_option_length,
+                 bool & commands_printed) {
+                 hana::for_each(opt_tuple, [&](auto const & opt) {
+                     detail::print_post_synopsis_option(
+                         argv0,
+                         strings,
+                         opt,
+                         print_commands,
+                         printed_sections,
+                         max_option_length,
+                         commands_printed);
+                 });
+             },
              std::string(strings.top_subcommand_placeholder_text),
-             // KLUDGE: This false is here to indicate that we have not yet
-             // appended strings.next_subcommand_placeholder_text above.  If we
-             // find ourselves deep enough in subcommands, we will, and we'll
-             // also set this false to true.
-             false});
+             detail::contains_commands<Options...>()});
 
         parse_option_result parse_result = detail::parse_commands_in_tuple(
             map,

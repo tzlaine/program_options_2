@@ -303,14 +303,27 @@ namespace boost { namespace program_options_2 { namespace detail {
         {
             if constexpr (Subcommand == subcommand_t::yes)
                 return true;
-            return (detail::contains_commands_impl<Options>::call() || ...);
+            else
+                return (detail::contains_commands_impl<Options>::call() || ...);
         }
     };
 
     template<typename... Options>
     constexpr bool contains_commands()
     {
-        return (detail::contains_commands_impl<Options>::call() || ...);
+        return (
+            detail::contains_commands_impl<
+                std::remove_cvref_t<Options>>::call() ||
+            ...);
+    }
+
+    template<typename... Options>
+    constexpr bool contains_commands(hana::tuple<Options...> const &)
+    {
+        return (
+            detail::contains_commands_impl<
+                std::remove_cvref_t<Options>>::call() ||
+            ...);
     }
 
 }}}
