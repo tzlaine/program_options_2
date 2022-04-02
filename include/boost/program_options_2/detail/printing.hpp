@@ -22,12 +22,16 @@
 
 namespace boost { namespace program_options_2 { namespace detail {
 
-    template<typename Char>
+    template<
+        typename Char1,
+        typename Char2,
+        typename Char3,
+        typename Char4 = char>
     void print_placeholder_string(
-        std::basic_ostream<Char> & os,
-        std::basic_string_view<Char> placeholder_str,
-        std::basic_string_view<Char> inserted_str1,
-        std::basic_string_view<Char> inserted_str2,
+        std::basic_ostream<Char1> & os,
+        std::basic_string_view<Char2> placeholder_str,
+        std::basic_string_view<Char3> inserted_str1,
+        std::basic_string_view<Char4> inserted_str2 = {},
         bool end_with_newline = true);
 
     template<typename... Options>
@@ -743,14 +747,12 @@ namespace boost { namespace program_options_2 { namespace detail {
         std::exit(exit_code);
     }
 
-    // TODO: I think the as_utf8() calls below imply that the Char types here
-    // can (must?) all be different and this will still work.
-    template<typename Char>
+    template<typename Char1, typename Char2, typename Char3, typename Char4>
     void print_placeholder_string(
-        std::basic_ostream<Char> & os,
-        std::basic_string_view<Char> placeholder_str,
-        std::basic_string_view<Char> inserted_str1,
-        std::basic_string_view<Char> inserted_str2,
+        std::basic_ostream<Char1> & os,
+        std::basic_string_view<Char2> placeholder_str,
+        std::basic_string_view<Char3> inserted_str1,
+        std::basic_string_view<Char4> inserted_str2,
         bool end_with_newline)
     {
         using namespace parser::literals;
