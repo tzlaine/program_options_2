@@ -241,14 +241,14 @@ namespace boost { namespace program_options_2 { namespace detail {
     }
 
     template<bool ForPrinting, typename... Options>
-    auto make_opt_tuple_impl(hana::tuple<Options const &...> && opts)
+    auto make_opt_tuple_impl(hana::tuple<Options...> && opts)
     {
         auto unflattened = hana::transform(opts, [](auto const & opt) {
             using opt_type = std::remove_cvref_t<decltype(opt)>;
             if constexpr (is_group<opt_type>::value) {
-                if constexpr (
-                    !ForPrinting && !opt_type::mutually_exclusive &&
-                    !opt_type::subcommand) {
+                constexpr bool regular_group =
+                    !opt_type::mutually_exclusive && !opt_type::subcommand;
+                if constexpr (!ForPrinting && regular_group) {
                     return detail::make_opt_tuple_impl<false>(
                         detail::to_ref_tuple(opt.options));
                 } else if constexpr (
