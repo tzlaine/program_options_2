@@ -240,7 +240,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         });
     }
 
-    template<bool ForPrinting, typename... Options>
+    template<bool ForPrinting, bool ForGroupConstruction, typename... Options>
     auto make_opt_tuple_impl(hana::tuple<Options...> && opts)
     {
         auto unflattened = hana::transform(opts, [](auto const & opt) {
@@ -248,12 +248,16 @@ namespace boost { namespace program_options_2 { namespace detail {
             if constexpr (is_group<opt_type>::value) {
                 constexpr bool regular_group =
                     !opt_type::mutually_exclusive && !opt_type::subcommand;
-                if constexpr (!ForPrinting && regular_group) {
-                    return detail::make_opt_tuple_impl<false>(
-                        detail::to_ref_tuple(opt.options));
+                constexpr bool collapsible_group =
+                    !ForGroupConstruction || !opt.named_group;
+                if constexpr (
+                    !ForPrinting && regular_group && collapsible_group) {
+                    return detail::
+                        make_opt_tuple_impl<false, ForGroupConstruction>(
+                            detail::to_ref_tuple(opt.options));
                 } else if constexpr (
                     ForPrinting && opt.flatten_during_printing) {
-                    return detail::make_opt_tuple_impl<true>(
+                    return detail::make_opt_tuple_impl<true, false>(
                         detail::to_ref_tuple(opt.options));
                 } else {
                     return hana::make_tuple(opt);
@@ -268,14 +272,13 @@ namespace boost { namespace program_options_2 { namespace detail {
     template<typename... Options>
     auto make_opt_tuple(hana::tuple<Options const &...> && opts)
     {
-        return detail::make_opt_tuple_impl<false>(std::move(opts));
+        return detail::make_opt_tuple_impl<false, false>(std::move(opts));
     }
 
     template<typename... Options>
     auto make_opt_tuple(Options const &... opts)
     {
-        using opts_as_tuple_type = hana::tuple<Options const &...>;
-        return detail::make_opt_tuple(opts_as_tuple_type{opts...});
+        return detail::make_opt_tuple(hana::tuple<Options const &...>{opts...});
     }
 
     template<typename Option>

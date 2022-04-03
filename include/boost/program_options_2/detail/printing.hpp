@@ -37,7 +37,7 @@ namespace boost { namespace program_options_2 { namespace detail {
     template<typename... Options>
     auto make_opt_tuple_for_printing(hana::tuple<Options const &...> && opts)
     {
-        return detail::make_opt_tuple_impl<true>(std::move(opts));
+        return detail::make_opt_tuple_impl<true, false>(std::move(opts));
     }
 
     template<typename... Options>

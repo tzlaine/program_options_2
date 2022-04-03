@@ -105,6 +105,9 @@ namespace boost { namespace program_options_2 {
         }
     }
 
+    // TODO: Forward all these options, so that nesting does not make a million
+    // copies when unnecessary.
+
     /** TODO */
     template<
         option_or_group Option1,
@@ -221,58 +224,75 @@ namespace boost { namespace program_options_2 {
         return {names, help_text, {std::move(opts)...}, (Func &&) func};
     }
 
-    /** Creates a group of options.  The group is always flattened into the
-        other options it is with; it exists only for organizational
+    namespace detail
+    {
+        template<typename... Options>
+        auto make_group_opt_tuple(hana::tuple<Options...> && opts)
+        {
+            return detail::make_opt_tuple_impl<false, true>(std::move(opts));
+        }
+
+        template<typename... Options>
+        auto make_group_opt_tuple(Options &&... opts)
+        {
+            return detail::make_group_opt_tuple(
+                hana::tuple<std::remove_cvref_t<Options>...>{(Options &&)
+                                                                 opts...});
+        }
+
+        template<named_group_t NamedGroup, typename... Options>
+        auto make_group(
+            std::string_view name,
+            std::string_view desc,
+            hana::tuple<Options...> && opt_tuple)
+        {
+            return detail::option_group<
+                detail::exclusive_t::no,
+                detail::subcommand_t::no,
+                detail::required_t::no,
+                NamedGroup,
+                detail::no_func,
+                Options...>{name, desc, std::move(opt_tuple)};
+        }
+    }
+
+    /** Creates a group of two or more options.  The group is always flattened
+        into the other options it is with; it exists only for organizational
         purposes. */
     template<
         option_or_group Option1,
         option_or_group Option2,
         option_or_group... Options>
-    detail::option_group<
-        detail::exclusive_t::no,
-        detail::subcommand_t::no,
-        detail::required_t::no,
-        detail::named_group_t::no,
-        detail::no_func,
-        Option1,
-        Option2,
-        Options...>
-    group(Option1 opt1, Option2 opt2, Options... opts)
+    auto group(Option1 opt1, Option2 opt2, Options... opts)
     {
-        return {{}, {}, {std::move(opt1), std::move(opt2), std::move(opts)...}};
+        return detail::make_group<detail::named_group_t::no>(
+            {},
+            {},
+            detail::make_group_opt_tuple(
+                std::move(opt1), std::move(opt2), std::move(opts)...));
     }
 
-    /** Creates a group of options that appears with the given name and
-        description in the printed help text.  The group is only significant
-        when printing help; a group is always flattened into the other options
-        it is with when not printing.  The description may be empty. */
-    template<
-        option_or_group Option1,
-        option_or_group Option2,
-        option_or_group... Options>
-    detail::option_group<
-        detail::exclusive_t::no,
-        detail::subcommand_t::no,
-        detail::required_t::no,
-        detail::named_group_t::yes,
-        detail::no_func,
-        Option1,
-        Option2,
-        Options...>
-    group(
+    // TODO: Disallow nested named groups.
+
+    /** Creates a group of one or more options that appears with the given
+        name and description in the printed help text.  The group is only
+        significant when printing help; a group is always flattened into the
+        other options it is with when not printing.  The description may be
+        empty. */
+    template<option_or_group Option, option_or_group... Options>
+    auto group(
         std::string_view name,
         std::string_view description,
-        Option1 opt1,
-        Option2 opt2,
+        Option opt,
         Options... opts)
     {
         BOOST_ASSERT(
             !name.empty() &&
             "A named group with an empty name is not supported.");
-        return {
+        return detail::make_group<detail::named_group_t::yes>(
             name,
             description,
-            {std::move(opt1), std::move(opt2), std::move(opts)...}};
+            detail::make_group_opt_tuple(std::move(opt), std::move(opts)...));
     }
 
 }}
