@@ -356,10 +356,10 @@ namespace boost { namespace program_options_2 { namespace detail {
         return retval;
     }
 
-    template<typename Stream, typename Char, typename... Options>
+    template<typename Char, typename... Options>
     void print_help_synopsis(
         customizable_strings const & strings,
-        Stream & os,
+        std::ostringstream & os,
         std::basic_string_view<Char> prog,
         std::basic_string_view<Char> prog_desc,
         bool no_help,
@@ -397,18 +397,20 @@ namespace boost { namespace program_options_2 { namespace detail {
                 oss << ' ';
             oss << parse_contexts.back().commands_synopsis_text_;
 
+            current_width = detail::print_option_final(
+                os, 0, current_width, max_col_width, std::move(oss));
+
             bool const last_command = !parse_contexts.back().has_subcommands_;
             if (last_command) {
                 for (auto const & ctx : parse_contexts) {
                     current_width =
-                        ctx.print_synopsis_(oss, first_column, current_width);
+                        ctx.print_synopsis_(os, first_column, current_width);
                 }
             }
-
-            current_width = detail::print_option_final(
-                os, 0, current_width, max_col_width, std::move(oss));
         }
 
+        // TODO: Replace prog desription with command description, if there is
+        // one.
         if (prog_desc.empty())
             os << '\n';
         else
