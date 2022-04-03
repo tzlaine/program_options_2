@@ -241,7 +241,7 @@ namespace boost { namespace program_options_2 { namespace detail {
     }
 
     template<bool ForPrinting, typename... Options>
-    auto make_opt_tuple_impl(hana::tuple<Options const &...> const & opts)
+    auto make_opt_tuple_impl(hana::tuple<Options const &...> && opts)
     {
         auto unflattened = hana::transform(opts, [](auto const & opt) {
             using opt_type = std::remove_cvref_t<decltype(opt)>;
@@ -266,9 +266,9 @@ namespace boost { namespace program_options_2 { namespace detail {
     }
 
     template<typename... Options>
-    auto make_opt_tuple(hana::tuple<Options const &...> const & opts)
+    auto make_opt_tuple(hana::tuple<Options const &...> && opts)
     {
-        return detail::make_opt_tuple_impl<false>(opts);
+        return detail::make_opt_tuple_impl<false>(std::move(opts));
     }
 
     template<typename... Options>

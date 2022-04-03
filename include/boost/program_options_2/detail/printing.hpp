@@ -35,10 +35,9 @@ namespace boost { namespace program_options_2 { namespace detail {
         bool end_with_newline = true);
 
     template<typename... Options>
-    auto
-    make_opt_tuple_for_printing(hana::tuple<Options const &...> const & opts)
+    auto make_opt_tuple_for_printing(hana::tuple<Options const &...> && opts)
     {
-        return detail::make_opt_tuple_impl<true>(opts);
+        return detail::make_opt_tuple_impl<true>(std::move(opts));
     }
 
     template<typename... Options>
