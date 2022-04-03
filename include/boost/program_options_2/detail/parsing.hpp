@@ -1258,15 +1258,11 @@ namespace boost { namespace program_options_2 { namespace detail {
                                   << std::endl;
 #endif
 
-                        auto options_tuple = hana::unpack(
-                            opt.options, [](auto const &... opts2) {
-                                return detail::make_opt_tuple(opts2...);
-                            });
-                        auto printing_options_tuple = hana::unpack(
-                            opt.options, [](auto const &... opts2) {
-                                return detail::make_opt_tuple_for_printing(
-                                    opts2...);
-                            });
+                        auto options_tuple = detail::make_opt_tuple(
+                            detail::to_ref_tuple(opt.options));
+                        auto printing_options_tuple =
+                            detail::make_opt_tuple_for_printing(
+                                detail::to_ref_tuple(opt.options));
                         bool const has_subcommands_ =
                             detail::contains_commands(options_tuple);
                         auto const utf_arg = text::as_utf8(arg);
