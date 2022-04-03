@@ -409,12 +409,14 @@ namespace boost { namespace program_options_2 { namespace detail {
             }
         }
 
-        // TODO: Replace prog desription with command description, if there is
-        // one.
-        if (prog_desc.empty())
+        if (1u < parse_contexts.size() &&
+            !parse_contexts.back().help_text_.empty()) {
+            os << "\n\n" << text::as_utf8(parse_contexts.back().help_text_) << '\n';
+        } else if (prog_desc.empty()) {
             os << '\n';
-        else
-            os << '\n' << '\n' << text::as_utf8(prog_desc) << '\n';
+        } else {
+            os << "\n\n" << text::as_utf8(prog_desc) << '\n';
+        }
     }
 
     // This is the minimum allowed gap between the options and their

@@ -1268,6 +1268,7 @@ namespace boost { namespace program_options_2 { namespace detail {
                         auto const utf_arg = text::as_utf8(arg);
                         parse_contexts.push_back(
                             {text::to_string(text::as_utf32(arg)),
+                             opt.help_text,
                              [&,
                               argv0,
                               last,
@@ -1435,6 +1436,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         // This is the top-level context, outsided any commands.
         parse_contexts.push_back(
             {std::string{},
+             std::string_view{},
              [&, argv0, last, program_desc, no_help](int & next_positional) {
                  return detail::parse_options_into(
                      map_lookup<OptionsMap>(map),
