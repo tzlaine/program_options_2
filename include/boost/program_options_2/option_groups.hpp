@@ -105,9 +105,6 @@ namespace boost { namespace program_options_2 {
         }
     }
 
-    // TODO: Forward all these options, so that nesting does not make a million
-    // copies when unnecessary.
-
     /** TODO */
     template<
         option_or_group Option1,
