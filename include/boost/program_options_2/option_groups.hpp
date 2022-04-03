@@ -223,6 +223,51 @@ namespace boost { namespace program_options_2 {
 
     namespace detail
     {
+        template<typename Option>
+        struct contains_named_group_impl
+        {
+            constexpr static bool call() { return false; }
+        };
+
+        template<
+            exclusive_t MutuallyExclusive,
+            subcommand_t Subcommand,
+            required_t Required,
+            named_group_t NamedGroup,
+            typename Func,
+            typename... Options>
+        struct contains_named_group_impl<option_group<
+            MutuallyExclusive,
+            Subcommand,
+            Required,
+            NamedGroup,
+            Func,
+            Options...>>
+        {
+            constexpr static bool call()
+            {
+                if constexpr (
+                    MutuallyExclusive == exclusive_t::no &&
+                    Subcommand == subcommand_t::no &&
+                    NamedGroup == named_group_t::yes) {
+                    return true;
+                } else if constexpr (Subcommand == subcommand_t::yes) {
+                    // Don't check for nesting within subcommands boundaries.
+                    return false;
+                } else {
+                    return (
+                        detail::contains_named_group_impl<Options>::call() ||
+                        ...);
+                }
+            }
+        };
+
+        template<typename... Options>
+        constexpr bool contains_named_group()
+        {
+            return (detail::contains_named_group_impl<Options>::call() || ...);
+        }
+
         template<typename... Options>
         auto make_group_opt_tuple(hana::tuple<Options...> && opts)
         {
@@ -269,19 +314,21 @@ namespace boost { namespace program_options_2 {
                 std::move(opt1), std::move(opt2), std::move(opts)...));
     }
 
-    // TODO: Disallow nested named groups.
-
     /** Creates a group of one or more options that appears with the given
         name and description in the printed help text.  The group is only
         significant when printing help; a group is always flattened into the
         other options it is with when not printing.  The description may be
-        empty. */
+        empty.  Named groups many not be nested, except that a subcommand may
+        contain its own nested groups. */
     template<option_or_group Option, option_or_group... Options>
+    requires(!detail::contains_named_group<Option, Options...>())
+        // clang-format off
     auto group(
         std::string_view name,
         std::string_view description,
         Option opt,
         Options... opts)
+    // clang-format on
     {
         BOOST_ASSERT(
             !name.empty() &&

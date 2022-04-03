@@ -210,7 +210,8 @@ TEST(commands, command)
         }
     }
 
-    // TODO: Multiple commands
+    // TODO: Move to printing.cpp?
+    // multiple commands
     {
         std::string const expected_help = R"(usage:  prog [-h] COMMAND
 
@@ -296,4 +297,60 @@ Use 'prog CMD -h' for help on command CMD.
     // TODO: Subcommands (3 deep)
 
     // TODO: Named groups of commands
+
+    // TODO: Move to printing.cpp?
+    // named groups "nested" within commands
+    {
+        auto command = po2::command(
+            [](auto) {},
+            "cmd",
+            "What the command does...",
+            po2::group("A group", "Its function", arg1));
+        std::vector<std::string_view> args;
+
+        std::ostringstream os;
+        std::map<std::string_view, std::any> result;
+
+        args = {"prog", "-h"};
+        os = std::ostringstream();
+        try {
+            po2::parse_command_line(
+                args,
+                result,
+                "A program.",
+                os,
+                po2::group("A group of commands", "Its function", command));
+        } catch (int) {
+        }
+        EXPECT_EQ(os.str(), R"(usage:  prog [-h] COMMAND
+
+A program.
+
+optional arguments:
+  -h, --help  Print this help message and exit
+
+A group of commands:
+  Its function
+
+  cmd         What the command does...
+
+response files:
+  Use '@file' to load a file containing command line arguments.
+)");
+
+#if 0 // TODO: Borken.
+        args = {"prog", "cmd", "-h"};
+        os = std::ostringstream();
+        try {
+            po2::parse_command_line(
+                args,
+                result,
+                "A program.",
+                os,
+                po2::group("A group of commands", "Its function", command));
+        } catch (int) {
+        }
+        EXPECT_EQ(os.str(), R"()");
+#endif
+    }
 }
