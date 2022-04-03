@@ -32,6 +32,52 @@ auto const arg4 = po2::argument<short>("-f", "Number of f's", 1, 1, 2, 3);
 
 // TODO: Test printing for all of the below (in the printing test).
 
+// TODO: Printing of commands has an extra line break in the synopsis.
+
+TEST(commands, api)
+{
+    // interior commands
+    {
+        auto command_with_subcommand = po2::command(
+            "cmd",
+            "A top-level command.",
+            pos1,
+            po2::command(
+                [](auto) {},
+                "subcmd",
+                "Sub-command for cmd.",
+                arg1,
+                arg2,
+                arg3));
+        (void)command_with_subcommand;
+    }
+
+    {
+        auto command_with_subcommand = po2::command(
+            "cmd",
+            pos1,
+            po2::command(
+                [](auto) {},
+                "subcmd",
+                "Sub-command for cmd.",
+                arg1,
+                arg2,
+                arg3));
+        (void)command_with_subcommand;
+    }
+
+    // leaf commands
+    {
+        auto command =
+            po2::command([](auto) {}, "cmd", "A command.", arg1, arg2, arg3);
+        (void)command;
+    }
+
+    {
+        auto command = po2::command([](auto) {}, "cmd", arg1, arg2, arg3);
+        (void)command;
+    }
+}
 
 TEST(commands, command)
 {
@@ -165,6 +211,87 @@ TEST(commands, command)
     }
 
     // TODO: Multiple commands
+    {
+        std::string const expected_help = R"(usage:  prog [-h] COMMAND
+
+A program.
+
+commands:
+  cmd1        What command 1 does...
+  cmd2        What command 2 does...
+  cmd3        What command 3 does...
+
+Use 'prog CMD -h' for help on command CMD.
+)";
+        auto command1 =
+            po2::command([](auto) {}, "cmd1", "What command 1 does...", arg1);
+        auto command2 =
+            po2::command([](auto) {}, "cmd2", "What command 2 does...", arg2);
+        auto command3 =
+            po2::command([](auto) {}, "cmd3", "What command 3 does...", arg3);
+        std::vector<std::string_view> args{"prog", "-h"};
+
+        std::ostringstream os;
+        std::map<std::string_view, std::any> result;
+
+        os = std::ostringstream();
+        try {
+            po2::parse_command_line(
+                args, result, "A program.", os, command1, command2, command3);
+        } catch (int) {
+        }
+        EXPECT_EQ(os.str(), expected_help);
+
+        os = std::ostringstream();
+        try {
+            po2::parse_command_line(
+                args,
+                result,
+                "A program.",
+                os,
+                po2::group(command1, command2, command3));
+        } catch (int) {
+        }
+        EXPECT_EQ(os.str(), expected_help);
+
+        os = std::ostringstream();
+        try {
+            po2::parse_command_line(
+                args,
+                result,
+                "A program.",
+                os,
+                po2::group(pos1, po2::group(command1, command2, command3)));
+        } catch (int) {
+        }
+        EXPECT_EQ(os.str(), expected_help);
+
+        os = std::ostringstream();
+        try {
+            po2::parse_command_line(
+                args,
+                result,
+                "A program.",
+                os,
+                po2::group(command1, command2),
+                command3);
+        } catch (int) {
+        }
+        EXPECT_EQ(os.str(), expected_help);
+
+        os = std::ostringstream();
+        try {
+            po2::parse_command_line(
+                args,
+                result,
+                "A program.",
+                os,
+                command1,
+                po2::group(command2, command3));
+        } catch (int) {
+        }
+        EXPECT_EQ(os.str(), expected_help);
+    }
 
     // TODO: Subcommands (3 deep)
 
