@@ -105,7 +105,8 @@ namespace boost { namespace program_options_2 {
         }
     }
 
-    /** TODO */
+    /** Creates an exclusive group of options.  At most one of the given
+        options is accepted during parsing. */
     template<
         option_or_group Option1,
         option_or_group Option2,
@@ -129,7 +130,8 @@ namespace boost { namespace program_options_2 {
         return {{}, {}, {std::move(opt1), std::move(opt2), std::move(opts)...}};
     }
 
-    /** TODO */
+    /** Creates a command with the given `names` and no help text, containing
+        the given options.  This command must have sub-commands. */
     template<option_or_group... Options>
     requires(detail::contains_commands<Options...>())
         // clang-format off
@@ -151,7 +153,8 @@ namespace boost { namespace program_options_2 {
         return {names, {}, {std::move(opts)...}};
     }
 
-    /** TODO */
+    /** Creates a command with the given `names` and help text, containing the
+        given options.  This command must have sub-commands. */
     template<option_or_group... Options>
     requires(detail::contains_commands<Options...>())
         // clang-format off
@@ -173,7 +176,10 @@ namespace boost { namespace program_options_2 {
         return {names, help_text, {std::move(opts)...}};
     }
 
-    /** TODO */
+    /** Creates a command with the given `names` and no help text, containing
+        the given options.  If this command is found in the input, the
+        function `func` will be called with the result-map that is passed to
+        `parse_command_line()`.  This command must not have sub-commands. */
     template<std::copy_constructible Func, option_or_group... Options>
     requires(!detail::contains_commands<Options...>())
         // clang-format off
@@ -195,7 +201,10 @@ namespace boost { namespace program_options_2 {
         return {names, {}, {std::move(opts)...}, (Func &&) func};
     }
 
-    /** TODO */
+    /** Creates a command with the given `names` and help text, containing the
+        given options.  If this command is found in the input, the function
+        `func` will be called with the result-map that is passed to
+        `parse_command_line()`.  This command must not have sub-commands. */
     template<std::copy_constructible Func, option_or_group... Options>
     requires(!detail::contains_commands<Options...>())
         // clang-format off
