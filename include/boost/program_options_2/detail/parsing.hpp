@@ -733,6 +733,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         int & next_positional,
         customizable_strings const & strings,
         bool deserializing,
+        bool final_parse_step,
         ArgsIter & first,
         ArgsIter last,
         std::basic_string_view<Char> argv0,
@@ -781,6 +782,7 @@ namespace boost { namespace program_options_2 { namespace detail {
                 next_positional,
                 strings,
                 deserializing,
+                final_parse_step,
                 file_first,
                 file_last,
                 argv0,
@@ -892,6 +894,7 @@ namespace boost { namespace program_options_2 { namespace detail {
                             next_positional,
                             strings,
                             deserializing,
+                            final_parse_step,
                             first,
                             last,
                             argv0,
@@ -918,10 +921,14 @@ namespace boost { namespace program_options_2 { namespace detail {
             if (!parse_result)
                 return parse_result;
             if (first == initial_first) {
-                fail(parse_option_error::unknown_arg, *first);
-                return {
-                    parse_option_result::stop_parsing,
-                    parse_option_error::unknown_arg};
+                if (final_parse_step) {
+                    fail(parse_option_error::unknown_arg, *first);
+                    return {
+                        parse_option_result::stop_parsing,
+                        parse_option_error::unknown_arg};
+                } else {
+                    break;
+                }
             }
         }
 
@@ -940,6 +947,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         int & next_positional,
         customizable_strings const & strings,
         bool deserializing,
+        bool final_parse_step,
         std::basic_string_view<Char> argv0,
         ArgsIter & first,
         ArgsIter last,
@@ -980,6 +988,7 @@ namespace boost { namespace program_options_2 { namespace detail {
             next_positional,
             strings,
             deserializing,
+            final_parse_step,
             first,
             last,
             argv0,
@@ -1066,6 +1075,7 @@ namespace boost { namespace program_options_2 { namespace detail {
             next_positional,
             strings,
             false,
+            true,
             argv0,
             first,
             last,
@@ -1173,6 +1183,7 @@ namespace boost { namespace program_options_2 { namespace detail {
             next_positional,
             strings,
             deserializing,
+            true,
             argv0,
             first,
             last,
@@ -1274,12 +1285,14 @@ namespace boost { namespace program_options_2 { namespace detail {
                               last,
                               program_desc,
                               no_help,
-                              options_tuple](int & next_positional) {
+                              options_tuple,
+                              has_subcommands_](int & next_positional) {
                                  return detail::parse_options_into(
                                      map_lookup<OptionsMap>(map),
                                      next_positional,
                                      strings,
                                      false,
+                                     !has_subcommands_,
                                      argv0,
                                      first,
                                      last,
@@ -1464,6 +1477,7 @@ namespace boost { namespace program_options_2 { namespace detail {
                      map_lookup<OptionsMap>(map),
                      next_positional,
                      strings,
+                     false,
                      false,
                      argv0,
                      first,

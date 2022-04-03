@@ -81,6 +81,20 @@ TEST(commands, api)
 
 TEST(commands, command)
 {
+    // simple cases
+    {
+        auto command = po2::command([](auto) {}, "cmd", arg1, arg2, arg3);
+        std::vector<std::string_view> args{
+            "prog", "cmd", "-a", "55", "--branch", "2", "-e", "3"};
+
+        std::ostringstream os;
+        std::map<std::string_view, std::any> result;
+        po2::parse_command_line(args, result, "A program.", os, command);
+        EXPECT_EQ(std::any_cast<int>(result["apple"]), 55);
+        EXPECT_EQ(std::any_cast<double>(result["branch"]), 2.0);
+        EXPECT_EQ(std::any_cast<short>(result["e"]), 3);
+    }
+
     // TODO: Move to printing.cpp?
     // printing
     {
@@ -225,35 +239,6 @@ commands:
 Use 'prog CMD -h' for help on command CMD.
 )");
     }
-
-#if 0 // TODO: Parsing appears to be broken.
-    {
-        auto command = po2::command([](auto) {}, "cmd", arg1, arg2, arg3);
-        std::vector<std::string_view> args{
-            "prog", "cmd", "-a", "55", "--branch", "2", "-e", "3"};
-
-        std::ostringstream os;
-        std::map<std::string_view, std::any> result;
-        try {
-            po2::parse_command_line(args, result, "A program.", os, command);
-        } catch (int) {
-        }
-        EXPECT_EQ(
-            os.str(), R"(usage:  prog cmd [-h] [-a A] [-b {1,2,3}] [-e {1,2,3}]
-
-A program.
-
-optional arguments:
-  -h, --help    Print this help message and exit
-  -a, --apple   Number of apples
-  -b, --branch  Number of branchs
-  -e            Number of e's
-
-response files:
-  Use '@file' to load a file containing command line arguments.
-)");
-    }
-#endif
 
     // TODO: Move to printing.cpp?
     // multiple commands
