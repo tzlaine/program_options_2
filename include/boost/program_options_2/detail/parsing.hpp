@@ -1378,6 +1378,28 @@ namespace boost { namespace program_options_2 { namespace detail {
             }
         });
 
+        // Special case: if this is the context of a leaf command, and there
+        // is no help anywhere in the options, try to match the default help
+        // option.
+        if (no_help && !parse_contexts.back().has_subcommands_ &&
+            detail::argv_contains_default_help_flag(
+                strings, std::ranges::subrange(first, last))) {
+#if BOOST_PROGRAM_OPTIONS_2_INSTRUMENT_COMMAND_PARSING
+            std::cout << "parse_commands_in_tuple(): "
+                         "detail::print_help_for_command_and_exit()"
+                      << std::endl;
+#endif
+            detail::print_help_and_exit(
+                0,
+                strings,
+                argv0,
+                program_desc,
+                os,
+                no_help,
+                parse_contexts,
+                opts...);
+        }
+
         if (!child_result)
             return child_result;
 
