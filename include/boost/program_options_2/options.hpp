@@ -37,6 +37,7 @@ namespace boost { namespace program_options_2 {
 
         inline bool valid_nonpositional_names(std::string_view names)
         {
+            // TODO: Check that none of the names is "-" or "--".
             if (detail::contains_ws(names))
                 return false;
             for (auto name : detail::names_view(names)) {
