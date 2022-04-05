@@ -11,6 +11,9 @@
 // TODO: Document that the option default type (std::string_view) causes
 // dangling when loading from files.
 
+// TODO: Need tests (and fixes!) for saving and loading groups, especially
+// commands.
+
 
 namespace po2 = boost::program_options_2;
 

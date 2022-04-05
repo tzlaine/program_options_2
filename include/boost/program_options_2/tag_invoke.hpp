@@ -69,14 +69,26 @@ namespace boost::program_options_2 {
     template<auto & Tag>
     using tag_t = std::decay_t<decltype(Tag)>;
 
-    /** TODO */
+    /** Used to wrap a type that must be specified on some `tag_invoke`able
+        entity.  Most `tag_invoke`ables are nontemplates.  For templates, the
+        template parameter must be specified, but the `tag_invoke` function
+        provides no way to do that.  `type_` is part of the solution, and
+        `type_c` is the other.
+
+        \see `any_cast_fn` for an example of use. */
     template<typename T>
     struct type_
     {
         using type = T;
     };
 
-    /** TODO */
+    /** Used to pass a type that must be specified on some `tag_invoke`able
+        entity, when invoking that entity.  Most `tag_invoke`ables are
+        nontemplates.  For templates, the template parameter must be
+        specified, but the `tag_invoke` function provides no way to do that.
+        `type_c` is part of the solution, and `type_` is the other.
+
+        \see `any_cast_fn` for an example of use. */
     template<typename T>
     inline constexpr type_<T> type_c{};
 

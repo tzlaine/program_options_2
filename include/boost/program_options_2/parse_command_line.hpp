@@ -19,7 +19,13 @@ namespace boost { namespace program_options_2 {
 
     // tuple overloads
 
-    /** TODO */
+    /** Parse `args` for the options `opt, opts...`, and return a tuple that
+        contains the results of the parse.  Each element of tuple corresponds
+        one-to-one to `opt, opts...` (except that grouping is ignored).  If an
+        error occurs, or if the user requests help or version, output will be
+        printed to `os` and the program will exit.  The return code on exit
+        will be `1` if an error occurred, or `0` otherwise.  The given options
+        must not contain any commands. */
     template<
         range_of_string_view<char> Args,
         option_or_group Option,
@@ -58,7 +64,13 @@ namespace boost { namespace program_options_2 {
             strings, args, program_desc, os, no_help, opt, opts...);
     }
 
-    /** TODO */
+    /** Parse `args` for the options `opt, opts...`, and return a tuple that
+        contains the results of the parse.  Each element of tuple corresponds
+        one-to-one to `opt, opts...` (except that grouping is ignored).  If an
+        error occurs, or if the user requests help or version, output will be
+        printed to `os` and the program will exit.  The return code on exit
+        will be `1` if an error occurred, or `0` otherwise.  The given options
+        must not contain any commands. */
     template<
         range_of_string_view<char> Args,
         option_or_group Option,
@@ -77,7 +89,13 @@ namespace boost { namespace program_options_2 {
             args, program_desc, os, customizable_strings{}, opt, opts...);
     }
 
-    /** TODO */
+    /** Parse `[argv, argv + argc)` for the options `opt, opts...`, and return
+        a tuple that contains the results of the parse.  Each element of tuple
+        corresponds one-to-one to `opt, opts...` (except that grouping is
+        ignored).  If an error occurs, or if the user requests help or
+        version, output will be printed to `os` and the program will exit.
+        The return code on exit will be `1` if an error occurred, or `0`
+        otherwise.  The given options must not contain any commands. */
     template<option_or_group Option, option_or_group... Options>
     requires(!detail::contains_commands<Option, Options...>())
         // clang-format off
@@ -95,7 +113,13 @@ namespace boost { namespace program_options_2 {
             arg_view(argc, argv), program_desc, os, strings, opt, opts...);
     }
 
-    /** TODO */
+    /** Parse `[argv, argv + argc)` for the options `opt, opts...`, and return
+        a tuple that contains the results of the parse.  Each element of tuple
+        corresponds one-to-one to `opt, opts...` (except that grouping is
+        ignored).  If an error occurs, or if the user requests help or
+        version, output will be printed to `os` and the program will exit.
+        The return code on exit will be `1` if an error occurred, or `0`
+        otherwise.  The given options must not contain any commands. */
     template<option_or_group Option, option_or_group... Options>
     requires(!detail::contains_commands<Option, Options...>())
         // clang-format off
@@ -121,7 +145,12 @@ namespace boost { namespace program_options_2 {
 
     // map overloads
 
-    /** TODO */
+    /** Parse `args` for the options `opt, opts...`, and place the results of
+        the parse in `map`.  For any option `o`, the key for its associated
+        entry in `map` is `storage_name(o)`.  If an error occurs, or if the
+        user requests help or version, output will be printed to `os` and the
+        program will exit. The return code on exit will be `1` if an error
+        occurred, or `0` otherwise. */
     template<
         range_of_string_view<char> Args,
         options_map OptionsMap,
@@ -174,7 +203,12 @@ namespace boost { namespace program_options_2 {
         }
     }
 
-    /** TODO */
+    /** Parse `args` for the options `opt, opts...`, and place the results of
+        the parse in `map`.  For any option `o`, the key for its associated
+        entry in `map` is `storage_name(o)`.  If an error occurs, or if the
+        user requests help or version, output will be printed to `os` and the
+        program will exit. The return code on exit will be `1` if an error
+        occurred, or `0` otherwise. */
     template<
         range_of_string_view<char> Args,
         options_map OptionsMap,
@@ -192,7 +226,12 @@ namespace boost { namespace program_options_2 {
             args, map, program_desc, os, customizable_strings{}, opt, opts...);
     }
 
-    /** TODO */
+    /** Parse `[argv, argv + argc)` for the options `opt, opts...`, and place
+        the results of the parse in `map`.  For any option `o`, the key for
+        its associated entry in `map` is `storage_name(o)`.  If an error
+        occurs, or if the user requests help or version, output will be
+        printed to `os` and the program will exit. The return code on exit
+        will be `1` if an error occurred, or `0` otherwise. */
     template<
         options_map OptionsMap,
         option_or_group Option,
@@ -211,7 +250,12 @@ namespace boost { namespace program_options_2 {
             arg_view(argc, argv), map, program_desc, os, strings, opt, opts...);
     }
 
-    /** TODO */
+    /** Parse `[argv, argv + argc)` for the options `opt, opts...`, and place
+        the results of the parse in `map`.  For any option `o`, the key for
+        its associated entry in `map` is `storage_name(o)`.  If an error
+        occurs, or if the user requests help or version, output will be
+        printed to `os` and the program will exit. The return code on exit
+        will be `1` if an error occurred, or `0` otherwise. */
     template<
         options_map OptionsMap,
         option_or_group Option,
@@ -240,7 +284,14 @@ namespace boost { namespace program_options_2 {
 
     // tuple overloads
 
-    /** TODO */
+    /** Parse `args` for the options `opt, opts...`, and return a tuple that
+        contains the results of the parse.  Each element of tuple corresponds
+        one-to-one to `opt, opts...` (except that grouping is ignored).  If an
+        error occurs, or if the user requests help or version, output will be
+        printed to `os` and the program will exit.  The return code on exit
+        will be `1` if an error occurred, or `0` otherwise.  The given options
+        must not contain any commands.  This function is defined on Windows
+        only. */
     template<
         range_of_string_view<wchar_t> Args,
         option_or_group Option,
@@ -270,7 +321,14 @@ namespace boost { namespace program_options_2 {
             strings, args, program_desc, os, no_help, opt, opts...);
     }
 
-    /** TODO */
+    /** Parse `args` for the options `opt, opts...`, and return a tuple that
+        contains the results of the parse.  Each element of tuple corresponds
+        one-to-one to `opt, opts...` (except that grouping is ignored).  If an
+        error occurs, or if the user requests help or version, output will be
+        printed to `os` and the program will exit.  The return code on exit
+        will be `1` if an error occurred, or `0` otherwise.  The given options
+        must not contain any commands.  This function is defined on Windows
+        only. */
     template<
         range_of_string_view<wchar_t> Args,
         option_or_group Option,
@@ -289,7 +347,14 @@ namespace boost { namespace program_options_2 {
             args, program_desc, os, customizable_strings{}, opt, opts...);
     }
 
-    /** TODO */
+    /** Parse `[argv, argv + argc)` for the options `opt, opts...`, and return
+        a tuple that contains the results of the parse.  Each element of tuple
+        corresponds one-to-one to `opt, opts...` (except that grouping is
+        ignored).  If an error occurs, or if the user requests help or
+        version, output will be printed to `os` and the program will exit.
+        The return code on exit will be `1` if an error occurred, or `0`
+        otherwise.  The given options must not contain any commands.  This
+        function is defined on Windows only. */
     template<option_or_group Option, option_or_group... Options>
     requires(!detail::contains_commands<Option, Options...>())
         // clang-format off
@@ -307,7 +372,14 @@ namespace boost { namespace program_options_2 {
             arg_view(argc, argv), program_desc, os, strings, opt, opts...);
     }
 
-    /** TODO */
+    /** Parse `[argv, argv + argc)` for the options `opt, opts...`, and return
+        a tuple that contains the results of the parse.  Each element of tuple
+        corresponds one-to-one to `opt, opts...` (except that grouping is
+        ignored).  If an error occurs, or if the user requests help or
+        version, output will be printed to `os` and the program will exit.
+        The return code on exit will be `1` if an error occurred, or `0`
+        otherwise.  The given options must not contain any commands.  This
+        function is defined on Windows only. */
     template<option_or_group Option, option_or_group... Options>
     requires(!detail::contains_commands<Option, Options...>())
         // clang-format off

@@ -34,11 +34,14 @@
 
 namespace boost { namespace program_options_2 {
 
-    /** TODO */
+    /** The constant used to specify an option that has an optional following
+        arguments. */
     inline constexpr int zero_or_one = -1;
-    /** TODO */
+    /** The constant used to specify an option that has zero or more following
+        arguments. */
     inline constexpr int zero_or_more = -2;
-    /** TODO */
+    /** The constant used to specify an option that has one or more following
+        arguments. */
     inline constexpr int one_or_more = -3;
 
     // TODO: Allow replacement of '-' , '@', ',', etc.?
@@ -89,24 +92,32 @@ namespace boost { namespace program_options_2 {
         std::string_view cannot_read = "error: cannot open '{}' for reading";
     };
 
-    /** TODO */
+    /** The type that must be returned from any invocable that can be used as
+        a validator. */
     struct validation_result
     {
         bool valid = true;
         std::string_view error;
     };
 
-    /** TODO */
+    /** Represents the absence of a type in numerous places in
+        program_options_2. */
     struct no_value
     {};
 
-    /** TODO */
+    /** A `std::map` of `std::string`s to `std::any`s.  This is a type
+        appropriate for parsing options into. */
     using string_any_map = std::map<std::string, std::any>;
 
-    /** TODO */
+    /** A `std::map` of `std::string`s to `std::any`s.  This is a type that
+        may be appropriate for parsing options into.  Note that if you parse
+        response files and/or parse UTF-16 command line arguments, this type
+        will not work. */
     using string_view_any_map = std::map<std::string_view, std::any>;
 
-    /** TODO */
+    /** An invocable that returns true iff the given `any`.  It has built-in
+        support for `boost::any` and `std::any`, and uses `tag_invoke` to
+        allow users to customize its behavior for their own types. */
     inline constexpr struct any_empty_fn
     {
         template<typename Any>
@@ -124,7 +135,10 @@ namespace boost { namespace program_options_2 {
         }
     } any_empty;
 
-    /** TODO */
+    /** An invocable that returns the result of an `any_cast` on the given
+        `any`.  It has built-in support for `boost::any` and `std::any`, and
+        uses `tag_invoke` to allow users to customize its behavior for their
+        own types. */
     template<typename T>
     struct any_cast_fn
     {
@@ -145,7 +159,7 @@ namespace boost { namespace program_options_2 {
         }
     };
 
-    /** TODO */
+    /** An inline variable for `any_cast_fn`. */
     template<typename T>
     inline constexpr any_cast_fn<T> any_cast;
 
@@ -501,7 +515,6 @@ namespace boost { namespace program_options_2 {
             bool for_post_synopsis = false);
     }
 
-    /** TODO */
     template<
         detail::option_kind Kind,
         typename T,

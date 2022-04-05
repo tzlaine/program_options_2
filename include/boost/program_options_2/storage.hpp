@@ -18,7 +18,8 @@
 
 namespace boost { namespace program_options_2 {
 
-    /** TODO */
+    /** Returns the name used for a value associated with the given non-group
+        option when storing the value in a map. */
     template<
         detail::option_kind Kind,
         typename T,
@@ -43,27 +44,55 @@ namespace boost { namespace program_options_2 {
         return detail::trim_leading_dashes(name);
     }
 
-    /** TODO */
+    /** The kinds of results that can occur when saving options. */
     enum struct save_result {
+        /** The save was successful. */
         success = 0,
+
+        /** The save failed because the output file could not be opened for
+            writing. */
         could_not_open_file_for_writing,
+
+        /** The save failed because an `any_cast` failed on one of the map
+            elements being saved. */
         bad_any_cast
     };
 
-    /** TODO */
+    /** The kinds of results that can occur when loading options. */
     enum struct load_result {
+        /** The load was successful. */
         success = 0,
+
+        /** The load failed because the input file could not be opened for
+            reading. */
         could_not_open_file_for_reading,
+
+        /** An argument was loaded, for which no associated option could be
+            found. */
         unknown_arg = (int)detail::parse_option_error::unknown_arg,
+
+        /** There were too many or too few values given for the associated
+            option. */
         wrong_number_of_args =
             (int)detail::parse_option_error::wrong_number_of_args,
+
+        /** At least one value could not be parsed as the type specified in
+            its associated option. */
         cannot_parse_arg = (int)detail::parse_option_error::cannot_parse_arg,
+
+        /** A value for at least one value that was loaded was not one of the
+            choices specified for its associated option. */
         no_such_choice = (int)detail::parse_option_error::no_such_choice,
+
+        /** At least one value that was loaded failed a validation check for
+            its associated option. */
         validation_error = (int)detail::parse_option_error::validation_error,
+
+        /** Some of the input was JSON, and the JSON could not be parsed. */
         malformed_json
     };
 
-    /** TODO */
+    /** The exception type thrown when an options-saving function fails. */
     struct save_error : std::exception
     {
         save_error() = default;
@@ -82,7 +111,7 @@ namespace boost { namespace program_options_2 {
         std::string_view str_;
     };
 
-    /** TODO */
+    /** The exception type thrown when an options-loading function fails. */
     struct load_error : std::exception
     {
         load_error() = default;
@@ -109,7 +138,10 @@ namespace boost { namespace program_options_2 {
         using quotable = decltype(std::quoted(std::declval<T>()));
     }
 
-    /** TODO */
+    /** Saves the options in `m`, expecting to find the options in `opts`,
+        writing to file `filename`.
+
+        \throws `save_error` on failure */
     template<options_map OptionsMap, typename... Options>
     void save_response_file(
         std::string_view filename,
@@ -175,7 +207,10 @@ namespace boost { namespace program_options_2 {
         });
     }
 
-    /** TODO */
+    /** Loads the options in file `filename`, expecting to find the options in
+        `opts`, and putting the results into `m`.
+
+        \throws `load_error` on failure */
     template<options_map OptionsMap, typename... Options>
     void load_response_file(
         std::string_view filename, OptionsMap & m, Options const &... opts)
@@ -347,7 +382,10 @@ namespace boost { namespace program_options_2 {
         }
     }
 
-    /** TODO */
+    /** Saves the options in `m`, expecting to find the options in `opts`,
+        writing JSON-formatted output to file `filename`.
+
+        \throws `save_error` on failure */
     template<options_map OptionsMap, typename... Options>
     void save_json_file(
         std::string_view filename,
@@ -414,7 +452,10 @@ namespace boost { namespace program_options_2 {
         ofs << "\n}\n";
     }
 
-    /** TODO */
+    /** Loads the options in the JSON-formatted file `filename`, expecting to
+        find the options in `opts`, and putting the results into `m`.
+
+        \throws `load_error` on failure */
     template<options_map OptionsMap, typename... Options>
     void load_json_file(
         std::string_view filename, OptionsMap & m, Options const &... opts)

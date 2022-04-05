@@ -14,7 +14,8 @@
 
 namespace boost { namespace program_options_2 {
 
-    /** TODO */
+    /** Takes `opt` and returns a new option that has a default value of
+        `default_value`. */
     template<
         detail::option_kind Kind,
         typename T,
@@ -70,7 +71,8 @@ namespace boost { namespace program_options_2 {
             std::move(opt.validator)};
     }
 
-    /** TODO */
+    /** Takes `opt` and returns a new option that will show up as `name` in
+        help text. */
     template<
         detail::option_kind Kind,
         typename T,
@@ -96,7 +98,8 @@ namespace boost { namespace program_options_2 {
         return opt;
     }
 
-    /** TODO */
+    /** Takes `opt` and returns an option that will use `validator` to
+        validate its arguments during parsing. */
     template<
         detail::option_kind Kind,
         typename T,
@@ -114,7 +117,8 @@ namespace boost { namespace program_options_2 {
         return detail::with_validator(std::move(opt), std::move(validator));
     }
 
-    /** TODO */
+    /** Takes `opt` and returns an option with a validator that requires that
+        its argument(s) be valid filesystem path(s). */
     template<
         detail::option_kind Kind,
         typename T,
@@ -145,7 +149,8 @@ namespace boost { namespace program_options_2 {
         return program_options_2::with_validator(opt, f);
     }
 
-    /** TODO */
+    /** Takes `opt` and returns an option with a validator that requires that
+        its argument(s) be valid files(s). */
     template<
         detail::option_kind Kind,
         typename T,
@@ -179,7 +184,8 @@ namespace boost { namespace program_options_2 {
         return program_options_2::with_validator(opt, f);
     }
 
-    /** TODO */
+    /** Takes `opt` and returns an option with a validator that requires that
+        its argument(s) be valid director(ies). */
     template<
         detail::option_kind Kind,
         typename T,

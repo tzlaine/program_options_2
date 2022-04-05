@@ -42,7 +42,8 @@ namespace boost { namespace program_options_2 {
         };
     }
 
-    /** TODO */
+    /** A view of the tokens in `[argv, argv + argc)'.  Each element of the
+        view is a `std::string_view<Char>`. */
     template<typename Char>
     struct arg_view : stl_interfaces::view_interface<arg_view<Char>>
     {
@@ -168,7 +169,8 @@ namespace boost { namespace program_options_2 {
         };
     }
 
-    /** TODO */
+    /** A view of the tokens in teh command line passed to `WinMain()`.  Each
+        element of the view is a `std::string_view<Char>`. */
     template<typename Char>
     struct winmain_arg_view
         : stl_interfaces::view_interface<winmain_arg_view<Char>>

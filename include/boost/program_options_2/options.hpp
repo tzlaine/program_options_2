@@ -100,7 +100,9 @@ namespace boost { namespace program_options_2 {
         }
     }
 
-    /** TODO */
+    /** Returns an optional option that may appear anywhere in the input.  The
+        option names must each begin with `"-"` or `"--"`.  The names must be
+        comma-delimited, and may not contain whitespace. */
     template<typename T = std::string_view>
     detail::option<detail::option_kind::argument, T>
     argument(std::string_view names, std::string_view help_text)
@@ -114,7 +116,10 @@ namespace boost { namespace program_options_2 {
     }
 
     // TODO: Support a range interface for specifying choices.
-    /** TODO */
+    /** Returns an optional option, whose argument(s) must be one of the
+        values `choices...`.  The option names must each begin with `"-"` or
+        `"--"`.  The names must be comma-delimited, and may not contain
+        whitespace. */
     template<typename T = std::string_view, typename... Choices>
         // clang-format off
         requires
@@ -165,7 +170,9 @@ namespace boost { namespace program_options_2 {
             {{std::move(choices)...}}};
     }
 
-    /** TODO */
+    /** Returns an required option, which must appear in order in the input,
+        relative to the other positional options.  The option name may not
+        begin with `"-"` or `"--"`, and may not contain whitespace. */
     template<typename T = std::string_view>
     detail::option<
         detail::option_kind::positional,
@@ -185,7 +192,10 @@ namespace boost { namespace program_options_2 {
         return {name, help_text, detail::action_kind::assign, 1};
     }
 
-    /** TODO */
+    /** Returns an required option, which must appear in order in the input,
+        relative to the other positional options.  Its parsed value must be
+        one of the values `choices...`.  The option name may not begin with
+        `"-"` or `"--"`, and may not contain whitespace. */
     template<typename T = std::string_view, typename... Choices>
         // clang-format off
         requires
@@ -257,7 +267,9 @@ namespace boost { namespace program_options_2 {
     // demonstrates how simple it is to configure to take "--" followed by an
     // arbitrary number of args.
 
-    /** TODO */
+    /** Returns an optional option that acts as a boolean flag.  The value of
+        the flag is considered to be `true` if the flag appears in the input,
+        and `false` otherwise. */
     inline detail::option<
         detail::option_kind::argument,
         bool,
@@ -272,7 +284,9 @@ namespace boost { namespace program_options_2 {
         return {names, help_text, detail::action_kind::assign, 0, false};
     }
 
-    /** TODO */
+    /** Returns an optional option that acts as a boolean flag.  The value of
+        the flag is considered to be `false` if the flag appears in the input,
+        and `true` otherwise. */
     inline detail::option<
         detail::option_kind::argument,
         bool,
@@ -287,7 +301,10 @@ namespace boost { namespace program_options_2 {
         return {names, help_text, detail::action_kind::assign, 0, true};
     }
 
-    /** TODO */
+    /** Returns an optional option that acts as an integer count.  The value
+        of the count is `0` if the flag does not appear in the input, and `n`
+        otherwise, where `n` is the nubmer of times that the flag appears in
+        the input. */
     inline detail::option<detail::option_kind::argument, int>
     counted_flag(std::string_view names, std::string_view help_text)
     {
@@ -303,7 +320,8 @@ namespace boost { namespace program_options_2 {
         return {names, help_text, detail::action_kind::count, 0};
     }
 
-    /** TODO */
+    /** Returns an optional version option that prints `version` and exits
+        if the version is requested. */
     inline detail::option<detail::option_kind::argument, void, std::string_view>
     version(
         std::string_view version,
@@ -317,7 +335,8 @@ namespace boost { namespace program_options_2 {
         return {names, help_text, detail::action_kind::version, 0, version};
     }
 
-    /** TODO */
+    /** Returns an optional help option that prints `f()` and exits if help is
+        requested. */
     template<std::invocable HelpStringFunc>
     detail::option<detail::option_kind::argument, void, HelpStringFunc> help(
         HelpStringFunc f,
@@ -331,7 +350,8 @@ namespace boost { namespace program_options_2 {
         return {names, help_text, detail::action_kind::help, 0, std::move(f)};
     }
 
-    /** TODO */
+    /** Returns an optional help option that prints the default help message
+        and exits if help is requested. */
     inline detail::option<detail::option_kind::argument, void> help(
         std::string_view names,
         std::string_view help_text = "Print this help message and exit")
@@ -343,7 +363,10 @@ namespace boost { namespace program_options_2 {
         return {names, help_text, detail::action_kind::help, 0};
     }
 
-    /** TODO */
+    /** Returns an optional option that can be used to load a response file.
+        Note that there is built-in support for response file command line
+        arguments of the form `@filename`.  Use `response_file()` when you
+        want to create one with a name. */
     inline auto response_file(
         std::string_view names,
         std::string_view help_text =
