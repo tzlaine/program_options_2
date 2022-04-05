@@ -16,25 +16,6 @@ namespace boost { namespace program_options_2 {
     // TODO: Try again to make these all constexpr.
 
     namespace detail {
-        template<typename R>
-        bool contains_ws(R const & r)
-        {
-            auto const last = r.end();
-            for (auto first = r.begin(); first != last; ++first) {
-                auto const cp = *first;
-                // space, tab through lf
-                if (cp == 0x0020 || (0x0009 <= cp && cp <= 0x000d))
-                    return true;
-                if (cp == 0x0085 || cp == 0x00a0 || cp == 0x1680 ||
-                    (0x2000 <= cp && cp <= 0x200a) || cp == 0x2028 ||
-                    cp == 0x2029 || cp == 0x202F || cp == 0x205F ||
-                    cp == 0x3000) {
-                    return true;
-                }
-            }
-            return false;
-        }
-
         inline bool valid_nonpositional_names(std::string_view names)
         {
             // TODO: Check that none of the names is "-" or "--".
@@ -194,6 +175,10 @@ namespace boost { namespace program_options_2 {
     positional(std::string_view name, std::string_view help_text)
     {
         BOOST_ASSERT(
+            !detail::contains_ws(name) &&
+            "Looks like you tried to create a positional argument that contains"
+            "whitespace.  Don't do that.");
+        BOOST_ASSERT(
             detail::positional(name) &&
             "Looks like you tried to create a positional argument that starts "
             "with a '-'.  Don't do that.");
@@ -222,6 +207,10 @@ namespace boost { namespace program_options_2 {
     // clang-format on
     {
         BOOST_ASSERT(
+            !detail::contains_ws(name) &&
+            "Looks like you tried to create a positional argument that contains"
+            "whitespace.  Don't do that.");
+        BOOST_ASSERT(
             detail::positional(name) &&
             "Looks like you tried to create a positional argument that starts "
             "with a '-'.  Don't do that.");
@@ -246,11 +235,16 @@ namespace boost { namespace program_options_2 {
             {{std::move(choices)...}}};
     }
 
-    /** TODO */
+    /** Returns a positional that will capture all tokens of input that remain
+        after all other options are parsed. */
     template<insertable T = std::vector<std::string_view>>
     detail::option<detail::option_kind::positional, T>
     remainder(std::string_view name, std::string_view help_text)
     {
+        BOOST_ASSERT(
+            !detail::contains_ws(name) &&
+            "Looks like you tried to create a positional argument that contains"
+            "whitespace.  Don't do that.");
         BOOST_ASSERT(
             detail::positional(name) &&
             "Looks like you tried to create a positional argument that starts "

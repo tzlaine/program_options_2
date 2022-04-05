@@ -187,8 +187,28 @@ namespace boost { namespace program_options_2 { namespace detail {
         return retval;
     }
 
+    template<typename R>
+    bool contains_ws(R const & r)
+    {
+        auto const last = r.end();
+        for (auto first = r.begin(); first != last; ++first) {
+            auto const cp = *first;
+            // space, tab through lf
+            if (cp == 0x0020 || (0x0009 <= cp && cp <= 0x000d))
+                return true;
+            if (cp == 0x0085 || cp == 0x00a0 || cp == 0x1680 ||
+                (0x2000 <= cp && cp <= 0x200a) || cp == 0x2028 ||
+                cp == 0x2029 || cp == 0x202F || cp == 0x205F || cp == 0x3000) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     inline bool positional(std::string_view name)
     {
+        if (detail::contains_ws(name))
+            return false;
         for (auto name : detail::names_view(name)) {
             if (name[0] == '-')
                 return false;
