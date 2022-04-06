@@ -301,8 +301,9 @@ namespace boost { namespace program_options_2 {
 
     /** Returns an optional option that acts as an integer count.  The value
         of the count is `0` if the flag does not appear in the input, and `n`
-        otherwise, where `n` is the nubmer of times that the flag appears in
-        the input. */
+        otherwise, where `n` is the nubmer of times that the flag appears in a
+        row.  For example, if there is a counted flag fore verbosity, `-v`
+        will produce a count of `1`, and `=vvv` will produce a count of `3`.*/
     inline detail::option<detail::option_kind::argument, int>
     counted_flag(std::string_view names, std::string_view help_text)
     {
