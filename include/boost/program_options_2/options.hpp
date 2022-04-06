@@ -13,8 +13,6 @@
 
 namespace boost { namespace program_options_2 {
 
-    // TODO: Try again to make these all constexpr.
-
     namespace detail {
         inline bool valid_nonpositional_names(std::string_view names)
         {
