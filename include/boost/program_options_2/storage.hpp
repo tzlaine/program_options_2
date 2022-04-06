@@ -376,7 +376,7 @@ namespace boost { namespace program_options_2 {
                 char const c = ifs.get();
                 retval += c;
             }
-            if (!retval.empty() && retval[retval.back() == -1])
+            if (!retval.empty() && retval.back() == -1)
                 retval.pop_back();
             return retval;
         }
