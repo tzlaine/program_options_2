@@ -40,10 +40,10 @@ namespace boost { namespace program_options_2 { namespace detail {
 #endif
 
     // clang-format off
-        template<typename T, typename U>
-        concept insertable_from = requires(T t, U u) {
-            t.insert(t.end(), u);
-        };
+    template<typename T, typename U>
+    concept insertable_from = requires(T t, U u) {
+        t.insert(t.end(), u);
+    };
     // clang-format on
 
     template<typename T, typename U, typename = hana::when<true>>
