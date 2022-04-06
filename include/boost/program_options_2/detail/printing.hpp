@@ -14,7 +14,6 @@
 #include <boost/text/case_mapping.hpp>
 #include <boost/text/estimated_width.hpp>
 #include <boost/text/utf.hpp>
-#include <boost/text/transcode_view.hpp>
 
 #include <climits>
 #include <sstream>

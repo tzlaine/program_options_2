@@ -770,8 +770,10 @@ namespace boost { namespace program_options_2 { namespace detail {
         auto process_response_file = [&](auto & sv_it) {
             auto const arg_utf8 = text::as_utf8(*sv_it);
             std::string arg(arg_utf8.begin(), arg_utf8.end());
-            if (arg.front() == '@')
+            if (detail::transcoded_starts_with(
+                    arg, strings.response_file_prefix)) {
                 arg.erase(arg.begin());
+            }
             std::ifstream ifs(arg.c_str());
             ifs.unsetf(ifs.skipws);
             auto file_args = detail::response_file_arg_view(ifs);
@@ -801,9 +803,10 @@ namespace boost { namespace program_options_2 { namespace detail {
         using namespace hana::literals;
 
         while (first != last) {
-            // Special case: an arg starting with @ names a response file.
-            if (!strings.response_file_note.empty() && !first->empty() &&
-                first->front() == '@') {
+            // Special case: an arg starting with the response file prefix.
+            if (!strings.response_file_note.empty() &&
+                detail::transcoded_starts_with(
+                    *first, strings.response_file_prefix)) {
                 auto const response_file_opt =
                     program_options_2::response_file("-d", "Dummy.", strings);
                 validation_result const validation =

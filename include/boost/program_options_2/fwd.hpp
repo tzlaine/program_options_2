@@ -70,6 +70,8 @@ namespace boost { namespace program_options_2 {
         std::string_view mutually_exclusive_continue_final = " or '{}'";
         std::string_view mutually_exclusive_end = ")";
 
+        std::string_view response_file_prefix = "@";
+
         std::array<std::string_view, 7> parse_errors = {
             {"error: unrecognized argument '{}'",
              "error: wrong number of arguments for '{}'",

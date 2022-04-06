@@ -8,6 +8,8 @@
 
 #include <boost/program_options_2/fwd.hpp>
 
+#include <boost/text/transcode_view.hpp>
+
 #include <boost/stl_interfaces/iterator_interface.hpp>
 #include <boost/stl_interfaces/view_interface.hpp>
 
@@ -21,7 +23,7 @@
 namespace boost { namespace program_options_2 { namespace detail {
 
     template<typename BidiIter, typename T>
-    BidiIter find_last(BidiIter first, BidiIter last, T const & x)
+    constexpr BidiIter find_last(BidiIter first, BidiIter last, T const & x)
     {
         auto it = last;
         while (it != first) {
@@ -29,6 +31,19 @@ namespace boost { namespace program_options_2 { namespace detail {
                 return it;
         }
         return last;
+    }
+
+    template<typename R1, typename R2>
+    constexpr bool starts_with(R1 const & str, R2 const & substr)
+    {
+        auto const [_, substr_it] = std::ranges::mismatch(str, substr);
+        return substr_it == std::end(substr);
+    }
+
+    template<typename R1, typename R2>
+    constexpr bool transcoded_starts_with(R1 const & str, R2 const & substr)
+    {
+        return detail::starts_with(text::as_utf32(str), text::as_utf32(substr));
     }
 
 #if BOOST_PROGRAM_OPTIONS_2_USE_STD_FILESYSTEM
