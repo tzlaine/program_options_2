@@ -248,20 +248,25 @@ namespace boost { namespace program_options_2 { namespace detail {
                     oss << text::as_utf8(name);
                 }
             }
-        } else if (detail::positional(opt)) {
+        } else if (detail::positional(opt, strings)) {
             detail::print_args(oss, opt.names, opt, false);
         } else if (opt.action == action_kind::count) {
-            auto const shortest_name = detail::first_short_name(opt.names);
+            auto const shortest_name =
+                detail::first_short_name(opt.names, strings);
             auto const trimmed_name =
-                detail::trim_leading_dashes(shortest_name);
+                detail::trim_leading_dashes(shortest_name, strings);
             char const * close = "...]";
             oss << text::as_utf8(shortest_name) << '['
                 << text::as_utf8(trimmed_name) << text::as_utf8(close);
         } else {
-            auto const shortest_name = detail::first_short_name(opt.names);
+            auto const shortest_name =
+                detail::first_short_name(opt.names, strings);
             oss << text::as_utf8(shortest_name);
             detail::print_args(
-                oss, detail::trim_leading_dashes(shortest_name), opt, true);
+                oss,
+                detail::trim_leading_dashes(shortest_name, strings),
+                opt,
+                true);
         }
 
         if ((!opt.required || detail::flag<Option>()) && !for_post_synopsis)
@@ -492,8 +497,9 @@ namespace boost { namespace program_options_2 { namespace detail {
                 is_same_v<std::remove_cvref_t<decltype(parent_opt)>, no_value>;
 
             printed_section_vec * vec_ptr =
-                detail::positional(curr_opt) ? &printed_sections[0].second
-                                             : &printed_sections[1].second;
+                detail::positional(curr_opt, strings)
+                    ? &printed_sections[0].second
+                    : &printed_sections[1].second;
             if constexpr (!no_parent) {
                 if constexpr (parent_opt.named_group) {
                     vec_ptr = &printed_sections.back().second;
@@ -536,7 +542,8 @@ namespace boost { namespace program_options_2 { namespace detail {
                                 detail::print_placeholder_string(
                                     desc_oss,
                                     strings.mutually_exclusive_begin,
-                                    program_options_2::storage_name(opt),
+                                    program_options_2::storage_name(
+                                        opt, strings),
                                     {},
                                     false);
                                 first = false;
@@ -546,14 +553,16 @@ namespace boost { namespace program_options_2 { namespace detail {
                                 detail::print_placeholder_string(
                                     desc_oss,
                                     strings.mutually_exclusive_continue_final,
-                                    program_options_2::storage_name(opt),
+                                    program_options_2::storage_name(
+                                        opt, strings),
                                     {},
                                     false);
                             } else {
                                 detail::print_placeholder_string(
                                     desc_oss,
                                     strings.mutually_exclusive_continue,
-                                    program_options_2::storage_name(opt),
+                                    program_options_2::storage_name(
+                                        opt, strings),
                                     {},
                                     false);
                             }
@@ -702,7 +711,8 @@ namespace boost { namespace program_options_2 { namespace detail {
                 strings.command_help_note,
                 argv0,
                 help ? *help->begin()
-                     : detail::first_short_name(strings.default_help_names),
+                     : detail::first_short_name(
+                           strings.default_help_names, strings),
                 true);
         } else if (
             !strings.response_file_note.empty() &&

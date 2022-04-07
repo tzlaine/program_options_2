@@ -19,7 +19,14 @@
 namespace boost { namespace program_options_2 {
 
     /** Returns the name used for a value associated with the given non-group
-        option when storing the value in a map. */
+        option when storing the value in a map.
+
+        \note When you customize the `short_option_prefix`,
+        `long_option_prefix`, or `response_file_prefix` members of
+        `customizable_strings`, you must pass your custom
+        `customizable_strings` here, even thought it is possible to call this
+        function without it.  If you fail to do this, the value returned by
+        this function is very likely to be wrong.*/
     template<
         detail::option_kind Kind,
         typename T,
@@ -28,20 +35,23 @@ namespace boost { namespace program_options_2 {
         int Choices,
         typename ChoiceType,
         typename Validator>
-    std::string_view storage_name(detail::option<
-                                  Kind,
-                                  T,
-                                  Value,
-                                  Required,
-                                  Choices,
-                                  ChoiceType,
-                                  Validator> const & opt)
+    std::string_view storage_name(
+        detail::option<
+            Kind,
+            T,
+            Value,
+            Required,
+            Choices,
+            ChoiceType,
+            Validator> const & opt,
+        customizable_strings const & strings)
     {
-        auto const name =
-            detail::first_name_prefer(opt.names, [](std::string_view sv) {
-                return detail::positional(sv) || detail::long_(sv);
+        auto const name = detail::first_name_prefer(
+            opt.names, [&strings](std::string_view sv) {
+                return detail::positional(sv, strings) ||
+                       detail::long_(sv, strings);
             });
-        return detail::trim_leading_dashes(name);
+        return detail::trim_leading_dashes(name, strings);
     }
 
     /** The kinds of results that can occur when saving options. */
@@ -145,6 +155,7 @@ namespace boost { namespace program_options_2 {
     template<options_map OptionsMap, typename... Options>
     void save_response_file(
         std::string_view filename,
+        customizable_strings const & strings,
         OptionsMap const & m,
         Options const &... opts)
     {
@@ -156,7 +167,7 @@ namespace boost { namespace program_options_2 {
 
         ofs << std::boolalpha;
 
-        detail::map_lookup<OptionsMap const> lookup(m);
+        detail::map_lookup<OptionsMap const> lookup(m, strings);
         auto const opt_tuple = detail::make_opt_tuple(opts...);
         hana::for_each(opt_tuple, [&](auto const & opt) {
             using opt_type = std::remove_cvref_t<decltype(opt)>;
@@ -169,8 +180,8 @@ namespace boost { namespace program_options_2 {
             try {
                 type const & value =
                     program_options_2::any_cast<type const &>(it->second);
-                if (!detail::positional(opt))
-                    ofs << detail::first_long_name(opt.names) << ' ';
+                if (!detail::positional(opt, strings))
+                    ofs << detail::first_long_name(opt.names, strings) << ' ';
                 if constexpr (insertable<type>) {
                     bool first = true;
                     for (auto const & x : value) {
@@ -385,11 +396,20 @@ namespace boost { namespace program_options_2 {
     /** Saves the options in `m`, expecting to find the options in `opts`,
         writing JSON-formatted output to file `filename`.
 
+        \note When you customize the `short_option_prefix`,
+        `long_option_prefix`, or `response_file_prefix` members of
+        `customizable_strings`, you must pass your custom
+        `customizable_strings` here, even thought it is possible to call
+        another overload of this function without it.  If you fail to do this,
+        the values saved by this function are very likely to be unparseable by
+        the rest of your program.
+
         \throws `save_error` on failure */
     template<options_map OptionsMap, typename... Options>
     void save_json_file(
         std::string_view filename,
         OptionsMap const & m,
+        customizable_strings const & strings,
         Options const &... opts)
     {
         std::ofstream ofs(filename.data());
@@ -401,7 +421,7 @@ namespace boost { namespace program_options_2 {
         ofs << std::boolalpha;
         ofs << "{\n";
 
-        detail::map_lookup<OptionsMap const> lookup(m);
+        detail::map_lookup<OptionsMap const> lookup(m, strings);
         auto const opt_tuple = detail::make_opt_tuple(opts...);
         bool first_opt = true;
         hana::for_each(opt_tuple, [&](auto const & opt) {
@@ -418,7 +438,8 @@ namespace boost { namespace program_options_2 {
                 if (!first_opt)
                     ofs << ",\n";
                 first_opt = false;
-                ofs << "    \"" << detail::first_long_name(opt.names) << "\":";
+                ofs << "    \"" << detail::first_long_name(opt.names, strings)
+                    << "\":";
                 if constexpr (insertable<type>) {
                     bool first_arg = true;
                     ofs << " [";
@@ -450,6 +471,28 @@ namespace boost { namespace program_options_2 {
         });
 
         ofs << "\n}\n";
+    }
+
+    /** Saves the options in `m`, expecting to find the options in `opts`,
+        writing JSON-formatted output to file `filename`.
+
+        \note When you customize the `short_option_prefix`,
+        `long_option_prefix`, or `response_file_prefix` members of
+        `customizable_strings`, you must call the overload of this function
+        that takes a `customizable_strings`, and pass your custom
+        `customizable_strings` there.  If you fail to do this, the values
+        saved by this function are very likely to be unparseable by the rest
+        of your program.
+
+        \throws `save_error` on failure */
+    template<options_map OptionsMap, typename... Options>
+    void save_json_file(
+        std::string_view filename,
+        OptionsMap const & m,
+        Options const &... opts)
+    {
+        program_options_2::save_json_file(
+            filename, customizable_strings{}, m, opts...);
     }
 
     /** Loads the options in the JSON-formatted file `filename`, expecting to

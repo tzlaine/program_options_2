@@ -463,7 +463,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         template<typename... Options>
         bool operator()(Options const &... opts)
         {
-            if (!detail::leading_dash(arg))
+            if (!detail::leading_dash(arg, strings))
                 return false;
             return (single(opts) || ...);
         }
@@ -478,14 +478,17 @@ namespace boost { namespace program_options_2 { namespace detail {
         }
 
         std::basic_string_view<Char> arg;
+        customizable_strings const & strings;
     };
 
     // TODO: This should maybe use a trie (pending perf testing, of course).
     template<typename Char, typename... Options>
     bool known_dashed_argument(
-        std::basic_string_view<Char> arg, Options const &... opts)
+        std::basic_string_view<Char> arg,
+        customizable_strings const & strings,
+        Options const &... opts)
     {
-        known_dashed_argument_impl impl{arg};
+        known_dashed_argument_impl impl{arg, strings};
         return impl(opts...);
     }
 
@@ -520,11 +523,11 @@ namespace boost { namespace program_options_2 { namespace detail {
             return {};
 
         auto next = parse_option_result::no_match_keep_parsing;
-        if (!detail::positional(opt)) {
+        if (!detail::positional(opt, strings)) {
             if (opt.action == action_kind::count) {
                 // Special case: parse the repetitions of a counted flag
                 // differently.
-                auto short_flag = detail::first_short_name(opt.names);
+                auto short_flag = detail::first_short_name(opt.names, strings);
                 BOOST_ASSERT(short_flag.size() == 2u);
                 if (!first->empty() && first->front() == '-') {
                     int const count = std::count(
@@ -539,7 +542,7 @@ namespace boost { namespace program_options_2 { namespace detail {
                 }
             }
 
-            if (!detail::known_dashed_argument(*first, opt))
+            if (!detail::known_dashed_argument(*first, strings, opt))
                 return {};
 
             if (0 <= exclusives_group) {
@@ -652,7 +655,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         std::basic_string_view<Char> validation_error;
         auto const parser =
             detail::parser_for<Char>(opt, result, error, validation_error);
-        if (!detail::known_dashed_argument(*first, opts...) &&
+        if (!detail::known_dashed_argument(*first, strings, opts...) &&
             parser::parse(*first, parser)) {
             if (!validation_error.empty()) {
                 handle_validation_error_(validation_error);
@@ -663,7 +666,7 @@ namespace boost { namespace program_options_2 { namespace detail {
             ++first;
             ++reps;
             for (; reps < max_reps && first != last &&
-                   !detail::known_dashed_argument(*first, opts...);
+                   !detail::known_dashed_argument(*first, strings, opts...);
                  ++reps, ++first) {
                 if (!parser::parse(*first, parser)) {
                     if (error == parse_option_error::none)
@@ -684,7 +687,7 @@ namespace boost { namespace program_options_2 { namespace detail {
 
         if (min_reps <= reps && reps <= max_reps) {
             next = parse_option_result::match_keep_parsing;
-            if (detail::positional(opt))
+            if (detail::positional(opt, strings))
                 ++next_positional;
             return {next};
         }
@@ -709,11 +712,12 @@ namespace boost { namespace program_options_2 { namespace detail {
     }
 
     template<typename OptTuple>
-    std::string_view positional_name(OptTuple const & opt_tuple, int i)
+    std::string_view positional_name(
+        OptTuple const & opt_tuple, int i, customizable_strings const & strings)
     {
         std::string_view retval;
         hana::for_each(opt_tuple, [&](auto const & opt) {
-            if (detail::positional(opt)) {
+            if (detail::positional(opt, strings)) {
                 if (!i--)
                     retval = opt.names;
             }
@@ -838,7 +842,7 @@ namespace boost { namespace program_options_2 { namespace detail {
             auto parse_leaf_opt = [&](auto i, auto const & opt) {
                 // Skip this option if it is a positional we've already
                 // processed.
-                if (detail::positional(opt)) {
+                if (detail::positional(opt, strings)) {
                     ++positional_index;
                     if (positional_index < next_positional)
                         return;
@@ -1012,7 +1016,8 @@ namespace boost { namespace program_options_2 { namespace detail {
             next_positional < detail::count_positionals(opt_tuple)) {
             std::basic_ostringstream<Char> oss;
             detail::print_uppercase(
-                oss, detail::positional_name(opt_tuple, next_positional));
+                oss,
+                detail::positional_name(opt_tuple, next_positional, strings));
             fail(parse_option_error::missing_positional, oss.str());
         }
 
@@ -1098,42 +1103,48 @@ namespace boost { namespace program_options_2 { namespace detail {
     template<typename Map>
     struct map_lookup<Map, std::string>
     {
-        map_lookup(Map & m) : m_(m) {}
+        map_lookup(Map & m, customizable_strings const & strings) :
+            m_(m), strings_(strings)
+        {}
         template<typename Option>
         auto find(Option const & opt)
         {
-            scratch_ = program_options_2::storage_name(opt);
+            scratch_ = program_options_2::storage_name(opt, strings_);
             return m_.find(scratch_);
         }
         template<typename Option, long long I>
         decltype(auto) operator()(Option const & opt, hana::llong<I>)
         {
-            scratch_ = program_options_2::storage_name(opt);
+            scratch_ = program_options_2::storage_name(opt, strings_);
             return m_[scratch_];
         }
 
     private:
         Map & m_;
         std::string scratch_;
+        customizable_strings const & strings_;
     };
 
     template<typename Map>
     struct map_lookup<Map, std::string_view>
     {
-        map_lookup(Map & m) : m_(m) {}
+        map_lookup(Map & m, customizable_strings const & strings) :
+            m_(m), strings_(strings)
+        {}
         template<typename Option>
         auto find(Option const & opt)
         {
-            return m_.find(program_options_2::storage_name(opt));
+            return m_.find(program_options_2::storage_name(opt, strings_));
         }
         template<typename Option, long long I>
         decltype(auto) operator()(Option const & opt, hana::llong<I>)
         {
-            return m_[program_options_2::storage_name(opt)];
+            return m_[program_options_2::storage_name(opt, strings_)];
         }
 
     private:
         Map & m_;
+        customizable_strings const & strings_;
     };
 
     template<typename OptionsMap>
@@ -1182,7 +1193,7 @@ namespace boost { namespace program_options_2 { namespace detail {
 
         parse_contexts_vec const parse_contexts;
         auto const retval = detail::parse_options_into(
-            map_lookup<OptionsMap>(result),
+            map_lookup<OptionsMap>(result, strings),
             next_positional,
             strings,
             deserializing,
@@ -1291,7 +1302,7 @@ namespace boost { namespace program_options_2 { namespace detail {
                               options_tuple,
                               has_subcommands_](int & next_positional) {
                                  return detail::parse_options_into(
-                                     map_lookup<OptionsMap>(map),
+                                     map_lookup<OptionsMap>(map, strings),
                                      next_positional,
                                      strings,
                                      false,
@@ -1477,7 +1488,7 @@ namespace boost { namespace program_options_2 { namespace detail {
              std::string_view{},
              [&, argv0, last, program_desc, no_help](int & next_positional) {
                  return detail::parse_options_into(
-                     map_lookup<OptionsMap>(map),
+                     map_lookup<OptionsMap>(map, strings),
                      next_positional,
                      strings,
                      false,

@@ -53,13 +53,6 @@ namespace boost { namespace program_options_2 {
                 "If there are choices specified, the default must be one "
                 "of the choices.");
         }
-        // TODO: Consider lifting this restriction.  A required positional
-        // followed by an optional one might be handy.  For example foo
-        // inputfile [outputfile].
-        BOOST_ASSERT(
-            !detail::positional(opt) &&
-            "It looks like you're trying to give a positional a default value, "
-            "but that makes no sense");
         return {
             opt.names,
             opt.help_text,

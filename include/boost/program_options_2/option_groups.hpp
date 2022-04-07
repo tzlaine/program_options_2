@@ -146,9 +146,6 @@ namespace boost { namespace program_options_2 {
     // clang-format on
     {
         BOOST_ASSERT(
-            detail::positional(names) &&
-            "Command names must not start with dashes.");
-        BOOST_ASSERT(
             !names.empty() && "A command with an empty name is not supported.");
         return {names, {}, {std::move(opts)...}};
     }
@@ -168,9 +165,6 @@ namespace boost { namespace program_options_2 {
     command(std::string_view names, std::string_view help_text, Options... opts)
     // clang-format on
     {
-        BOOST_ASSERT(
-            detail::positional(names) &&
-            "Command names must not start with dashes.");
         BOOST_ASSERT(
             !names.empty() && "A command with an empty name is not supported.");
         return {names, help_text, {std::move(opts)...}};
@@ -193,9 +187,6 @@ namespace boost { namespace program_options_2 {
     command(Func && func, std::string_view names, Options... opts)
     // clang-format on
     {
-        BOOST_ASSERT(
-            detail::positional(names) &&
-            "Command names must not start with dashes.");
         BOOST_ASSERT(
             !names.empty() && "A command with an empty name is not supported.");
         return {names, {}, {std::move(opts)...}, (Func &&) func};
@@ -222,9 +213,6 @@ namespace boost { namespace program_options_2 {
         Options... opts)
     // clang-format on
     {
-        BOOST_ASSERT(
-            detail::positional(names) &&
-            "Command names must not start with dashes.");
         BOOST_ASSERT(
             !names.empty() && "A command with an empty name is not supported.");
         return {names, help_text, {std::move(opts)...}, (Func &&) func};

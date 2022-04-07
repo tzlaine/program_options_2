@@ -8,8 +8,6 @@
 
 #include <boost/program_options_2/fwd.hpp>
 
-#include <boost/text/transcode_view.hpp>
-
 #include <boost/stl_interfaces/iterator_interface.hpp>
 #include <boost/stl_interfaces/view_interface.hpp>
 
@@ -31,19 +29,6 @@ namespace boost { namespace program_options_2 { namespace detail {
                 return it;
         }
         return last;
-    }
-
-    template<typename R1, typename R2>
-    constexpr bool starts_with(R1 const & str, R2 const & substr)
-    {
-        auto const [_, substr_it] = std::ranges::mismatch(str, substr);
-        return substr_it == std::end(substr);
-    }
-
-    template<typename R1, typename R2>
-    constexpr bool transcoded_starts_with(R1 const & str, R2 const & substr)
-    {
-        return detail::starts_with(text::as_utf32(str), text::as_utf32(substr));
     }
 
 #if BOOST_PROGRAM_OPTIONS_2_USE_STD_FILESYSTEM
@@ -220,13 +205,18 @@ namespace boost { namespace program_options_2 { namespace detail {
         return false;
     }
 
-    inline bool positional(std::string_view name)
+    inline bool
+    positional(std::string_view name, customizable_strings const & strings)
     {
         if (detail::contains_ws(name))
             return false;
         for (auto name : detail::names_view(name)) {
-            if (name[0] == '-')
+            if (detail::transcoded_starts_with(
+                    name, strings.short_option_prefix) ||
+                detail::transcoded_starts_with(
+                    name, strings.long_option_prefix)) {
                 return false;
+            }
         }
         return true;
     }
@@ -244,26 +234,32 @@ namespace boost { namespace program_options_2 { namespace detail {
         return prev_name;
     }
 
-    inline std::string_view first_short_name(std::string_view names)
+    inline std::string_view first_short_name(
+        std::string_view names, customizable_strings const & strings)
     {
         return detail::first_name_prefer(
-            names, [](std::string_view sv) { return detail::short_(sv); });
+            names, [&strings](std::string_view sv) {
+                return detail::short_(sv, strings);
+            });
     }
 
-    inline std::string_view first_long_name(std::string_view names)
+    inline std::string_view first_long_name(
+        std::string_view names, customizable_strings const & strings)
     {
         return detail::first_name_prefer(
-            names, [](std::string_view sv) { return detail::long_(sv); });
+            names, [&strings](std::string_view sv) {
+                return detail::long_(sv, strings);
+            });
     }
 
-    inline std::string_view trim_leading_dashes(std::string_view name)
+    inline std::string_view trim_leading_dashes(
+        std::string_view name, customizable_strings const & strings)
     {
-        char const * first = name.data();
-        char const * const last = first + name.size();
-        while (first != last && *first == '-') {
-            ++first;
-        }
-        return {first, std::size_t(last - first)};
+        if (detail::transcoded_starts_with(name, strings.long_option_prefix))
+            return name.substr(strings.long_option_prefix.size());
+        if (detail::transcoded_starts_with(name, strings.short_option_prefix))
+            return name.substr(strings.short_option_prefix.size());
+        return name;
     }
 
     template<typename... Options>

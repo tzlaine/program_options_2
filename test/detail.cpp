@@ -63,21 +63,30 @@ TEST(detail, misc)
 {
     // first_short_name
     {
-        EXPECT_EQ(po2::detail::first_short_name(",foo,bar, baz,"), "foo");
+        EXPECT_EQ(
+            po2::detail::first_short_name(
+                ",foo,bar, baz,", po2::customizable_strings{}),
+            "foo");
     }
     {
-        EXPECT_EQ(po2::detail::first_short_name("--bar,-f,-b"), "-f");
+        EXPECT_EQ(
+            po2::detail::first_short_name(
+                "--bar,-f,-b", po2::customizable_strings{}),
+            "-f");
     }
 
     // valid_nonpositional_names
     {
-        EXPECT_TRUE(po2::detail::valid_nonpositional_names("-f,--bar,-b"));
+        EXPECT_TRUE(po2::detail::valid_nonpositional_names(
+            "-f,--bar,-b", po2::customizable_strings{}));
     }
     {
-        EXPECT_TRUE(po2::detail::valid_nonpositional_names("-f,--bar,-b"));
+        EXPECT_TRUE(po2::detail::valid_nonpositional_names(
+            "-f,--bar,-b", po2::customizable_strings{}));
     }
     {
-        EXPECT_FALSE(po2::detail::valid_nonpositional_names("-f,bar,-b"));
+        EXPECT_FALSE(po2::detail::valid_nonpositional_names(
+            "-f,bar,-b", po2::customizable_strings{}));
     }
 
     // argv_contains_default_help_flag

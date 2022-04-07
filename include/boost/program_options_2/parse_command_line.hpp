@@ -42,7 +42,7 @@ namespace boost { namespace program_options_2 {
     // clang-format on
     {
         BOOST_ASSERT(args.begin() != args.end());
-        detail::check_options(opt, opts...);
+        detail::check_options(strings, opt, opts...);
 
         bool const no_help = detail::no_help_option(opt, opts...);
 
@@ -166,7 +166,7 @@ namespace boost { namespace program_options_2 {
         Options... opts)
     {
         BOOST_ASSERT(args.begin() != args.end());
-        detail::check_options(opt, opts...);
+        detail::check_options(strings, opt, opts...);
 
         if constexpr (detail::contains_commands<Option, Options...>()) {
             detail::parse_commands(
@@ -308,7 +308,7 @@ namespace boost { namespace program_options_2 {
     // clang-format on
     {
         BOOST_ASSERT(args.begin() != args.end());
-        detail::check_options(opt, opts...);
+        detail::check_options(strings, opt, opts...);
 
         bool const no_help = detail::no_help_option(opt, opts...);
 

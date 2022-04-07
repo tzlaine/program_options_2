@@ -76,7 +76,11 @@ TEST(storage, save_load_response_file)
         EXPECT_EQ(
             std::any_cast<std::set<int>>(m["one-plus"]), std::set<int>{2});
 
-        po2::save_response_file("saved_map", m, ARGUMENTS(int, 4, 5, 6));
+        po2::save_response_file(
+            "saved_map",
+            po2::customizable_strings{},
+            m,
+            ARGUMENTS(int, 4, 5, 6));
     }
     {
         std::ostringstream os;
@@ -105,6 +109,7 @@ TEST(storage, save_load_response_file)
         EXPECT_THROW(
             po2::save_response_file(
                 "dummy_file",
+                po2::customizable_strings{},
                 m,
                 po2::argument<double>("-a,--abacus", "The abacus.")),
             po2::save_error);
@@ -177,7 +182,11 @@ TEST(storage, save_load_response_file)
             std::any_cast<std::vector<std::string>>(m["args"]),
             std::vector<std::string>({"\\2\""}));
 
-        po2::save_response_file("saved_mixed_map", m, MIXED(int, 4, 5, 6, 42));
+        po2::save_response_file(
+            "saved_mixed_map",
+            po2::customizable_strings{},
+            m,
+            MIXED(int, 4, 5, 6, 42));
 
         {
             std::ifstream ifs("saved_mixed_map");
@@ -388,7 +397,11 @@ TEST(storage, save_load_json_file)
         EXPECT_EQ(
             std::any_cast<std::set<int>>(m["one-plus"]), std::set<int>{2});
 
-        po2::save_json_file("saved_json_map", m, ARGUMENTS(int, 4, 5, 6));
+        po2::save_json_file(
+            "saved_json_map",
+            m,
+            po2::customizable_strings{},
+            ARGUMENTS(int, 4, 5, 6));
 
         {
             std::ifstream ifs("saved_json_map");
@@ -425,12 +438,14 @@ TEST(storage, save_load_json_file)
             po2::save_json_file(
                 "dummy_file",
                 m,
+                po2::customizable_strings{},
                 po2::argument<double>("-a,--abacus", "The abacus.")),
             po2::save_error);
         try {
             po2::save_json_file(
                 "dummy_file",
                 m,
+                po2::customizable_strings{},
                 po2::argument<double>("-a,--abacus", "The abacus."));
         } catch (po2::save_error & e) {
             EXPECT_EQ(e.error(), po2::save_result::bad_any_cast);
@@ -445,7 +460,9 @@ TEST(storage, save_load_json_file)
             po2::load_json_file("dummy_file", m, ARGUMENTS(int, 4, 5, 6));
         } catch (po2::load_error & e) {
             EXPECT_EQ(e.error(), po2::load_result::malformed_json);
-            EXPECT_EQ(e.str(), R"(dummy_file:2:0: error: Expected '}' here (end of input):
+            EXPECT_EQ(
+                e.str(),
+                R"(dummy_file:2:0: error: Expected '}' here (end of input):
 
 ^
 
@@ -506,7 +523,10 @@ and character escapes besides '\\' and '\"' are not supported.
             std::vector<std::string>({"\\2\""}));
 
         po2::save_response_file(
-            "saved_mixed_json_map", m, MIXED(int, 4, 5, 6, 42));
+            "saved_mixed_json_map",
+            po2::customizable_strings{},
+            m,
+            MIXED(int, 4, 5, 6, 42));
 
         {
             std::ifstream ifs("saved_mixed_json_map");

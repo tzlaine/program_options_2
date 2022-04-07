@@ -14,15 +14,17 @@
 namespace boost { namespace program_options_2 {
 
     namespace detail {
-        inline bool valid_nonpositional_names(std::string_view names)
+        inline bool valid_nonpositional_names(
+            std::string_view names, customizable_strings const & strings)
         {
-            // TODO: Check that none of the names is "-" or "--".
             if (detail::contains_ws(names))
                 return false;
             for (auto name : detail::names_view(names)) {
-                auto const trimmed_name = detail::trim_leading_dashes(name);
-                auto const trimmed_dashes = name.size() - trimmed_name.size();
-                if (trimmed_dashes != 1u && trimmed_dashes != 2u)
+                if (name == strings.short_option_prefix)
+                    return false;
+                if (name == strings.long_option_prefix)
+                    return false;
+                if (!detail::leading_dash(name, strings))
                     return false;
             }
             return true;
@@ -41,7 +43,8 @@ namespace boost { namespace program_options_2 {
             void operator()(Option const & opt)
             {
                 BOOST_ASSERT(
-                    opt.positional == detail::positional(opt) &&
+                    opt.positional !=
+                        detail::valid_nonpositional_names(opt.names, strings) &&
                     "Whether an option is considered positional must match its "
                     "name.");
 
@@ -62,6 +65,27 @@ namespace boost { namespace program_options_2 {
                     !opt.names.empty() &&
                     "This assert indicates that you're using an option with no "
                     "name.  Please fix.");
+
+                if constexpr (!std::is_same_v<
+                                  typename Option::value_type,
+                                  no_value>) {
+                    BOOST_ASSERT(
+                        !detail::positional(opt, strings) &&
+                        "It looks like you're trying to give a positional a "
+                        "default value, but that makes no sense");
+                }
+
+                if (opt.action == action_kind::count) {
+                    BOOST_ASSERT(
+                        detail::short_(
+                            detail::first_short_name(opt.names, strings),
+                            strings) &&
+                        detail::first_short_name(opt.names, strings).size() ==
+                            strings.short_option_prefix.size() + 1 &&
+                        "For a counted flag, the first short name in names "
+                        "must be of the form '-<name>', where '<name>' is a "
+                        "single character.");
+                }
             }
 
             template<
@@ -79,6 +103,12 @@ namespace boost { namespace program_options_2 {
                             Func,
                             Options...> const & group)
             {
+                if constexpr (is_command<std::remove_cvref_t<decltype(group)>>::
+                                  value) {
+                    BOOST_ASSERT(
+                        detail::positional(group.names, strings) &&
+                        "Command names must not start with an option prefix.");
+                }
                 BOOST_ASSERT(
                     (NamedGroup == named_group_t::yes ||
                      !detail::contains_ws(group.names)) &&
@@ -87,13 +117,15 @@ namespace boost { namespace program_options_2 {
                 return hana::unpack(group.options, *this);
             }
 
+            customizable_strings const & strings;
             bool already_saw_remainder_ = false;
         };
 
         template<typename... Options>
-        void check_options(Options const &... opts)
+        void check_options(
+            customizable_strings const & strings, Options const &... opts)
         {
-            option_checker check;
+            option_checker check{strings};
             check(opts...);
         }
     }
@@ -105,11 +137,6 @@ namespace boost { namespace program_options_2 {
     detail::option<detail::option_kind::argument, T>
     argument(std::string_view names, std::string_view help_text)
     {
-        BOOST_ASSERT(
-            detail::valid_nonpositional_names(names) &&
-            "There's something wrong with the argument names in 'names'.  "
-            "Either it contains whitespace, or it contains at least one name "
-            "that is not of the form '-<name>' or '--<name>'.");
         return {names, help_text, detail::action_kind::assign, 1};
     }
 
@@ -138,11 +165,6 @@ namespace boost { namespace program_options_2 {
         Choices... choices)
     // clang-format on
     {
-        BOOST_ASSERT(
-            detail::valid_nonpositional_names(names) &&
-            "There's something wrong with the argument names in 'names'.  "
-            "Either it contains whitespace, or it contains at least one name "
-            "that is not of the form '-<name>' or '--<name>'.");
         BOOST_ASSERT(
             args != 0 &&
             "An argument with args=0 and no default is a flag.  Use flag() "
@@ -183,10 +205,6 @@ namespace boost { namespace program_options_2 {
             !detail::contains_ws(name) &&
             "Looks like you tried to create a positional argument that contains"
             "whitespace.  Don't do that.");
-        BOOST_ASSERT(
-            detail::positional(name) &&
-            "Looks like you tried to create a positional argument that starts "
-            "with a '-'.  Don't do that.");
         return {name, help_text, detail::action_kind::assign, 1};
     }
 
@@ -219,10 +237,6 @@ namespace boost { namespace program_options_2 {
             "Looks like you tried to create a positional argument that contains"
             "whitespace.  Don't do that.");
         BOOST_ASSERT(
-            detail::positional(name) &&
-            "Looks like you tried to create a positional argument that starts "
-            "with a '-'.  Don't do that.");
-        BOOST_ASSERT(
             args != 0 && args != zero_or_one && args != zero_or_more &&
             "0 occurrences makes no sense for a non-optional positional "
             "argument.");
@@ -253,10 +267,6 @@ namespace boost { namespace program_options_2 {
             !detail::contains_ws(name) &&
             "Looks like you tried to create a positional argument that contains"
             "whitespace.  Don't do that.");
-        BOOST_ASSERT(
-            detail::positional(name) &&
-            "Looks like you tried to create a positional argument that starts "
-            "with a '-'.  Don't do that.");
         return {name, help_text, detail::action_kind::insert, zero_or_more};
     }
 
@@ -275,10 +285,6 @@ namespace boost { namespace program_options_2 {
         detail::required_t::yes>
     flag(std::string_view names, std::string_view help_text)
     {
-        BOOST_ASSERT(
-            !detail::positional(names) &&
-            "Looks like you tried to create a non-positional argument that "
-            "does not start with a '-'.  Don't do that.");
         return {names, help_text, detail::action_kind::assign, 0, false};
     }
 
@@ -292,10 +298,6 @@ namespace boost { namespace program_options_2 {
         detail::required_t::yes>
     inverted_flag(std::string_view names, std::string_view help_text)
     {
-        BOOST_ASSERT(
-            !detail::positional(names) &&
-            "Looks like you tried to create a non-positional argument that "
-            "does not start with a '-'.  Don't do that.");
         return {names, help_text, detail::action_kind::assign, 0, true};
     }
 
@@ -307,15 +309,6 @@ namespace boost { namespace program_options_2 {
     inline detail::option<detail::option_kind::argument, int>
     counted_flag(std::string_view names, std::string_view help_text)
     {
-        BOOST_ASSERT(
-            !detail::positional(names) &&
-            "Looks like you tried to create a non-positional argument that "
-            "does not start with a '-'.  Don't do that.");
-        BOOST_ASSERT(
-            detail::short_(detail::first_short_name(names)) &&
-            detail::first_short_name(names).size() == 2u &&
-            "For a counted flag, the first short name in names must be of the "
-            "form '-<name>', where '<name>' is a single character.");
         return {names, help_text, detail::action_kind::count, 0};
     }
 
@@ -327,10 +320,6 @@ namespace boost { namespace program_options_2 {
         std::string_view names = "--version,-v",
         std::string_view help_text = "Print the version and exit")
     {
-        BOOST_ASSERT(
-            !detail::positional(names) &&
-            "Looks like you tried to create a non-positional argument that "
-            "does not start with a '-'.  Don't do that.");
         return {names, help_text, detail::action_kind::version, 0, version};
     }
 
@@ -342,10 +331,6 @@ namespace boost { namespace program_options_2 {
         std::string_view names = "--help,-h",
         std::string_view help_text = "Print this help message and exit")
     {
-        BOOST_ASSERT(
-            !detail::positional(names) &&
-            "Looks like you tried to create a non-positional argument that "
-            "does not start with a '-'.  Don't do that.");
         return {names, help_text, detail::action_kind::help, 0, std::move(f)};
     }
 
@@ -355,10 +340,6 @@ namespace boost { namespace program_options_2 {
         std::string_view names,
         std::string_view help_text = "Print this help message and exit")
     {
-        BOOST_ASSERT(
-            !detail::positional(names) &&
-            "Looks like you tried to create a non-positional argument that "
-            "does not start with a '-'.  Don't do that.");
         return {names, help_text, detail::action_kind::help, 0};
     }
 
@@ -373,11 +354,6 @@ namespace boost { namespace program_options_2 {
             "'@file' works as well",
         customizable_strings const & strings = customizable_strings{})
     {
-        BOOST_ASSERT(
-            !detail::positional(names) &&
-            "Looks like you tried to create a non-positional argument that "
-            "does not start with a '-'.  Don't do that.");
-
         auto opt = detail::option<detail::option_kind::argument, void>{
             names, help_text, detail::action_kind::response_file, 1};
 

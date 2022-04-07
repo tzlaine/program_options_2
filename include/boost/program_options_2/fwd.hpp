@@ -9,6 +9,8 @@
 #include <boost/program_options_2/config.hpp>
 #include <boost/program_options_2/tag_invoke.hpp>
 
+#include <boost/text/transcode_view.hpp>
+
 #include <boost/container/small_vector.hpp>
 
 #include <boost/any.hpp>
@@ -44,8 +46,6 @@ namespace boost { namespace program_options_2 {
         arguments. */
     inline constexpr int one_or_more = -3;
 
-    // TODO: Allow replacement of '-' , '@', ',', etc.?
-
     /** TODO */
     struct customizable_strings
     {
@@ -70,6 +70,8 @@ namespace boost { namespace program_options_2 {
         std::string_view mutually_exclusive_continue_final = " or '{}'";
         std::string_view mutually_exclusive_end = ")";
 
+        std::string_view short_option_prefix = "-";
+        std::string_view long_option_prefix = "--";
         std::string_view response_file_prefix = "@";
 
         std::array<std::string_view, 7> parse_errors = {
@@ -306,21 +308,42 @@ namespace boost { namespace program_options_2 {
             Options...>> : std::true_type
         {};
 
+        template<typename R1, typename R2>
+        constexpr bool starts_with(R1 const & str, R2 const & substr)
+        {
+            auto const [_, substr_it] = std::ranges::mismatch(str, substr);
+            return substr_it == std::end(substr);
+        }
+
+        template<typename R1, typename R2>
+        constexpr bool transcoded_starts_with(R1 const & str, R2 const & substr)
+        {
+            return detail::starts_with(
+                text::as_utf32(str), text::as_utf32(substr));
+        }
+
         // Defined in utility.hpp.
-        inline bool positional(std::string_view name);
+        inline bool
+        positional(std::string_view name, customizable_strings const & strings);
 
-        inline bool short_(std::string_view name)
+        inline bool
+        long_(std::string_view name, customizable_strings const & strings)
         {
-            return name[0] == '-' && name[1] != '-';
+            return detail::transcoded_starts_with(
+                name, strings.long_option_prefix);
         }
-        inline bool long_(std::string_view name)
+        inline bool
+        short_(std::string_view name, customizable_strings const & strings)
         {
-            return name[0] == '-' && name[1] == '-';
+            return detail::transcoded_starts_with(
+                       name, strings.short_option_prefix) &&
+                   !detail::long_(name, strings);
         }
 
-        inline bool leading_dash(std::string_view str)
+        inline bool
+        leading_dash(std::string_view str, customizable_strings const & strings)
         {
-            return !str.empty() && str[0] == '-';
+            return detail::short_(str, strings) || detail::long_(str, strings);
         }
 
         template<
@@ -331,16 +354,18 @@ namespace boost { namespace program_options_2 {
             int Choices,
             typename ChoiceType,
             typename Validator>
-        bool positional(option<
-                        Kind,
-                        T,
-                        Value,
-                        Required,
-                        Choices,
-                        ChoiceType,
-                        Validator> const & opt)
+        bool positional(
+            option<
+                Kind,
+                T,
+                Value,
+                Required,
+                Choices,
+                ChoiceType,
+                Validator> const & opt,
+            customizable_strings const & strings)
         {
-            return detail::positional(opt.names);
+            return detail::positional(opt.names, strings);
         }
 
         template<
@@ -350,13 +375,15 @@ namespace boost { namespace program_options_2 {
             named_group_t NamedGroup,
             typename Func,
             typename... Options>
-        bool positional(option_group<
-                        MutuallyExclusive,
-                        Subcommand,
-                        Required,
-                        NamedGroup,
-                        Func,
-                        Options...> const &)
+        bool positional(
+            option_group<
+                MutuallyExclusive,
+                Subcommand,
+                Required,
+                NamedGroup,
+                Func,
+                Options...> const &,
+            customizable_strings const &)
         {
             return false;
         }
@@ -525,14 +552,16 @@ namespace boost { namespace program_options_2 {
         int Choices,
         typename ChoiceType,
         typename Validator>
-    std::string_view storage_name(detail::option<
-                                  Kind,
-                                  T,
-                                  Value,
-                                  Required,
-                                  Choices,
-                                  ChoiceType,
-                                  Validator> const & opt);
+    std::string_view storage_name(
+        detail::option<
+            Kind,
+            T,
+            Value,
+            Required,
+            Choices,
+            ChoiceType,
+            Validator> const & opt,
+        customizable_strings const & strings = customizable_strings{});
 
 }}
 
