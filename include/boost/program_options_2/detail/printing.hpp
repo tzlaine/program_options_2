@@ -719,6 +719,9 @@ namespace boost { namespace program_options_2 { namespace detail {
             detail::no_response_file_option(opts...)) {
             os << '\n' << text::as_utf8(strings.response_file_note) << '\n';
         }
+
+        if (!strings.epilog.empty())
+            os << '\n' << text::as_utf8(strings.epilog) << '\n';
     }
 
     template<typename Char, typename... Options>

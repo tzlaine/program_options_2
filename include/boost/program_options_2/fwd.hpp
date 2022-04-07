@@ -62,7 +62,6 @@ namespace boost { namespace program_options_2 {
         std::string_view response_file_note =
             "response files:\n  Use '@file' to load a file containing "
             "command line arguments.";
-        // TODO: use the epilog in printing.
         std::string_view epilog = "";
 
         std::string_view mutually_exclusive_begin = " (may not be used with '{}'";
