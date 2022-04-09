@@ -318,9 +318,13 @@ namespace boost { namespace program_options_2 {
         significant when printing help; a group is always flattened into the
         other options it is with when not printing.  The description may be
         empty.  Named groups many not be nested, except that a subcommand may
-        contain its own nested groups. */
+        contain its own nested groups.  If a named group contains a command,
+        all options in the named group must be commands. */
     template<option_or_group Option, option_or_group... Options>
-    requires(!detail::contains_named_group<Option, Options...>())
+    requires(
+        !detail::contains_named_group<Option, Options...>() &&
+        ((!command_<Option> && (!command_<Options> && ...)) ||
+         (command_<Option> && (command_<Options> && ...))))
         // clang-format off
     auto group(
         std::string_view name,
