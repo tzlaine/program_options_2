@@ -29,6 +29,8 @@ template<typename T>
 using opt = std::optional<T>;
 using namespace boost::hana::literals;
 
+// TODO: Test epilog printing.
+// TODO: Test operation of short-/log- option and response-file-prefixes.
 po2::customizable_strings user_strings()
 {
     po2::customizable_strings retval;
