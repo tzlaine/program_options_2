@@ -493,14 +493,15 @@ namespace boost { namespace program_options_2 { namespace detail {
                                       auto const & parent_opt,
                                       int child_index,
                                       int first_column) {
-            constexpr bool no_parent = std::
-                is_same_v<std::remove_cvref_t<decltype(parent_opt)>, no_value>;
+            constexpr bool have_parent = !std::is_same_v<
+                std::remove_cvref_t<decltype(parent_opt)>,
+                no_value>;
 
             printed_section_vec * vec_ptr =
                 detail::positional(curr_opt, strings)
                     ? &printed_sections[0].second
                     : &printed_sections[1].second;
-            if constexpr (!no_parent) {
+            if constexpr (have_parent) {
                 if constexpr (parent_opt.named_group) {
                     vec_ptr = &printed_sections.back().second;
                 }
@@ -526,7 +527,7 @@ namespace boost { namespace program_options_2 { namespace detail {
             desc_oss << curr_opt.help_text;
 
             // Special case: Print an option from an exclusive group.
-            if constexpr (!no_parent) {
+            if constexpr (have_parent) {
                 if constexpr (
                     parent_opt.mutually_exclusive && !parent_opt.subcommand) {
                     using namespace hana::literals;
