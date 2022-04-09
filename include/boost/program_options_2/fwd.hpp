@@ -462,7 +462,7 @@ namespace boost { namespace program_options_2 {
             no_such_choice,
             extra_positional,
             missing_positional,
-            too_many_mutally_exclusives,
+            too_many_mutually_exclusives,
 
             // This one must come last, to match
             // customizable_strings::parse_errors.

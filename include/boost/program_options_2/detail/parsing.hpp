@@ -585,7 +585,7 @@ namespace boost { namespace program_options_2 { namespace detail {
                 if (exclusives_seen.count(exclusives_group)) {
                     return {
                         parse_option_result::stop_parsing,
-                        parse_option_error::too_many_mutally_exclusives};
+                        parse_option_error::too_many_mutually_exclusives};
                 } else {
                     exclusives_seen[exclusives_group] = *first;
                 }
@@ -907,7 +907,7 @@ namespace boost { namespace program_options_2 { namespace detail {
                         fail(parse_result.error, *first, opt_tuple[i].names);
                     } else if (
                         parse_result.error ==
-                        parse_option_error::too_many_mutally_exclusives) {
+                        parse_option_error::too_many_mutually_exclusives) {
                         BOOST_ASSERT(0 <= exclusives_group);
                         fail(
                             parse_result.error,
