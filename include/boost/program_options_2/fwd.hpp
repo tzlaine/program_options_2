@@ -46,7 +46,25 @@ namespace boost { namespace program_options_2 {
         arguments. */
     inline constexpr int one_or_more = -3;
 
-    /** TODO */
+    /** Holds all the user-facing text used in the library.  Replace any or
+        all of these with your own strings, to do localization,
+        internationalization, or just to customize the output to your liking.
+
+        When replacing a string that contains one or more placeholders
+        (`"{}"`), the results are undefined if the replacement string has a
+        different number of placeholders.
+
+        The epilog string is empty by default.  If you replace it with a
+        nonempty string, it will be printed at the end of the help summary
+        text, after a blank line.
+
+        \note Three of these strings are special: `short_option_prefix`,
+        `long_option_prefix`, and `response_file_prefix`.  If you customize
+        any of these, you must use the same custom `customizable_strings` when
+        calling any function that takes an optional `customizable_strings`
+        parameter (`parse_command_line()`, `storage_name()`,
+        `save_response_file()`, `save_json_file()`, etc.).  Failure to do so
+        will result in undefined behavior. */
     struct customizable_strings
     {
         std::string_view usage_text = "usage: ";
