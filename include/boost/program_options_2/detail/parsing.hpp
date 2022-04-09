@@ -63,7 +63,6 @@ namespace boost { namespace program_options_2 { namespace detail {
     template<typename Option1, typename... Options>
     auto variant_for_tuple(hana::tuple<Option1, Options...> const & opts)
     {
-        // TODO: These should probably be conditionally optional<>s.
         if constexpr ((std::is_same_v<
                            typename Option1::type,
                            typename Options::type> &&
