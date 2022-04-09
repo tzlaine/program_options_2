@@ -140,7 +140,6 @@ namespace boost { namespace program_options_2 {
         return {names, help_text, detail::action_kind::assign, 1};
     }
 
-    // TODO: Support a range interface for specifying choices.
     /** Returns an optional option, whose argument(s) must be one of the
         values `choices...`.  The option names must each begin with `"-"` or
         `"--"`.  The names must be comma-delimited, and may not contain
