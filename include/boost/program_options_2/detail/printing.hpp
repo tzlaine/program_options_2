@@ -596,6 +596,12 @@ namespace boost { namespace program_options_2 { namespace detail {
                     ++curr_opt_index;
                 });
             } else { // named group
+                using namespace hana::literals;
+                if (!print_commands &&
+                    is_group<std::remove_cvref_t<decltype(opt.options[0_c])>>::
+                        value) {
+                    return;
+                }
                 std::ostringstream oss;
                 oss << opt.names << ":";
                 if (!opt.help_text.empty()) {
@@ -694,7 +700,6 @@ namespace boost { namespace program_options_2 { namespace detail {
             }
         }
 
-        // TODO: Printing groups of commands needs a test!
         // Prints either groups of options or groups of commands.
         for (auto const & [name_and_desc, printed_opts] :
              std::ranges::drop_view{printed_sections, 2}) {

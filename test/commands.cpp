@@ -368,7 +368,33 @@ response files:
   Use '@file' to load a file containing command line arguments.
 )");
 
-#if 0 // TODO: Borken.
+        args = {"prog", "-h"};
+        os = std::ostringstream();
+        try {
+            po2::parse_command_line(
+                args,
+                result,
+                "A program.",
+                os,
+                po2::group("A group of commands", "Its function", command));
+        } catch (int) {
+        }
+        EXPECT_EQ(os.str(), R"(usage:  prog [-h] COMMAND
+
+A program.
+
+optional arguments:
+  -h, --help  Print this help message and exit
+
+A group of commands:
+  Its function
+
+  cmd         What the command does...
+
+response files:
+  Use '@file' to load a file containing command line arguments.
+)");
+
         args = {"prog", "cmd", "-h"};
         os = std::ostringstream();
         try {
@@ -380,7 +406,20 @@ response files:
                 po2::group("A group of commands", "Its function", command));
         } catch (int) {
         }
-        EXPECT_EQ(os.str(), R"()");
-#endif
+        EXPECT_EQ(os.str(), R"(usage:  prog cmd [-h] [-a A]
+
+What the command does...
+
+optional arguments:
+  -h, --help   Print this help message and exit
+
+A group:
+  Its function
+
+  -a, --apple  Number of apples
+
+response files:
+  Use '@file' to load a file containing command line arguments.
+)");
     }
 }
