@@ -21,6 +21,8 @@ namespace boost { namespace program_options_2 {
     // TODO: Support a required mutually-exclusive group, in which exactly one
     // must be provided on the command line?
 
+    // TODO: Provice a way to generate bash-completion scripts?
+
     namespace detail {
         template<typename Option>
         struct contains_wrong_group_option_impl
