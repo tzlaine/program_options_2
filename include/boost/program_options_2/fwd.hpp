@@ -91,7 +91,7 @@ namespace boost { namespace program_options_2 {
         std::string_view long_option_prefix = "--";
         std::string_view response_file_prefix = "@";
 
-        std::array<std::string_view, 7> parse_errors = {
+        std::array<std::string_view, 8> parse_errors = {
             {"error: unrecognized argument '{}'",
              "error: wrong number of arguments for '{}'",
              "error: cannot parse argument '{}'",
@@ -99,7 +99,8 @@ namespace boost { namespace program_options_2 {
              "error: unexpected positional argument '{}'",
              "error: one or more missing positional arguments, starting with "
              "'{}'",
-             "error: '{}' may not be used with '{}'"}};
+             "error: '{}' may not be used with '{}'",
+             "error: expected a command"}};
 
         // validation errors
         std::string_view path_not_found = "error: path '{}' not found";
@@ -463,6 +464,7 @@ namespace boost { namespace program_options_2 {
             extra_positional,
             missing_positional,
             too_many_mutually_exclusives,
+            expected_command,
 
             // This one must come last, to match
             // customizable_strings::parse_errors.

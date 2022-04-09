@@ -1273,7 +1273,9 @@ namespace boost { namespace program_options_2 { namespace detail {
         Options2 const &... opts)
     {
         if (first == last) {
-            // TODO: Report that a command is missing.
+            return {
+                parse_option_result::stop_parsing,
+                parse_option_error::expected_command};
         }
 
 #if BOOST_PROGRAM_OPTIONS_2_INSTRUMENT_COMMAND_PARSING
@@ -1467,13 +1469,10 @@ namespace boost { namespace program_options_2 { namespace detail {
         if (!child_result)
             return child_result;
 
-        if (!matched_command) {
-            // TODO: Report that all commands must be given before all
-            // other args.
-        }
-
-        if (!func) {
-            // TODO: Report that a command is missing.
+        if (!matched_command || !func) {
+            return {
+                parse_option_result::stop_parsing,
+                parse_option_error::expected_command};
         }
 
         return {};
@@ -1484,7 +1483,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         typename Args,
         typename Char,
         typename... Options>
-    parse_option_result parse_commands(
+    void parse_commands(
         OptionsMap & map,
         customizable_strings const & strings,
         Args const & args,
@@ -1584,23 +1583,38 @@ namespace boost { namespace program_options_2 { namespace detail {
             parse_contexts,
             func,
             opts...);
+
+        auto fail = [&] {
+            detail::print_parse_error(
+                strings,
+                os,
+                parse_result.error,
+                std::basic_string_view<Char>());
+            os << '\n';
+            detail::print_help_and_exit(
+                1,
+                strings,
+                argv0,
+                program_desc,
+                os,
+                no_help,
+                parse_contexts,
+                opts...);
+        };
+
         if (!parse_result)
-            return parse_result;
+            fail();
 
         int next_positional = 0;
         for (auto const & ctx : parse_contexts) {
             parse_result = ctx.parse_(next_positional);
-            if (!parse_result) {
-                // TODO: Report error, if necessary.
-                return parse_result;
-            }
+            if (!parse_result)
+                fail();
         }
 
         detail::parse_into_map_cleanup(map);
         if (parse_result)
             func();
-
-        return parse_result;
     }
 
 }}}
