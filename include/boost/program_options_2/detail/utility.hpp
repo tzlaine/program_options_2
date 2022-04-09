@@ -31,6 +31,18 @@ namespace boost { namespace program_options_2 { namespace detail {
         return last;
     }
 
+    // This unfortunately necessary to use in some places.  This is because a
+    // std::basic_string<CharT> cannot be passed to a function template
+    // (templated on CharT) that takes a std::basic_string_view<CharT> -- the
+    // deduction does not work.
+    template<typename String>
+    auto make_string_view(String const & s)
+    {
+        auto ptr = std::to_address(std::begin(s));
+        using char_type = std::remove_cvref_t<decltype(*ptr)>;
+        return std::basic_string_view<char_type>(ptr, ptr + std::size(s));
+    }
+
 #if BOOST_PROGRAM_OPTIONS_2_USE_STD_FILESYSTEM
     inline const auto fs_sep = std::filesystem::path::preferred_separator;
     using error_code = std::error_code;

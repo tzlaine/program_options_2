@@ -37,17 +37,17 @@ namespace boost { namespace program_options_2 { namespace detail {
             std::move(validator)};
     }
 
-    template<typename Char>
+    template<typename StringView>
     validation_result validation_error(
         std::string_view error_str,
-        std::basic_string_view<Char> sv,
+        StringView const & sv,
         std::string & scratch)
     {
         std::ostringstream oss;
         auto const utf8_sv = text::as_utf8(sv);
         scratch.assign(utf8_sv.begin(), utf8_sv.end());
         detail::print_placeholder_string(
-            oss, error_str, std::basic_string_view<Char>(scratch));
+            oss, error_str, std::string_view(scratch));
         scratch = oss.str();
         return {false, std::string_view(scratch)};
     }

@@ -252,16 +252,54 @@ namespace boost { namespace program_options_2 {
     }
 
     namespace detail {
+
+        template<typename Iter>
+        struct excessive_nesting : std::runtime_error
+        {
+            excessive_nesting(Iter it) :
+                runtime_error("excessive_nesting"), iter(it)
+            {}
+            Iter iter;
+        };
+
+        struct global_state
+        {
+            int recursive_open_count = 0;
+            int max_recursive_open_count = 0;
+        };
+
+        struct double_escape_locals
+        {
+            int first_surrogate = 0;
+        };
+
         inline parser::rule<class ws> const ws = "whitespace";
-        inline parser::rule<class single_escaped_char, uint32_t> const
-            single_escaped_char = "'\"' or '\\'";
+
         inline parser::rule<class string_char, uint32_t> const string_char =
-            "code point (code points must be > U+001F)";
-        inline parser::callback_rule<class string_tag, std::string_view> const
+            "code point (code points <= U+001F must be escaped)";
+        inline parser::rule<class four_hex_digits, uint32_t> const hex_4 =
+            "four hexidecimal digits";
+        inline parser::rule<class escape_seq, uint32_t> const escape_seq =
+            "\\uXXXX hexidecimal escape sequence";
+        parser::
+            rule<class escape_double_seq, uint32_t, double_escape_locals> const
+                escape_double_seq = "\\uXXXX hexidecimal escape sequence";
+        inline parser::rule<class single_escaped_char, uint32_t> const
+            single_escaped_char = "'\"', '\\', '/', 'b', 'f', 'n', 'r', or 't'";
+
+        inline parser::callback_rule<class null_tag> const null = "null";
+
+        inline parser::callback_rule<class bool_tag, bool> const bool_p =
+            "boolean";
+
+        inline parser::callback_rule<class string_tag, std::string> const
             string = "string";
+        inline parser::callback_rule<class number_tag, double> const number =
+            "number";
+
         inline parser::callback_rule<
             class object_element_key_tag,
-            std::string_view> const object_element_key = "string";
+            std::string> const object_element_key = "string";
         inline parser::rule<class object_element_tag> const object_element =
             "object-element";
 
@@ -280,7 +318,15 @@ namespace boost { namespace program_options_2 {
         inline parser::rule<class value_tag> const value = "value";
 
 
+        // Since we use these tag types as function parameters in the callbacks,
+        // they need to be complete types.
+        class null_tag
+        {};
+        class bool_tag
+        {};
         class string_tag
+        {};
+        class number_tag
         {};
         class object_element_key_tag
         {};
@@ -297,30 +343,85 @@ namespace boost { namespace program_options_2 {
         inline auto const ws_def =
             parser::lit('\x09') | '\x0a' | '\x0d' | '\x20';
 
-        inline auto const
-            single_escaped_char_def = '\"' >> parser::attr(0x0022u) |
-                                      '\\' >> parser::attr(0x005cu);
-
-        inline auto const string_char_def =
-            ('\\' > single_escaped_char) |
-            (parser::cp - parser::char_(0x0000u, 0x001fu));
-
-        struct json_string_view_action
-        {
-            template<typename Context>
-            void operator()(Context & ctx) const
-            {
-                auto const where = _where(ctx);
-                auto const first = ++where.begin();
-                auto const last = --where.end();
-                _val(ctx) =
-                    std::string_view{&*first, std::size_t(last - first)};
+        inline auto first_hex_escape = [](auto & ctx) {
+            auto & locals = _locals(ctx);
+            uint32_t const cu = _attr(ctx);
+            if (!boost::parser::detail::text::high_surrogate(cu))
+                _pass(ctx) = false;
+            else
+                locals.first_surrogate = cu;
+        };
+        inline auto second_hex_escape = [](auto & ctx) {
+            auto & locals = _locals(ctx);
+            uint32_t const cu = _attr(ctx);
+            if (!boost::parser::detail::text::low_surrogate(cu)) {
+                _pass(ctx) = false;
+            } else {
+                uint32_t const high_surrogate_min = 0xd800;
+                uint32_t const low_surrogate_min = 0xdc00;
+                uint32_t const surrogate_offset =
+                    0x10000 - (high_surrogate_min << 10) - low_surrogate_min;
+                uint32_t const first_cu = locals.first_surrogate;
+                _val(ctx) = (first_cu << 10) + cu + surrogate_offset;
             }
         };
 
+        inline parser::parser_interface<
+            parser::uint_parser<uint32_t, 16, 4, 4>> const hex_4_def;
+
+        inline auto const escape_seq_def = "\\u" > hex_4;
+
+        inline auto const escape_double_seq_def =
+            escape_seq[first_hex_escape] >> escape_seq[second_hex_escape];
+
+        inline parser::symbols<uint32_t> const single_escaped_char_def = {
+            {"\"", 0x0022u},
+            {"\\", 0x005cu},
+            {"/", 0x002fu},
+            {"b", 0x0008u},
+            {"f", 0x000cu},
+            {"n", 0x000au},
+            {"r", 0x000du},
+            {"t", 0x0009u}};
+
+        inline auto const string_char_def =
+            escape_double_seq | escape_seq |
+            (parser::lit('\\') > single_escaped_char) |
+            (parser::cp - parser::char_(0x0000u, 0x001fu));
+
+        inline auto const null_def = parser::lit("null");
+
+        inline auto const bool_p_def = parser::bool_;
+
         inline auto const string_def =
-            parser::raw[parser::lexeme['"' >> *(string_char - '"') > '"']]
-                       [json_string_view_action{}];
+            parser::lexeme['"' >> *(string_char - '"') > '"'];
+
+        inline auto parse_double = [](auto & ctx) {
+            auto const cp_range = _attr(ctx);
+            auto cp_first = cp_range.begin();
+            auto const cp_last = cp_range.end();
+
+            auto const result =
+                parser::parse(cp_first, cp_last, parser::double_);
+            if (result) {
+                _val(ctx) = *result;
+            } else {
+                boost::container::small_vector<char, 128> chars(
+                    cp_first, cp_last);
+                auto const chars_first = &*chars.begin();
+                auto chars_last = chars_first + chars.size();
+                _val(ctx) = std::strtod(chars_first, &chars_last);
+            }
+        };
+
+        inline auto const number_def =
+            parser::raw[parser::lexeme
+                            [-parser::char_('-') >>
+                             (parser::char_('1', '9') >> *parser::ascii::digit |
+                              parser::char_('0')) >>
+                             -(parser::char_('.') >> +parser::ascii::digit) >>
+                             -(parser::char_("eE") >> -parser::char_("+-") >>
+                               +parser::ascii::digit)]][parse_double];
 
         inline auto const object_element_key_def = string_def;
 
@@ -336,7 +437,8 @@ namespace boost { namespace program_options_2 {
         inline auto const array_def = array_open >>
                                       -(value % ',') > array_close;
 
-        inline auto const value_def = string | array | object;
+        inline auto const value_def =
+            number | bool_p | null | string | array | object;
 
         inline auto const skipper =
             parser::ws |
@@ -344,9 +446,15 @@ namespace boost { namespace program_options_2 {
 
         BOOST_PARSER_DEFINE_RULES(
             ws,
+            hex_4,
+            escape_seq,
+            escape_double_seq,
             single_escaped_char,
             string_char,
+            null,
+            bool_p,
             string,
+            number,
             object_element_key,
             object_element,
             object_open,
@@ -359,17 +467,25 @@ namespace boost { namespace program_options_2 {
 
         struct json_callbacks
         {
-            json_callbacks(std::vector<std::string_view> & result) :
-                result_(result)
+            json_callbacks(std::vector<std::string> & result) : result_(result)
             {}
 
-            void operator()(string_tag, std::string_view s) const
+            void operator()(null_tag) const { result_.push_back("null"); }
+            void operator()(bool_tag, bool b) const
             {
-                result_.push_back(s);
+                result_.push_back(b ? "true" : "false");
             }
-            void operator()(object_element_key_tag, std::string_view key) const
+            void operator()(string_tag, std::string s) const
             {
-                result_.push_back(key);
+                result_.push_back(std::move(s));
+            }
+            void operator()(number_tag, double d) const
+            {
+                result_.push_back(std::to_string(d));
+            }
+            void operator()(object_element_key_tag, std::string key) const
+            {
+                result_.push_back(std::move(key));
             }
             void operator()(object_open_tag) const {}
             void operator()(object_close_tag) const {}
@@ -377,7 +493,7 @@ namespace boost { namespace program_options_2 {
             void operator()(array_close_tag) const {}
 
         private:
-            std::vector<std::string_view> & result_;
+            std::vector<std::string> & result_;
         };
 
         inline std::string file_slurp(std::ifstream & ifs)
@@ -516,20 +632,35 @@ namespace boost { namespace program_options_2 {
         parser::callback_error_handler error_callbacks(
             record_error, record_error, filename);
 
-        std::vector<std::string_view> args;
+        int const max_recursion = 512;
+        detail::global_state globals{0, max_recursion};
+
+        std::vector<std::string> args;
         detail::json_callbacks callbacks(args);
         auto const contents = detail::file_slurp(ifs);
-        auto const parser =
-            parser::with_error_handler(detail::value, error_callbacks);
-        if (!parser::callback_parse(
-                contents, parser, detail::skipper, callbacks)) {
-            error_message += R"(
-Note: The file is expected to use a subset of JSON that contains only strings,
-arrays, and objects.  JSON types null, boolean, and number are not supported,
-and character escapes besides '\\' and '\"' are not supported.
-)";
+        using iter_t = decltype(contents.begin());
+
+        auto const parser = parser::with_error_handler(
+            parser::with_globals(detail::value, globals), error_callbacks);
+        try {
+            if (!parser::callback_parse(
+                    contents, parser, detail::skipper, callbacks)) {
+                BOOST_THROW_EXCEPTION(
+                    load_error(load_result::malformed_json, error_message));
+            }
+        } catch (detail::excessive_nesting<iter_t> const & e) {
+            std::ostringstream os;
+            parser::write_formatted_message(
+                os,
+                filename,
+                contents.begin(),
+                e.iter,
+                contents.end(),
+                "error: Exceeded maximum number (" +
+                    std::to_string(max_recursion) +
+                    ") of open arrays and/or objects");
             BOOST_THROW_EXCEPTION(
-                load_error(load_result::malformed_json, error_message));
+                load_error(load_result::malformed_json, os.str()));
         }
 
         std::ostringstream oss;

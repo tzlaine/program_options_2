@@ -482,13 +482,13 @@ namespace boost { namespace program_options_2 { namespace detail {
     };
 
     // TODO: This should maybe use a trie (pending perf testing, of course).
-    template<typename Char, typename... Options>
+    template<typename StringView, typename... Options>
     bool known_dashed_argument(
-        std::basic_string_view<Char> arg,
+        StringView arg,
         customizable_strings const & strings,
         Options const &... opts)
     {
-        known_dashed_argument_impl impl{arg, strings};
+        known_dashed_argument_impl impl{detail::make_string_view(arg), strings};
         return impl(opts...);
     }
 
@@ -814,7 +814,8 @@ namespace boost { namespace program_options_2 { namespace detail {
                 auto const response_file_opt =
                     program_options_2::response_file("-d", "Dummy.", strings);
                 validation_result const validation =
-                    response_file_opt.validator(first->substr(1));
+                    response_file_opt.validator(
+                        first->substr(strings.response_file_prefix.size()));
                 if (!validation.valid) {
                     detail::handle_validation_error(
                         strings,

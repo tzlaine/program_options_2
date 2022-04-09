@@ -465,10 +465,6 @@ TEST(storage, save_load_json_file)
                 R"(dummy_file:2:0: error: Expected '}' here (end of input):
 
 ^
-
-Note: The file is expected to use a subset of JSON that contains only strings,
-arrays, and objects.  JSON types null, boolean, and number are not supported,
-and character escapes besides '\\' and '\"' are not supported.
 )");
         }
     }
