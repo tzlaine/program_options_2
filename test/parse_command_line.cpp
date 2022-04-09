@@ -380,6 +380,112 @@ TEST(parse_command_line, api)
         EXPECT_EQ(std::any_cast<std::wstring_view>(result["pos"]), "jj");
     }
 #endif
+
+    std::vector<std::string_view> const string_views = {"foo/bar", "jj"};
+#if defined(_MSC_VER)
+    std::vector<std::wstring_view> const wstring_views = {"foo/bar", "jj"};
+#endif
+
+    // vector<string_view>, no user strings
+    {
+        std::ostringstream os;
+        auto result = po2::parse_command_line(
+            string_views,
+            "A program.",
+            os,
+            po2::positional("pos", "Positional."));
+        BOOST_MPL_ASSERT((is_same<decltype(result), tuple<std::string_view>>));
+        EXPECT_EQ(result[0_c], "jj");
+    }
+    {
+        std::ostringstream os;
+        po2::string_view_any_map result;
+        po2::parse_command_line(
+            string_views,
+            result,
+            "A program.",
+            os,
+            po2::positional("pos", "Positional."));
+        EXPECT_EQ(std::any_cast<std::string_view>(result["pos"]), "jj");
+    }
+#if defined(_MSC_VER)
+    {
+        std::wostringstream os;
+        auto result = po2::parse_command_line(
+            wstring_views,
+            "A program.",
+            os,
+            po2::positional("pos", "Positional."));
+        BOOST_MPL_ASSERT((is_same<decltype(result), tuple<std::wstring_view>>));
+        EXPECT_EQ(result[0_c], L"jj");
+    }
+    {
+        std::wostringstream os;
+        po2::string_view_any_map result;
+        po2::parse_command_line(
+            wstring_views,
+            result,
+            "A program.",
+            os,
+            po2::positional("pos", "Positional."));
+        EXPECT_EQ(std::any_cast<std::wstring_view>(result["pos"]), "jj");
+    }
+#endif
+
+    // vector<string_view>, with user strings
+    {
+        std::ostringstream os;
+        auto result = po2::parse_command_line(
+            string_views,
+            "A program.",
+            os,
+            user_strings(),
+            po2::positional("pos", "Positional."));
+        BOOST_MPL_ASSERT((is_same<decltype(result), tuple<std::string_view>>));
+        EXPECT_EQ(result[0_c], "jj");
+    }
+    {
+        std::ostringstream os;
+        po2::string_view_any_map result;
+        po2::parse_command_line(
+            string_views,
+            result,
+            "A program.",
+            os,
+            user_strings(),
+            po2::positional("pos", "Positional."));
+        EXPECT_EQ(std::any_cast<std::string_view>(result["pos"]), "jj");
+    }
+#if defined(_MSC_VER)
+    {
+        std::wostringstream os;
+        auto result = po2::parse_command_line(
+            wstring_views,
+            "A program.",
+            os,
+            user_strings(),
+            po2::positional("pos", "Positional."));
+        BOOST_MPL_ASSERT((is_same<decltype(result), tuple<std::wstring_view>>));
+        EXPECT_EQ(result[0_c], L"jj");
+    }
+    {
+        std::wostringstream os;
+        po2::string_view_any_map result;
+        po2::parse_command_line(
+            wstring_views,
+            result,
+            "A program.",
+            os,
+            user_strings(),
+            po2::positional("pos", "Positional."));
+        EXPECT_EQ(std::any_cast<std::wstring_view>(result["pos"]), "jj");
+    }
+#endif
+
+    std::vector<std::string> const strings = {"foo/bar", "jj"};
+#if defined(_MSC_VER)
+    std::vector<std::wstring> const wstrings = {"foo/bar", "jj"};
+#endif
 }
 
 TEST(parse_command_line, errors)
