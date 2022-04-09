@@ -306,6 +306,41 @@ namespace boost { namespace program_options_2 { namespace detail {
             os, error_str, cl_arg_or_opt_name, opt_name);
     }
 
+    template<typename T_>
+    constexpr bool string_like()
+    {
+        using T = std::decay_t<T_>;
+        if constexpr (
+            std::is_same_v<T, std::string> ||
+            std::is_same_v<T, std::string_view> || std::is_same_v<T, char *> ||
+            std::is_same_v<T, char const *>) {
+            return true;
+#if defined(_MSC_VER)
+        } else if constexpr (
+            std::is_same_v<T, std::wstring> ||
+            std::is_same_v<T, std::wstring_view> ||
+            std::is_same_v<T, wchar_t *> ||
+            std::is_same_v<T, wchar_t const *>) {
+            return true;
+#endif
+        } else {
+            return false;
+        }
+    }
+
+    // TODO: Test that this works, by using an option with UTF-8
+    // std::string_view choices, matched to wchar_t command line args on
+    // Windows.
+    template<typename T, typename U>
+    bool transcoding_compare(T const & t, U const & u)
+    {
+        if constexpr (detail::string_like<T>() && detail::string_like<U>()) {
+            return std::ranges::equal(text::as_utf32(t), text::as_utf32(u));
+        } else {
+            return t == u;
+        }
+    }
+
     template<typename Char, typename Option, typename Result>
     auto parse_action_for(
         Option const & opt,
@@ -317,12 +352,14 @@ namespace boost { namespace program_options_2 { namespace detail {
             return [&opt, &result, &error](auto & ctx) {
                 auto const & attr = _attr(ctx);
                 bool const consumed_all = _where(ctx).end() == _end(ctx);
-                // TODO: Might need to be transcoded if the compareds are
-                // basic_string_view<T>s.
+                auto pred = [&attr](auto const & choice) {
+                    return detail::transcoding_compare(choice, attr);
+                };
                 if (!consumed_all) {
                     _pass(ctx) = false;
                 } else if (
-                    std::ranges::find(opt.choices, attr) == opt.choices.end()) {
+                    std::ranges::find_if(opt.choices, pred) ==
+                    opt.choices.end()) {
                     _pass(ctx) = false;
                     error = parse_option_error::no_such_choice;
                 } else {
