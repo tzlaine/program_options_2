@@ -662,11 +662,7 @@ struct cleaner
         BOOST_ASSERT(fd_ != -1);
         close(fd_);
 #endif
-#if BOOST_PROGRAM_OPTIONS_2_USE_STD_FILESYSTEM
         namespace fs = std::filesystem;
-#else
-        namespace fs = boost::filesystem;
-#endif
         fs::remove_all("test_dir");
     }
 
@@ -676,11 +672,7 @@ private:
 
 TEST(parse_command_line, validators)
 {
-#if BOOST_PROGRAM_OPTIONS_2_USE_STD_FILESYSTEM
     namespace fs = std::filesystem;
-#else
-    namespace fs = boost::filesystem;
-#endif
     fs::remove_all("test_dir");
     fs::create_directory("test_dir");
     fs::create_directory("test_dir/dir");

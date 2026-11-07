@@ -32,6 +32,7 @@
 
 #include "gtest/gtest-death-test.h"
 
+#include <cstdint>
 #include <utility>
 
 #include "gtest/internal/gtest-port.h"
@@ -1296,8 +1297,8 @@ static void StackLowerThanAddress(const void* ptr, bool* result) {
 GTEST_ATTRIBUTE_NO_SANITIZE_ADDRESS_
 GTEST_ATTRIBUTE_NO_SANITIZE_HWADDRESS_
 static bool StackGrowsDown() {
-  int dummy;
-  bool result;
+  int dummy=0;
+  bool result=false;
   StackLowerThanAddress(&dummy, &result);
   return result;
 }

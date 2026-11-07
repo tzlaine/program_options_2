@@ -25,7 +25,6 @@ namespace boost { namespace program_options_2 {
     namespace detail {
         template<typename Char>
         struct arg_iter : stl_interfaces::proxy_iterator_interface<
-                              arg_iter<Char>,
                               std::random_access_iterator_tag,
                               std::basic_string_view<Char>>
         {
@@ -33,6 +32,12 @@ namespace boost { namespace program_options_2 {
             arg_iter(Char const ** ptr) : it_(ptr) { BOOST_ASSERT(ptr); }
 
             std::basic_string_view<Char> operator*() const { return {*it_}; }
+
+            stl_interfaces::proxy_arrow_result<std::basic_string_view<Char>>
+            operator->() const
+            {
+                return {operator*()};
+            }
 
         private:
             friend stl_interfaces::access;
@@ -62,34 +67,13 @@ namespace boost { namespace program_options_2 {
         iterator last_;
     };
 
-    namespace detail {
-        template<typename Char>
-        struct string_view_arrow_result
-        {
-            using string_view = std::basic_string_view<Char>;
-
-            string_view_arrow_result(std::basic_string<Char> const & str) :
-                value_(str)
-            {}
-
-            string_view const * operator->() const noexcept { return &value_; }
-            string_view * operator->() noexcept { return &value_; }
-
-        private:
-            string_view value_;
-        };
-    }
-
 #if defined(BOOST_PROGRAM_OPTIONS_2_DOXYGEN) || defined(_MSC_VER)
 
     namespace detial {
         template<typename Char>
         struct winmain_arg_iter : stl_interfaces::proxy_iterator_interface<
-                                      winmain_arg_iter<Char>,
                                       std::forward_iterator_tag,
-                                      std::basic_string_view<Char>,
-                                      std::basic_string_view<Char>,
-                                      detail::string_view_arrow_result<Char>>
+                                      std::basic_string_view<Char>>
         {
             winmain_arg_iter() = default;
 
@@ -102,6 +86,12 @@ namespace boost { namespace program_options_2 {
             }
 
             std::basic_string_view<Char> operator*() const { return *current_; }
+
+            stl_interfaces::proxy_arrow_result<std::basic_string_view<Char>>
+            operator->() const
+            {
+                return {operator*()};
+            }
 
             winmain_arg_iter & operator++()
             {
@@ -156,11 +146,8 @@ namespace boost { namespace program_options_2 {
             }
 
             using base_type = stl_interfaces::proxy_iterator_interface<
-                winmain_arg_iter<Char>,
                 std::forward_iterator_tag,
-                std::basic_string_view<Char>,
-                std::basic_string_view<Char>,
-                string_view_arrow_result<Char>>;
+                std::basic_string_view<Char>>;
             using base_type::operator++;
 
         private:
@@ -195,12 +182,11 @@ namespace boost { namespace program_options_2 {
         template<typename IStreamIter>
         struct response_file_arg_iter
             : stl_interfaces::proxy_iterator_interface<
-                  response_file_arg_iter<IStreamIter>,
                   std::input_iterator_tag,
-                  std::string_view,
-                  std::string_view,
-                  detail::string_view_arrow_result<char>>
+                  std::string_view>
         {
+            using iterator_category = std::input_iterator_tag;
+
             response_file_arg_iter() = default;
 
             explicit response_file_arg_iter(
@@ -211,6 +197,11 @@ namespace boost { namespace program_options_2 {
             }
 
             std::string_view operator*() const { return *current_; }
+
+            stl_interfaces::proxy_arrow_result<std::string_view> operator->() const
+            {
+                return {operator*()};
+            }
 
             response_file_arg_iter & operator++()
             {
@@ -300,11 +291,8 @@ namespace boost { namespace program_options_2 {
             }
 
             using base_type = stl_interfaces::proxy_iterator_interface<
-                response_file_arg_iter<IStreamIter>,
                 std::input_iterator_tag,
-                std::string_view,
-                std::string_view,
-                string_view_arrow_result<char>>;
+                std::string_view>;
             using base_type::operator++;
 
         private:

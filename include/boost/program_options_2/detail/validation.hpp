@@ -44,7 +44,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         std::string & scratch)
     {
         std::ostringstream oss;
-        auto const utf8_sv = text::as_utf8(sv);
+        auto const utf8_sv = parser::detail::text::as_utf8(sv);
         scratch.assign(utf8_sv.begin(), utf8_sv.end());
         detail::print_placeholder_string(
             oss, error_str, std::string_view(scratch));

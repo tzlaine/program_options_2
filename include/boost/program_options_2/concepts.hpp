@@ -61,20 +61,20 @@ namespace boost { namespace program_options_2 {
     template<typename T>
     using map_value_t = typename std::ranges::range_value_t<T>::second_type;
 
-    template<typename T>
-    concept options_map = std::ranges::range<T> &&
-        (std::same_as<map_key_t<T>, std::string> &&
-         requires(T t, std::string const & s) {
-             { t[s] } -> std::same_as<map_value_t<T> &>;
-         } ||
-         std::same_as<map_key_t<T>, std::string_view> &&
-         requires(T t, std::string_view const & s) {
-             { t[s] } -> std::same_as<map_value_t<T> &>;
-         }) &&
-         erased_type<map_value_t<T>> &&
-         requires(T t) { t.erase(t.begin()); };
-
     // clang-format on
+
+    template<typename T>
+    concept options_map =
+        std::ranges::range<T> &&
+        ((std::same_as<map_key_t<T>, std::string> &&
+          requires(T t, std::string const & s) {
+              { t[s] } -> std::same_as<map_value_t<T> &>;
+          }) ||
+         (std::same_as<map_key_t<T>, std::string_view> &&
+          requires(T t, std::string_view const & s) {
+              { t[s] } -> std::same_as<map_value_t<T> &>;
+          })) &&
+        erased_type<map_value_t<T>> && requires(T t) { t.erase(t.begin()); };
 
 }}
 

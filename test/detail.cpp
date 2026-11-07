@@ -10,6 +10,8 @@
 
 #include <gtest/gtest.h>
 
+#include <functional>
+
 
 namespace po2 = boost::program_options_2;
 

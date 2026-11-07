@@ -11,11 +11,7 @@
 #include <boost/stl_interfaces/iterator_interface.hpp>
 #include <boost/stl_interfaces/view_interface.hpp>
 
-#if BOOST_PROGRAM_OPTIONS_2_USE_STD_FILESYSTEM
 #include <filesystem>
-#else
-#include <boost/filesystem.hpp>
-#endif
 
 
 namespace boost { namespace program_options_2 { namespace detail {
@@ -43,13 +39,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         return std::basic_string_view<char_type>(ptr, ptr + std::size(s));
     }
 
-#if BOOST_PROGRAM_OPTIONS_2_USE_STD_FILESYSTEM
     inline const auto fs_sep = std::filesystem::path::preferred_separator;
-    using error_code = std::error_code;
-#else
-    inline const auto fs_sep = filesystem::path::preferred_separator;
-    using error_code = system::error_code;
-#endif
 
     // clang-format off
     template<typename T, typename U>
@@ -108,7 +98,6 @@ namespace boost { namespace program_options_2 { namespace detail {
     using choice_type_t = typename choice_type<T, Choices...>::type;
 
     struct names_iter : stl_interfaces::proxy_iterator_interface<
-                            names_iter,
                             std::forward_iterator_tag,
                             std::string_view>
     {
@@ -137,7 +126,6 @@ namespace boost { namespace program_options_2 { namespace detail {
         }
 
         using base_type = stl_interfaces::proxy_iterator_interface<
-            names_iter,
             std::forward_iterator_tag,
             std::string_view>;
         using base_type::operator++;

@@ -32,7 +32,9 @@ namespace boost { namespace program_options_2 { namespace detail {
         auto const names = names_view(strings.default_help_names);
         for (auto arg : args) {
             for (auto name : names) {
-                if (std::ranges::equal(text::as_utf8(arg), text::as_utf8(name)))
+                if (std::ranges::equal(
+                        text::as_utf8(arg),
+                        text::as_utf8(name)))
                     return true;
             }
         }
@@ -334,7 +336,9 @@ namespace boost { namespace program_options_2 { namespace detail {
     bool transcoding_compare(T const & t, U const & u)
     {
         if constexpr (detail::string_like<T>() && detail::string_like<U>()) {
-            return std::ranges::equal(text::as_utf32(t), text::as_utf32(u));
+            return std::ranges::equal(
+                text::as_utf32(t),
+                text::as_utf32(u));
         } else {
             return t == u;
         }
@@ -479,7 +483,8 @@ namespace boost { namespace program_options_2 { namespace detail {
     {
         if (std::ranges::find_if(names, [&](auto name) {
                 return std::ranges::equal(
-                    text::as_utf8(arg), text::as_utf8(name));
+                    text::as_utf8(arg),
+                    text::as_utf8(name));
             }) != names.end()) {
             return true;
         }
@@ -1330,7 +1335,8 @@ namespace boost { namespace program_options_2 { namespace detail {
                         bool const has_subcommands_ =
                             detail::contains_commands(options_tuple);
                         parse_contexts.push_back(
-                            {text::to_string(text::as_utf32(arg)),
+                            {text::to_string(
+                                 text::as_utf32(arg)),
                              opt.help_text,
                              [&,
                               argv0,

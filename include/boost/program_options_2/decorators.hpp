@@ -127,16 +127,14 @@ namespace boost { namespace program_options_2 {
         auto error_str = strings.path_not_found;
         std::string scratch;
         auto f = [error_str, scratch](auto sv) mutable {
-#if BOOST_PROGRAM_OPTIONS_2_USE_STD_FILESYSTEM
             namespace fs = std::filesystem;
-#else
-            namespace fs = filesystem;
-#endif
             fs::path p(sv.begin(), sv.end());
-            detail::error_code ec;
+            std::error_code ec;
             auto const status = fs::status(p, ec);
-            if (ec || !fs::exists(status) || status.type() == fs::status_error)
+            if (ec || !fs::exists(status) ||
+                status.type() == fs::file_type::unknown) {
                 return detail::validation_error(error_str, sv, scratch);
+            }
             return validation_result{};
         };
         return program_options_2::with_validator(opt, f);
@@ -160,16 +158,14 @@ namespace boost { namespace program_options_2 {
         auto not_a_file_str = strings.found_directory_not_file;
         std::string scratch;
         auto f = [not_found_str, not_a_file_str, scratch](auto sv) mutable {
-#if BOOST_PROGRAM_OPTIONS_2_USE_STD_FILESYSTEM
             namespace fs = std::filesystem;
-#else
-            namespace fs = filesystem;
-#endif
             fs::path p(sv.begin(), sv.end());
-            detail::error_code ec;
+            std::error_code ec;
             auto const status = fs::status(p, ec);
-            if (ec || !fs::exists(status) || status.type() == fs::status_error)
+            if (ec || !fs::exists(status) ||
+                status.type() == fs::file_type::unknown) {
                 return detail::validation_error(not_found_str, sv, scratch);
+            }
             if (fs::is_directory(status))
                 return detail::validation_error(not_a_file_str, sv, scratch);
             return validation_result{};
@@ -195,16 +191,14 @@ namespace boost { namespace program_options_2 {
         auto not_a_dir_str = strings.found_file_not_directory;
         std::string scratch;
         auto f = [not_found_str, not_a_dir_str, scratch](auto sv) mutable {
-#if BOOST_PROGRAM_OPTIONS_2_USE_STD_FILESYSTEM
             namespace fs = std::filesystem;
-#else
-            namespace fs = filesystem;
-#endif
             fs::path p(sv.begin(), sv.end());
-            detail::error_code ec;
+            std::error_code ec;
             auto const status = fs::status(p, ec);
-            if (ec || !fs::exists(status) || status.type() == fs::status_error)
+            if (ec || !fs::exists(status) ||
+                status.type() == fs::file_type::unknown) {
                 return detail::validation_error(not_found_str, sv, scratch);
+            }
             if (!fs::is_directory(status))
                 return detail::validation_error(not_a_dir_str, sv, scratch);
             return validation_result{};

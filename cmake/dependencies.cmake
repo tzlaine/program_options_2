@@ -1,5 +1,5 @@
 # Copyright Louis Dionne 2016
-# Copyright Zach Laine 2016
+# Copyright Zach Laine 2026
 # Distributed under the Boost Software License, Version 1.0.
 # (See accompanying file LICENSE.md or copy at http://boost.org/LICENSE_1_0.txt)
 
@@ -7,46 +7,90 @@
 # Boost
 ###############################################################################
 set(Boost_USE_STATIC_LIBS ON)
-find_package(Boost 1.71.0 COMPONENTS ${boost_components})
-if (Boost_INCLUDE_DIR)
-  add_library(boost INTERFACE)
-  target_include_directories(boost INTERFACE ${Boost_INCLUDE_DIR})
-else ()
-  if (NOT BOOST_BRANCH)
-    set(BOOST_BRANCH master)
-  endif()
-  if (NOT EXISTS ${CMAKE_BINARY_DIR}/boost_root)
-    message("-- Boost was not found; it will be cloned locally from ${BOOST_BRANCH}.")
-    add_custom_target(
-      boost_root_clone
-      git clone --depth 100 -b ${BOOST_BRANCH}
-        https://github.com/boostorg/boost.git boost_root
-      WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
-    if (MSVC)
-      set(bootstrap_cmd ./bootstrap.bat)
-    else()
-      set(bootstrap_cmd ./bootstrap.sh)
-    endif()
-    add_custom_target(
-      boost_clone
-      COMMAND git submodule init libs/assert
-      COMMAND git submodule init libs/config
-      COMMAND git submodule init libs/core
-      COMMAND git submodule init tools/build
-      COMMAND git submodule init libs/headers
-      COMMAND git submodule init tools/boost_install
-      COMMAND git submodule update --jobs 3
-      COMMAND ${bootstrap_cmd}
-      COMMAND ./b2 headers
-      WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/boost_root
-      DEPENDS boost_root_clone)
-  endif()
-  add_library(boost INTERFACE)
-  add_dependencies(boost boost_clone)
-  target_include_directories(boost INTERFACE ${CMAKE_BINARY_DIR}/boost_root)
-  set(Boost_INCLUDE_DIR ${CMAKE_BINARY_DIR}/boost_root) # Needed for try_compile()s.
-endif ()
 
+if (NOT BOOST_BRANCH)
+  set(BOOST_BRANCH master)
+endif()
+
+add_custom_target(boost_clone_superproject
+  DEPENDS
+    ${CMAKE_BINARY_DIR}/boost_root/LICENSE_1_0.txt
+  COMMENT
+    "Cloning Boost superproject."
+  VERBATIM)
+
+add_custom_command(
+  OUTPUT ${CMAKE_BINARY_DIR}/boost_root/LICENSE_1_0.txt
+  COMMAND git clone --depth 100 -b ${BOOST_BRANCH}
+    https://github.com/boostorg/boost.git boost_root
+  WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+
+# MSVC determines the compiler and not the target platform
+# here we need to check WIN32
+if (WIN32)
+  set(b2_exe b2.exe)
+else()
+  set(b2_exe b2)
+endif()
+
+add_custom_target(boost_clone_deps
+  DEPENDS
+    ${CMAKE_BINARY_DIR}/boost_root/${b2_exe}
+  COMMENT
+    "Cloning Boost dependencies."
+  VERBATIM)
+add_dependencies(boost_clone_deps boost_clone_superproject)
+
+
+if (WIN32)
+  # Windows:
+  # in order to build 'b2_exe' with the same toolset as configured in the current cmake run,
+  # we need to tell the boost bootstrap process and pass some parameters
+  # - as first parameter msvc, gcc or clang for the compiler type
+  # - additionally, for non-MSVC we need to set the environment variable CXX to the compiler: ${CMAKE_CXX_COMPILER} which
+  #   is a fully qualified path name, so that the compiler can be found by the bootstrap_cmd
+  # calling b2.exe should work also for non-MSVC compilers, as during the build, the runtime directory is part of the search PATH
+
+  if (MSVC OR CMAKE_CXX_SIMULATE_ID STREQUAL "MSVC")
+    message(STATUS "configure BOOST for Visual Studio built-in compilers (i.e cl, clang-cl and clang")
+    set(bootstrap_cmd ./bootstrap.bat msvc)
+    # here we do not need to distinguish the different compilers as only the frontend is different
+  elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    message(STATUS "configure BOOST for Clang compiler")
+    set(bootstrap_cmd ./bootstrap.bat clang)
+    set(COMMAND_ENV set CXX=${CMAKE_CXX_COMPILER})
+  elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    message(STATUS "configure BOOST for GCC compiler")
+    set(bootstrap_cmd ./bootstrap.bat gcc)
+    set(COMMAND_ENV set CXX=${CMAKE_CXX_COMPILER})
+  endif ()
+else()
+  # windres produces relocations that are rejected
+  # by stricter ld configurations used in some distros
+  set(bootstrap_cmd env B2_DONT_EMBED_MANIFEST=true ./bootstrap.sh)
+endif()
+
+add_custom_command(
+  OUTPUT ${CMAKE_BINARY_DIR}/boost_root/${b2_exe}
+#  COMMAND git submodule init libs/stl_interfaces
+#  COMMAND git submodule init libs/container
+  COMMAND git submodule init libs/parser
+  COMMAND git submodule init libs/assert
+  COMMAND git submodule init libs/config
+  COMMAND git submodule init libs/core
+  COMMAND git submodule init libs/hana
+  COMMAND git submodule init tools/build
+  COMMAND git submodule init libs/headers
+  COMMAND git submodule init tools/boost_install
+  COMMAND git submodule update --jobs 3 --depth 100
+  COMMAND ${COMMAND_ENV}
+  COMMAND ${bootstrap_cmd}
+  COMMAND ./b2 headers
+  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/boost_root)
+
+add_library(boost INTERFACE)
+add_dependencies(boost boost_clone_deps)
+target_include_directories(boost INTERFACE ${CMAKE_BINARY_DIR}/boost_root)
 
 ###############################################################################
 # Boost.Text (Proposed)
@@ -58,16 +102,6 @@ add_library(text STATIC IMPORTED GLOBAL)
 set_target_properties(text PROPERTIES IMPORTED_LOCATION ${TEXT_ROOT}/build/libtext.a)
 target_link_libraries(boost INTERFACE text)
 include_directories(${TEXT_ROOT}/include)
-
-
-###############################################################################
-# Boost.Parser (Proposed)
-###############################################################################
-if (NOT PARSER_ROOT)
-  message(FATAL_ERROR "PARSER_ROOT not defined")
-endif()
-include_directories(${PARSER_ROOT}/include)
-
 
 ###############################################################################
 # GoogleTest

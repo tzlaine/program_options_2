@@ -9,7 +9,7 @@
 #include <boost/program_options_2/config.hpp>
 #include <boost/program_options_2/tag_invoke.hpp>
 
-#include <boost/text/transcode_view.hpp>
+#include <boost/parser/detail/text/transcode_view.hpp>
 
 #include <boost/container/small_vector.hpp>
 
@@ -29,6 +29,7 @@
 
 #include <any>
 #include <array>
+#include <functional>
 #include <map>
 #include <string_view>
 #include <type_traits>
@@ -337,7 +338,8 @@ namespace boost { namespace program_options_2 {
         constexpr bool transcoded_starts_with(R1 const & str, R2 const & substr)
         {
             return detail::starts_with(
-                text::as_utf32(str), text::as_utf32(substr));
+                parser::detail::text::as_utf32(str),
+                parser::detail::text::as_utf32(substr));
         }
 
         // Defined in utility.hpp.

@@ -109,7 +109,7 @@ namespace boost { namespace program_options_2 {
         save_error(save_result error, std::string_view str) :
             error_(error), str_(str)
         {}
-        virtual char const * what()
+        virtual char const * what() const noexcept
         {
             return "Failed to save command line arguments to storage.";
         }
@@ -128,7 +128,7 @@ namespace boost { namespace program_options_2 {
         load_error(load_result error, std::string_view str) :
             error_(error), str_(str)
         {}
-        virtual char const * what()
+        virtual char const * what() const noexcept
         {
             return "Failed to load command line arguments from storage.";
         }
@@ -402,7 +402,7 @@ namespace boost { namespace program_options_2 {
             auto const cp_last = cp_range.end();
 
             auto const result =
-                parser::parse(cp_first, cp_last, parser::double_);
+                parser::prefix_parse(cp_first, cp_last, parser::double_);
             if (result) {
                 _val(ctx) = *result;
             } else {
@@ -417,11 +417,11 @@ namespace boost { namespace program_options_2 {
         inline auto const number_def =
             parser::raw[parser::lexeme
                             [-parser::char_('-') >>
-                             (parser::char_('1', '9') >> *parser::ascii::digit |
+                             (parser::char_('1', '9') >> *parser::digit |
                               parser::char_('0')) >>
-                             -(parser::char_('.') >> +parser::ascii::digit) >>
+                             -(parser::char_('.') >> +parser::digit) >>
                              -(parser::char_("eE") >> -parser::char_("+-") >>
-                               +parser::ascii::digit)]][parse_double];
+                               +parser::digit)]][parse_double];
 
         inline auto const object_element_key_def = string_def;
 
@@ -630,7 +630,7 @@ namespace boost { namespace program_options_2 {
             error_message = error;
         };
         parser::callback_error_handler error_callbacks(
-            record_error, record_error, filename);
+            filename, record_error, record_error);
 
         int const max_recursion = 512;
         detail::global_state globals{0, max_recursion};

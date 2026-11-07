@@ -10,6 +10,8 @@
 #include <boost/program_options_2/detail/utility.hpp>
 #include <boost/program_options_2/detail/validation.hpp>
 
+#include <fstream>
+
 
 namespace boost { namespace program_options_2 {
 
@@ -362,16 +364,14 @@ namespace boost { namespace program_options_2 {
         std::string scratch;
         auto f = [not_found_str, not_a_file_str, cannot_read_str, scratch](
                      auto sv) mutable {
-#if BOOST_PROGRAM_OPTIONS_2_USE_STD_FILESYSTEM
             namespace fs = std::filesystem;
-#else
-            namespace fs = filesystem;
-#endif
             fs::path p(sv.begin(), sv.end());
-            detail::error_code ec;
+            std::error_code ec;
             auto const status = fs::status(p, ec);
-            if (ec || !fs::exists(status) || status.type() == fs::status_error)
+            if (ec || !fs::exists(status) ||
+                status.type() == fs::file_type::unknown) {
                 return detail::validation_error(not_found_str, sv, scratch);
+            }
             if (fs::is_directory(status))
                 return detail::validation_error(not_a_file_str, sv, scratch);
             std::ifstream ifs(p.c_str());

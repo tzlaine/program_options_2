@@ -101,14 +101,16 @@ namespace boost { namespace program_options_2 { namespace detail {
         char buf[256];
         int const increment = 64;
         while (increment < it - first) {
-            auto out = text::to_upper(
-                text::as_utf32(it, last), text::utf_32_to_8_out(buf));
-            os << text::as_utf8(buf, out.base());
+            auto result = text::to_upper(
+                text::as_utf32(std::ranges::subrange(it, last)),
+                text::utf_32_to_8_out(buf));
+            os << text::as_utf8(std::ranges::subrange(buf, result.out.base()));
             it += increment;
         }
-        auto out = text::to_upper(
-            text::as_utf32(it, last), text::utf_32_to_8_out(buf));
-        os << text::as_utf8(buf, out.base());
+        auto result = text::to_upper(
+            text::as_utf32(std::ranges::subrange(it, last)),
+            text::utf_32_to_8_out(buf));
+        os << text::as_utf8(std::ranges::subrange(buf, result.out.base()));
     }
 
     template<typename Stream, typename T, typename = hana::when<true>>
@@ -179,7 +181,7 @@ namespace boost { namespace program_options_2 { namespace detail {
         }
 
         if (detail::multi_arg(opt)) {
-            char const * ellipsis = " ...";
+            std::string_view const ellipsis = " ...";
             os << text::as_utf8(ellipsis);
         }
 
@@ -190,7 +192,8 @@ namespace boost { namespace program_options_2 { namespace detail {
     template<typename R>
     int estimated_width(R const & r)
     {
-        return text::estimated_width_of_graphemes(text::as_utf32(r));
+        return text::estimated_width_of_graphemes(
+            text::as_utf32(r));
     }
 
     template<typename Stream>
@@ -255,9 +258,10 @@ namespace boost { namespace program_options_2 { namespace detail {
                 detail::first_short_name(opt.names, strings);
             auto const trimmed_name =
                 detail::trim_leading_dashes(shortest_name, strings);
-            char const * close = "...]";
+            std::string_view close = "...]";
             oss << text::as_utf8(shortest_name) << '['
-                << text::as_utf8(trimmed_name) << text::as_utf8(close);
+                << text::as_utf8(trimmed_name)
+                << text::as_utf8(close);
         } else {
             auto const shortest_name =
                 detail::first_short_name(opt.names, strings);
@@ -415,7 +419,10 @@ namespace boost { namespace program_options_2 { namespace detail {
 
         if (1u < parse_contexts.size() &&
             !parse_contexts.back().help_text_.empty()) {
-            os << "\n\n" << text::as_utf8(parse_contexts.back().help_text_) << '\n';
+            os << "\n\n"
+               << text::as_utf8(
+                      parse_contexts.back().help_text_)
+               << '\n';
         } else if (prog_desc.empty()) {
             os << '\n';
         } else {
@@ -436,7 +443,7 @@ namespace boost { namespace program_options_2 { namespace detail {
                  max_col_width - min_column,
                  [](auto first, auto last) {
                      return detail::estimated_width(
-                         text::as_utf32(first, last));
+                         text::as_utf32(std::ranges::subrange(first, last)));
                  })) {
             if (need_newline) {
                 os << '\n';
@@ -674,9 +681,10 @@ namespace boost { namespace program_options_2 { namespace detail {
             max_option_length + min_help_column_gap, max_option_col_width);
 
         if (commands_printed) {
-            printed_section_vec & printed_commands =
-                printed_sections[2].second;
-            os << '\n' << text::as_utf8(strings.commands_section_text) << '\n';
+            printed_section_vec & printed_commands = printed_sections[2].second;
+            os << '\n'
+               << text::as_utf8(strings.commands_section_text)
+               << '\n';
             detail::print_options_and_descs(
                 os, printed_commands, description_column);
         } else {
@@ -684,7 +692,9 @@ namespace boost { namespace program_options_2 { namespace detail {
                 printed_sections[0].second;
             if (!printed_positionals.empty()) {
                 os << '\n'
-                   << text::as_utf8(strings.positional_section_text) << '\n';
+                   << text::as_utf8(
+                          strings.positional_section_text)
+                   << '\n';
                 detail::print_options_and_descs(
                     os, printed_positionals, description_column);
             }
@@ -693,7 +703,9 @@ namespace boost { namespace program_options_2 { namespace detail {
                 printed_sections[1].second;
             if (!printed_arguments.empty()) {
                 os << '\n'
-                   << text::as_utf8(strings.optional_section_text) << '\n';
+                   << text::as_utf8(
+                          strings.optional_section_text)
+                   << '\n';
                 detail::print_options_and_descs(
                     os, printed_arguments, description_column);
             }
@@ -722,7 +734,9 @@ namespace boost { namespace program_options_2 { namespace detail {
         } else if (
             !strings.response_file_note.empty() &&
             detail::no_response_file_option(opts...)) {
-            os << '\n' << text::as_utf8(strings.response_file_note) << '\n';
+            os << '\n'
+               << text::as_utf8(strings.response_file_note)
+               << '\n';
         }
 
         if (!strings.epilog.empty())
@@ -751,8 +765,8 @@ namespace boost { namespace program_options_2 { namespace detail {
         detail::print_help_post_synopsis(
             argv0, strings, oss, no_help, parse_contexts, opts...);
         auto const str = std::move(oss).str();
-        for (auto const & range :
-             text::bidirectional_subranges(text::as_utf32(str))) {
+        for (auto const & range : text::bidirectional_subranges(
+                 text::as_utf32(str))) {
             os << text::as_utf32(range);
         }
     }
@@ -791,26 +805,30 @@ namespace boost { namespace program_options_2 { namespace detail {
         auto const kinda_matched_braces =
             before_brace >> brace >> -(before_brace >> brace);
         auto first = placeholder_str.begin();
-        auto const braces =
-            parser::parse(first, placeholder_str.end(), kinda_matched_braces);
+        auto const braces = parser::prefix_parse(
+            first, placeholder_str.end(), kinda_matched_braces);
         auto const open_brace =
-            braces ? (*braces)[0].begin() : placeholder_str.end();
+            braces ? std::get<0>(*braces).begin() : placeholder_str.end();
         auto const close_brace =
-            braces ? (*braces)[0].end() : placeholder_str.end();
-        auto const second_open_brace = braces && 1u < braces->size()
-                                           ? (*braces)[1].begin()
+            braces ? std::get<0>(*braces).end() : placeholder_str.end();
+        auto const has_second_range = braces && std::get<1>(*braces);
+        auto const second_open_brace = has_second_range
+                                           ? std::get<1>(*braces)->begin()
                                            : placeholder_str.end();
-        auto const second_close_brace = braces && 1u < braces->size()
-                                            ? (*braces)[1].end()
+        auto const second_close_brace = has_second_range
+                                            ? std::get<1>(*braces)->end()
                                             : placeholder_str.end();
 
-        os << text::as_utf8(placeholder_str.begin(), open_brace);
+        os << text::as_utf8(
+            std::ranges::subrange(placeholder_str.begin(), open_brace));
         if (braces)
             os << text::as_utf8(inserted_str1);
-        os << text::as_utf8(close_brace, second_open_brace);
-        if (braces && 1u < braces->size())
+        os << text::as_utf8(
+            std::ranges::subrange(close_brace, second_open_brace));
+        if (has_second_range)
             os << text::as_utf8(inserted_str2);
-        os << text::as_utf8(second_close_brace, placeholder_str.end());
+        os << text::as_utf8(
+            std::ranges::subrange(second_close_brace, placeholder_str.end()));
         if (end_with_newline)
             os << '\n';
     }
