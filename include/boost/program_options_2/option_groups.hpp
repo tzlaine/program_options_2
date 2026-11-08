@@ -113,10 +113,11 @@ namespace boost { namespace program_options_2 {
         option_or_group Option1,
         option_or_group Option2,
         option_or_group... Options>
-    requires(
-        !detail::contains_positional_option<Option1, Option2, Options...>() &&
-        !detail::contains_wrong_group_option<Option1, Option2, Options...>())
-        // clang-format off
+        requires(
+            !detail::
+                contains_positional_option<Option1, Option2, Options...>() &&
+            !detail::
+                contains_wrong_group_option<Option1, Option2, Options...>())
     detail::option_group<
         detail::exclusive_t::yes,
         detail::subcommand_t::no,
@@ -127,7 +128,6 @@ namespace boost { namespace program_options_2 {
         Option2,
         Options...>
     exclusive(Option1 opt1, Option2 opt2, Options... opts)
-    // clang-format on
     {
         return {{}, {}, {std::move(opt1), std::move(opt2), std::move(opts)...}};
     }
@@ -135,8 +135,7 @@ namespace boost { namespace program_options_2 {
     /** Creates a command with the given `names` and no help text, containing
         the given options.  This command must have sub-commands. */
     template<option_or_group... Options>
-    requires(detail::contains_commands<Options...>())
-        // clang-format off
+        requires(detail::contains_commands<Options...>())
     detail::option_group<
         detail::exclusive_t::no,
         detail::subcommand_t::yes,
@@ -145,7 +144,6 @@ namespace boost { namespace program_options_2 {
         detail::no_func,
         Options...>
     command(std::string_view names, Options... opts)
-    // clang-format on
     {
         BOOST_ASSERT(
             !names.empty() && "A command with an empty name is not supported.");
@@ -155,8 +153,7 @@ namespace boost { namespace program_options_2 {
     /** Creates a command with the given `names` and help text, containing the
         given options.  This command must have sub-commands. */
     template<option_or_group... Options>
-    requires(detail::contains_commands<Options...>())
-        // clang-format off
+        requires(detail::contains_commands<Options...>())
     detail::option_group<
         detail::exclusive_t::no,
         detail::subcommand_t::yes,
@@ -165,7 +162,6 @@ namespace boost { namespace program_options_2 {
         detail::no_func,
         Options...>
     command(std::string_view names, std::string_view help_text, Options... opts)
-    // clang-format on
     {
         BOOST_ASSERT(
             !names.empty() && "A command with an empty name is not supported.");
@@ -177,8 +173,7 @@ namespace boost { namespace program_options_2 {
         function `func` will be called with the result-map that is passed to
         `parse_command_line()`.  This command must not have sub-commands. */
     template<std::copy_constructible Func, option_or_group... Options>
-    requires(!detail::contains_commands<Options...>())
-        // clang-format off
+        requires(!detail::contains_commands<Options...>())
     detail::option_group<
         detail::exclusive_t::no,
         detail::subcommand_t::yes,
@@ -187,11 +182,10 @@ namespace boost { namespace program_options_2 {
         std::remove_cvref_t<Func>,
         Options...>
     command(Func && func, std::string_view names, Options... opts)
-    // clang-format on
     {
         BOOST_ASSERT(
             !names.empty() && "A command with an empty name is not supported.");
-        return {names, {}, {std::move(opts)...}, (Func &&) func};
+        return {names, {}, {std::move(opts)...}, (Func &&)func};
     }
 
     /** Creates a command with the given `names` and help text, containing the
@@ -199,8 +193,7 @@ namespace boost { namespace program_options_2 {
         `func` will be called with the result-map that is passed to
         `parse_command_line()`.  This command must not have sub-commands. */
     template<std::copy_constructible Func, option_or_group... Options>
-    requires(!detail::contains_commands<Options...>())
-        // clang-format off
+        requires(!detail::contains_commands<Options...>())
     detail::option_group<
         detail::exclusive_t::no,
         detail::subcommand_t::yes,
@@ -213,15 +206,13 @@ namespace boost { namespace program_options_2 {
         std::string_view names,
         std::string_view help_text,
         Options... opts)
-    // clang-format on
     {
         BOOST_ASSERT(
             !names.empty() && "A command with an empty name is not supported.");
-        return {names, help_text, {std::move(opts)...}, (Func &&) func};
+        return {names, help_text, {std::move(opts)...}, (Func &&)func};
     }
 
-    namespace detail
-    {
+    namespace detail {
         template<typename Option>
         struct contains_named_group_impl
         {
@@ -277,8 +268,8 @@ namespace boost { namespace program_options_2 {
         auto make_group_opt_tuple(Options &&... opts)
         {
             return detail::make_group_opt_tuple(
-                hana::tuple<std::remove_cvref_t<Options>...>{(Options &&)
-                                                                 opts...});
+                hana::tuple<std::remove_cvref_t<Options>...>{
+                    (Options &&)opts...});
         }
 
         template<named_group_t NamedGroup, typename... Options>
@@ -321,17 +312,15 @@ namespace boost { namespace program_options_2 {
         contain its own nested groups.  If a named group contains a command,
         all options in the named group must be commands. */
     template<option_or_group Option, option_or_group... Options>
-    requires(
-        !detail::contains_named_group<Option, Options...>() &&
-        ((!command_<Option> && (!command_<Options> && ...)) ||
-         (command_<Option> && (command_<Options> && ...))))
-        // clang-format off
+        requires(
+            !detail::contains_named_group<Option, Options...>() &&
+            ((!command_<Option> && (!command_<Options> && ...)) ||
+             (command_<Option> && (command_<Options> && ...))))
     auto group(
         std::string_view name,
         std::string_view description,
         Option opt,
         Options... opts)
-    // clang-format on
     {
         BOOST_ASSERT(
             !name.empty() &&

@@ -30,8 +30,7 @@ namespace boost { namespace program_options_2 {
         range_of_string_view<char> Args,
         option_or_group Option,
         option_or_group... Options>
-    requires(!detail::contains_commands<Option, Options...>())
-        // clang-format off
+        requires(!detail::contains_commands<Option, Options...>())
     auto parse_command_line(
         Args const & args,
         std::string_view program_desc,
@@ -39,7 +38,6 @@ namespace boost { namespace program_options_2 {
         customizable_strings const & strings,
         Option opt,
         Options... opts)
-    // clang-format on
     {
         BOOST_ASSERT(args.begin() != args.end());
         detail::check_options(strings, opt, opts...);
@@ -75,15 +73,13 @@ namespace boost { namespace program_options_2 {
         range_of_string_view<char> Args,
         option_or_group Option,
         option_or_group... Options>
-    requires(!detail::contains_commands<Option, Options...>())
-        // clang-format off
+        requires(!detail::contains_commands<Option, Options...>())
     auto parse_command_line(
         Args const & args,
         std::string_view program_desc,
         std::ostream & os,
         Option opt,
         Options... opts)
-    // clang-format on
     {
         return program_options_2::parse_command_line(
             args, program_desc, os, customizable_strings{}, opt, opts...);
@@ -97,9 +93,8 @@ namespace boost { namespace program_options_2 {
         The return code on exit will be `1` if an error occurred, or `0`
         otherwise.  The given options must not contain any commands. */
     template<option_or_group Option, option_or_group... Options>
-    requires(!detail::contains_commands<Option, Options...>())
-        // clang-format off
-     auto parse_command_line(
+        requires(!detail::contains_commands<Option, Options...>())
+    auto parse_command_line(
         int argc,
         char const ** argv,
         std::string_view program_desc,
@@ -107,7 +102,6 @@ namespace boost { namespace program_options_2 {
         customizable_strings const & strings,
         Option opt,
         Options... opts)
-    // clang-format on
     {
         return program_options_2::parse_command_line(
             arg_view(argc, argv), program_desc, os, strings, opt, opts...);
@@ -121,16 +115,14 @@ namespace boost { namespace program_options_2 {
         The return code on exit will be `1` if an error occurred, or `0`
         otherwise.  The given options must not contain any commands. */
     template<option_or_group Option, option_or_group... Options>
-    requires(!detail::contains_commands<Option, Options...>())
-        // clang-format off
-     auto parse_command_line(
+        requires(!detail::contains_commands<Option, Options...>())
+    auto parse_command_line(
         int argc,
         char const ** argv,
         std::string_view program_desc,
         std::ostream & os,
         Option opt,
         Options... opts)
-    // clang-format on
     {
         return program_options_2::parse_command_line(
             arg_view(argc, argv),
@@ -296,8 +288,7 @@ namespace boost { namespace program_options_2 {
         range_of_string_view<wchar_t> Args,
         option_or_group Option,
         option_or_group... Options>
-    requires(!detail::contains_commands<Option, Options...>())
-        // clang-format off
+        requires(!detail::contains_commands<Option, Options...>())
     auto parse_command_line(
         Args const & args,
         std::wstring_view program_desc,
@@ -305,7 +296,6 @@ namespace boost { namespace program_options_2 {
         customizable_strings const & strings,
         Option opt,
         Options... opts)
-    // clang-format on
     {
         BOOST_ASSERT(args.begin() != args.end());
         detail::check_options(strings, opt, opts...);
@@ -333,15 +323,13 @@ namespace boost { namespace program_options_2 {
         range_of_string_view<wchar_t> Args,
         option_or_group Option,
         option_or_group... Options>
-    requires(!detail::contains_commands<Option, Options...>())
-        // clang-format off
+        requires(!detail::contains_commands<Option, Options...>())
     auto parse_command_line(
         Args const & args,
         std::wstring_view program_desc,
         std::wostream & os,
         Option opt,
         Options... opts)
-    // clang-format on
     {
         return program_options_2::parse_command_line(
             args, program_desc, os, customizable_strings{}, opt, opts...);
@@ -356,8 +344,7 @@ namespace boost { namespace program_options_2 {
         otherwise.  The given options must not contain any commands.  This
         function is defined on Windows only. */
     template<option_or_group Option, option_or_group... Options>
-    requires(!detail::contains_commands<Option, Options...>())
-        // clang-format off
+        requires(!detail::contains_commands<Option, Options...>())
     auto parse_command_line(
         int argc,
         wchar_t const ** argv,
@@ -366,7 +353,6 @@ namespace boost { namespace program_options_2 {
         std::wostream & os,
         Option opt,
         Options... opts)
-    // clang-format on
     {
         return program_options_2::parse_command_line(
             arg_view(argc, argv), program_desc, os, strings, opt, opts...);
@@ -381,8 +367,7 @@ namespace boost { namespace program_options_2 {
         otherwise.  The given options must not contain any commands.  This
         function is defined on Windows only. */
     template<option_or_group Option, option_or_group... Options>
-    requires(!detail::contains_commands<Option, Options...>())
-        // clang-format off
+        requires(!detail::contains_commands<Option, Options...>())
     auto parse_command_line(
         int argc,
         wchar_t const ** argv,
@@ -390,7 +375,6 @@ namespace boost { namespace program_options_2 {
         std::wostream & os,
         Option opt,
         Options... opts)
-    // clang-format on
     {
         return program_options_2::parse_command_line(
             arg_view(argc, argv),

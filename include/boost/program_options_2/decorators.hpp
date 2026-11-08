@@ -24,25 +24,22 @@ namespace boost { namespace program_options_2 {
         typename ChoiceType,
         typename Validator,
         typename DefaultType>
-        // clang-format off
-        requires
-            (Choices == 0 ||
-             std::equality_comparable_with<DefaultType, ChoiceType>) &&
-             ((std::assignable_from<T &, DefaultType>  &&
-               std::constructible_from<T, DefaultType>)||
-              detail::insertable_from<T, DefaultType>)
-    detail::option<Kind, T, DefaultType, Required, Choices, ChoiceType, Validator>
-    with_default(
-        detail::option<
-            Kind,
-            T,
-            no_value,
-            Required,
-            Choices,
-            ChoiceType,
-            Validator> opt,
-        DefaultType && default_value)
-    // clang-format on
+        requires(Choices == 0 ||
+                 std::equality_comparable_with<DefaultType, ChoiceType>) &&
+                ((std::assignable_from<T &, DefaultType> &&
+                  std::constructible_from<T, DefaultType>) ||
+                 detail::insertable_from<T, DefaultType>)
+    detail::
+        option<Kind, T, DefaultType, Required, Choices, ChoiceType, Validator> with_default(
+            detail::option<
+                Kind,
+                T,
+                no_value,
+                Required,
+                Choices,
+                ChoiceType,
+                Validator> opt,
+            DefaultType && default_value)
     {
         if constexpr (std::equality_comparable_with<DefaultType, ChoiceType>) {
             BOOST_ASSERT(
@@ -58,7 +55,7 @@ namespace boost { namespace program_options_2 {
             opt.help_text,
             opt.action,
             opt.args,
-            (DefaultType &&) default_value,
+            (DefaultType &&)default_value,
             opt.choices,
             opt.arg_display_name,
             std::move(opt.validator)};

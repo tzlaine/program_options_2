@@ -147,24 +147,19 @@ namespace boost { namespace program_options_2 {
         `"--"`.  The names must be comma-delimited, and may not contain
         whitespace. */
     template<typename T = std::string_view, typename... Choices>
-        // clang-format off
-        requires
-           ((std::assignable_from<T &, Choices> &&
-             std::constructible_from<T, Choices>) && ...) ||
-           (detail::insertable_from<T, Choices> && ...)
+        requires((std::assignable_from<T &, Choices> &&
+                  std::constructible_from<T, Choices>) &&
+                 ...) ||
+                (detail::insertable_from<T, Choices> && ...)
     detail::option<
         detail::option_kind::argument,
         T,
         no_value,
         detail::required_t::no,
         sizeof...(Choices),
-        detail::choice_type_t<T, Choices...>>
-    argument(
-        std::string_view names,
-        std::string_view help_text,
-        int args,
-        Choices... choices)
-    // clang-format on
+        detail::choice_type_t<
+            T,
+            Choices...>> argument(std::string_view names, std::string_view help_text, int args, Choices... choices)
     {
         BOOST_ASSERT(
             args != 0 &&
@@ -214,24 +209,19 @@ namespace boost { namespace program_options_2 {
         one of the values `choices...`.  The option name may not begin with
         `"-"` or `"--"`, and may not contain whitespace. */
     template<typename T = std::string_view, typename... Choices>
-        // clang-format off
-        requires
-            ((std::assignable_from<T &, Choices> &&
-              std::constructible_from<T, Choices>) && ...) ||
-            (detail::insertable_from<T, Choices> && ...)
+        requires((std::assignable_from<T &, Choices> &&
+                  std::constructible_from<T, Choices>) &&
+                 ...) ||
+                (detail::insertable_from<T, Choices> && ...)
     detail::option<
         detail::option_kind::positional,
         T,
         no_value,
         detail::required_t::yes,
         sizeof...(Choices),
-        detail::choice_type_t<T, Choices...>>
-    positional(
-        std::string_view name,
-        std::string_view help_text,
-        int args,
-        Choices... choices)
-    // clang-format on
+        detail::choice_type_t<
+            T,
+            Choices...>> positional(std::string_view name, std::string_view help_text, int args, Choices... choices)
     {
         BOOST_ASSERT(
             !detail::contains_ws(name) &&

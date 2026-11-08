@@ -19,8 +19,6 @@ namespace boost { namespace program_options_2 {
         {};
     }
 
-    // clang-format off
-
     template<typename T>
     concept option_ = detail::is_option<T>::value;
     template<typename T>
@@ -31,18 +29,19 @@ namespace boost { namespace program_options_2 {
     concept command_ = detail::is_command<T>::value;
 
     template<typename V, typename T>
-    concept validator = std::invocable<V, T const &> &&
+    concept validator =
+        std::invocable<V, T const &> &&
         std::same_as<std::invoke_result_t<V, T const &>, validation_result>;
 
     template<typename T, typename Char>
-    concept range_of_string_view = std::ranges::range<T> && std::same_as<
-        std::decay_t<std::ranges::range_value_t<T>>,
-        std::basic_string_view<Char>>;
+    concept range_of_string_view =
+        std::ranges::range<T> &&
+        std::same_as<
+            std::decay_t<std::ranges::range_value_t<T>>,
+            std::basic_string_view<Char>>;
 
     template<typename T>
-    concept insertable = requires(T t) {
-        t.insert(t.end(), *t.begin());
-    };
+    concept insertable = requires(T t) { t.insert(t.end(), *t.begin()); };
 
     template<typename T>
     concept erased_type = requires(T t) {
@@ -60,8 +59,6 @@ namespace boost { namespace program_options_2 {
         std::remove_const_t<typename std::ranges::range_value_t<T>::first_type>;
     template<typename T>
     using map_value_t = typename std::ranges::range_value_t<T>::second_type;
-
-    // clang-format on
 
     template<typename T>
     concept options_map =

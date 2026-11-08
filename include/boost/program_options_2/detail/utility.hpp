@@ -41,12 +41,8 @@ namespace boost { namespace program_options_2 { namespace detail {
 
     inline const auto fs_sep = std::filesystem::path::preferred_separator;
 
-    // clang-format off
     template<typename T, typename U>
-    concept insertable_from = requires(T t, U u) {
-        t.insert(t.end(), u);
-    };
-    // clang-format on
+    concept insertable_from = requires(T t, U u) { t.insert(t.end(), u); };
 
     template<typename T, typename U, typename = hana::when<true>>
     struct is_insertable_from : std::false_type
@@ -90,7 +86,8 @@ namespace boost { namespace program_options_2 { namespace detail {
                              std::is_assignable_v<T &, Choice> &&
                                  std::is_constructible_v<T, Choice> &&
                                  ((std::is_assignable_v<T &, Choices> &&
-                                   std::is_constructible_v<T, Choices>)&&...),
+                                   std::is_constructible_v<T, Choices>) &&
+                                  ...),
                              is_insertable_from<T, Choice>::value &&
                                  (is_insertable_from<T, Choices>::value && ...)>
     {};
