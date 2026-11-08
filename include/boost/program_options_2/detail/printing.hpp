@@ -589,7 +589,6 @@ namespace boost { namespace program_options_2 { namespace detail {
             } else if constexpr (opt.mutually_exclusive) {
                 auto const exclusive_opts = detail::make_opt_tuple_for_printing(
                     detail::to_ref_tuple(opt.options));
-                auto const sub_opts = hana::size(opt.options);
                 auto curr_opt_index = 0;
                 hana::for_each(exclusive_opts, [&](auto const & curr_opt) {
                     process_single_opt(curr_opt, opt, curr_opt_index, 0);

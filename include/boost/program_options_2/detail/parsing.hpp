@@ -1329,7 +1329,6 @@ namespace boost { namespace program_options_2 { namespace detail {
                                 detail::to_ref_tuple(opt.options));
                         bool const has_subcommands_ =
                             detail::contains_commands(options_tuple);
-                        auto const utf_arg = text::as_utf8(arg);
                         parse_contexts.push_back(
                             {text::to_string(text::as_utf32(arg)),
                              opt.help_text,
@@ -1338,8 +1337,7 @@ namespace boost { namespace program_options_2 { namespace detail {
                               last,
                               program_desc,
                               no_help,
-                              options_tuple,
-                              has_subcommands_](int & next_positional) {
+                              options_tuple](int & next_positional) {
                                  return detail::parse_options_into(
                                      map_lookup<OptionsMap>(map, strings),
                                      next_positional,
