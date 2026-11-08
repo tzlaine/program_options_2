@@ -19,7 +19,9 @@ elseif (CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "GNU")
     message(STATUS "Detected GNU style compiler frontend '" ${CNAME} "'")
     add_definitions(-Wall)
 endif ()
-
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    add_definitions(-Wall -Wno-overloaded-shift-op-parentheses)
+endif()
 
 ##################################################
 # Dependencies
